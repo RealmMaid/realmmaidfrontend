@@ -21,7 +21,7 @@ export const AuthProvider = ({ children }) => {
                 }
             } catch (error) {
                 if (error.name !== 'AbortError') {
-                    console.error("AuthProvider: The API call to /auth/session failed.", error);
+                    console.error("AuthProvider: The API call to /api/auth/session failed.", error);
                 }
             } finally {
                 setAuthLoading(false);
@@ -45,18 +45,16 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (email, password) => {
         try {
-            // --- FIX: Force a fresh token fetch to prevent using a stale one. ---
-            // This clears any cached token before requesting a new one, ensuring
-            // we always use the most up-to-date token for the current session.
-            clearCsrfToken(); 
+            // We always get a fresh token now! No clearing needed UwU
             const token = await getCsrfToken();
             if (!token) {
-                throw new Error('Could not retrieve security token. Please refresh and try again.');
+                throw new Error('Could not get the super secret security token, sowwy!');
             }
 
+            // Let's try sending the header name in all lowercase, just to be safe!
             const { data } = await API.post('/auth/login', 
                 { email, password, _csrf: token },
-                { headers: { 'X-CSRF-Token': token } }
+                { headers: { 'x-csrf-token': token } } 
             );
 
             if (data.success && data.user) {
@@ -70,24 +68,22 @@ export const AuthProvider = ({ children }) => {
             return data;
         } catch (error) {
             setUser(null);
-            clearCsrfToken();
             throw error.response?.data || new Error('An unknown error occurred.');
         }
     };
 
     const logout = async () => {
         try {
-            // --- FIX: Also force a fresh token for logout. ---
-            clearCsrfToken();
             const token = await getCsrfToken();
             if (token) {
+                 // Let's use the lowercase header name here too!
                 await API.post('/auth/logout', 
                     { _csrf: token },
-                    { headers: { 'X-CSRF-Token': token } }
+                    { headers: { 'x-csrf-token': token } }
                 );
             }
         } catch (error) {
-            console.error('Logout failed', error);
+            console.error('Logout failed ;w;', error);
         } finally {
             setUser(null);
             clearCsrfToken();
