@@ -44,7 +44,6 @@ export const WebSocketProvider = ({ children }) => {
                 case 'admin_initialized':
                     setAdminMessages(message.data.adminChatHistory || []);
                     const sessionsObject = (message.data.customerChatSessions || []).reduce((acc, session) => {
-                        // --- FIX: Changed session.id to session.sessionId to match server data ---
                         if (session && session.sessionId) {
                            acc[session.sessionId] = { sessionDetails: session, messages: [] };
                         }
@@ -66,7 +65,7 @@ export const WebSocketProvider = ({ children }) => {
                     const sessionId = msgData.session_id;
                     
                     setCustomerChat(prev => {
-                        if (prev.sessionId === sessionId) {
+                        if (String(prev.sessionId) === String(sessionId)) {
                            return { ...prev, messages: [...prev.messages, msgData] };
                         }
                         return prev;
@@ -74,13 +73,17 @@ export const WebSocketProvider = ({ children }) => {
 
                     setAdminCustomerSessions(prev => {
                         if (!prev[sessionId]) return prev;
-                        return {
-                            ...prev,
-                            [sessionId]: {
-                                ...prev[sessionId],
-                                messages: [...prev[sessionId].messages, msgData]
+                        const updatedSession = {
+                            ...prev[sessionId],
+                            messages: [...prev[sessionId].messages, msgData],
+                            // Also update the session details with the new last message!
+                            sessionDetails: {
+                                ...prev[sessionId].sessionDetails,
+                                last_message_text: msgData.message_text,
+                                updated_at: msgData.created_at,
                             }
                         };
+                        return { ...prev, [sessionId]: updatedSession };
                     });
                     break;
                 case 'new_admin_message':
@@ -119,20 +122,28 @@ export const WebSocketProvider = ({ children }) => {
                 created_at: new Date().toISOString(),
                 session_id: targetSessionId
             };
-
-            if (customerChat.sessionId === targetSessionId) {
-                setCustomerChat(prev => ({ ...prev, messages: [...prev.messages, optimisticMessage]}));
-            }
+            
+            // --- FIX: The optimistic update for the admin view needs to update the session details too! ---
             setAdminCustomerSessions(prev => {
                 if (!prev[targetSessionId]) return prev;
-                return {
-                    ...prev,
-                    [targetSessionId]: {
-                        ...prev[targetSessionId],
-                        messages: [...prev[targetSessionId].messages, optimisticMessage]
+                const updatedSession = {
+                    ...prev[targetSessionId],
+                    // Add the new message to the messages array
+                    messages: [...prev[targetSessionId].messages, optimisticMessage],
+                    // AND update the session details so it stays sorted correctly!
+                    sessionDetails: {
+                        ...prev[targetSessionId].sessionDetails,
+                        last_message_text: optimisticMessage.message_text,
+                        updated_at: optimisticMessage.created_at,
                     }
                 };
+                return { ...prev, [targetSessionId]: updatedSession };
             });
+
+            // The optimistic update for the customer's own chat window is simpler and can stay the same
+            if (String(customerChat.sessionId) === String(targetSessionId)) {
+                setCustomerChat(prev => ({ ...prev, messages: [...prev.messages, optimisticMessage]}));
+            }
         }
     }, [customerChat.sessionId, user]);
     
