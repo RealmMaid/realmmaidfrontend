@@ -1,19 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import API, { getCsrfToken } from '../api/axios'; 
+// --- FIX: We only need to import our magical API instance now! ---
+import API from '../api/axios'; 
 
 // --- STYLES COMPONENT (with the fix for the button) ---
 const LoginStyles = () => (
     <style>{`
-        .auth-page { 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: flex-start;
-            min-height: 100vh; 
-            padding: 1rem;
-            padding-top: 10vh;
-        }
+        .auth-page { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; min-height: 100vh; padding: 1rem; padding-top: 10vh; }
         .auth-container { width: 100%; display: flex; justify-content: center; align-items: center; }
         .auth-main { width: 100%; max-width: 500px; }
         .auth-card { background-color: var(--card-bg); border: 1px solid var(--card-border); border-radius: 20px; padding: 2rem 2.5rem; width: 100%; box-shadow: var(--shadow-lg), 0 0 20px rgba(var(--highlight-rgb), 0.15); text-align: center; position: relative; z-index: 1; animation: fadeInCard 0.5s ease-out; }
@@ -27,55 +20,14 @@ const LoginStyles = () => (
         .auth-footer-links p { color: var(--text-secondary); }
         .auth-footer-links a { color: var(--accent-pink); font-weight: 600; }
         .cooldown-text { color: var(--text-secondary); margin-top: 1rem; font-size: 0.9rem; }
-
-        /* --- Styles for the back home button --- */
-        .btn-back-home {
-            position: absolute;
-            /* --- UPDATED: Increased the top value to move the button down --- */
-            top: 6.5rem; 
-            left: 1.5rem;
-            background-color: var(--card-bg);
-            border: 1px solid var(--card-border);
-            color: var(--accent-lavender);
-            border-radius: 12px;
-            font-size: 0.9rem;
-            padding: 10px 16px;
-            text-decoration: none;
-            z-index: 10;
-            transition: all 0.2s ease-in-out;
-            box-shadow: var(--shadow-md);
-        }
-        .btn-back-home:hover {
-            background-color: rgba(var(--accent-lavender-rgb), 0.1);
-            color: var(--accent-pink);
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-lg);
-        }
-
+        .btn-back-home { position: absolute; top: 6.5rem; left: 1.5rem; background-color: var(--card-bg); border: 1px solid var(--card-border); color: var(--accent-lavender); border-radius: 12px; font-size: 0.9rem; padding: 10px 16px; text-decoration: none; z-index: 10; transition: all 0.2s ease-in-out; box-shadow: var(--shadow-md); }
+        .btn-back-home:hover { background-color: rgba(var(--accent-lavender-rgb), 0.1); color: var(--accent-pink); transform: translateY(-2px); box-shadow: var(--shadow-lg); }
         #stars-container-colorful { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; overflow: hidden; background: #1a0922; }
         .star { position: absolute; width: 2px; height: 2px; border-radius: 50%; animation: authTwinkle 5s infinite ease-in-out alternate; }
         @keyframes authTwinkle { 0% { opacity: 0.2; transform: scale(0.5); } 100% { opacity: 1; transform: scale(1.2); } }
-        
-        .message-area {
-            display: block;
-            width: 100%;
-            padding: 1rem;
-            margin: 1rem 0;
-            border-radius: var(--radius-md);
-            font-size: 0.95rem;
-            text-align: center;
-            border: 1px solid transparent;
-        }
-        .message-area.success {
-            background-color: rgba(var(--accent-green-rgb), 0.1);
-            border-color: var(--accent-green);
-            color: var(--accent-green);
-        }
-        .message-area.error {
-            background-color: rgba(var(--accent-red-rgb), 0.1);
-            border-color: var(--accent-red);
-            color: var(--accent-red);
-        }
+        .message-area { display: block; width: 100%; padding: 1rem; margin: 1rem 0; border-radius: var(--radius-md); font-size: 0.95rem; text-align: center; border: 1px solid transparent; }
+        .message-area.success { background-color: rgba(var(--accent-green-rgb), 0.1); border-color: var(--accent-green); color: var(--accent-green); }
+        .message-area.error { background-color: rgba(var(--accent-red-rgb), 0.1); border-color: var(--accent-red); color: var(--accent-red); }
     `}</style>
 );
 
@@ -127,20 +79,12 @@ function PleaseVerifyPage() {
         setLoading(true);
 
         try {
-            const token = await getCsrfToken();
-
-            const response = await API.post('/auth/resend-verification-email', { 
-                email,
-                _csrf: token 
-            });
+            // --- FIX: The magical interceptor in axios.js handles the token for us! ---
+            const response = await API.post('/auth/resend-verification-email', { email });
             setMessage(response.data.message);
             setCooldown(60);
         } catch (err) {
-            if (err.response?.status === 403) {
-                 setError('A security token error occurred. Please refresh the page and try again, sweetie!');
-            } else {
-                 setError(err.response?.data?.message || 'Something went wrong, sowwy! >.<');
-            }
+            setError(err.response?.data?.message || 'Something went wrong, sowwy! >.<');
         } finally {
             setLoading(false);
         }
