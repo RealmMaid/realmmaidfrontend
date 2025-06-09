@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import API, { getCsrfToken, clearCsrfToken } from '../api/axios.js';
+// --- FIX: We only need to import our magical API instance now! ---
+import API from '../api/axios.js';
 
 const AuthContext = createContext(null);
 
@@ -15,6 +16,7 @@ export const AuthProvider = ({ children }) => {
 
         const checkSession = async () => {
             try {
+                // The interceptor in axios.js will automatically add the CSRF header!
                 const { data } = await API.get('/auth/session', { signal });
                 if (data.success && data.user) {
                     setUser(data.user);
@@ -30,7 +32,7 @@ export const AuthProvider = ({ children }) => {
         
         const timeoutId = setTimeout(() => {
             if (isAuthLoading) {
-                 console.log("AuthProvider: The session check timed out, likely because the service was spinning up. This is normal on free tiers.");
+                 console.log("AuthProvider: The session check timed out.");
                  controller.abort();
             }
         }, 15000);
@@ -45,17 +47,10 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (email, password) => {
         try {
-            // We always get a fresh token now! No clearing needed UwU
-            const token = await getCsrfToken();
-            if (!token) {
-                throw new Error('Could not get the super secret security token, sowwy!');
-            }
-
-            // Let's try sending the header name in all lowercase, just to be safe!
-            const { data } = await API.post('/auth/login', 
-                { email, password, _csrf: token },
-                { headers: { 'x-csrf-token': token } } 
-            );
+            // --- FIX: So simple now! ---
+            // We don't need to get or send the token at all!
+            // The Axios interceptor handles EVERYTHING automatically! So cute!
+            const { data } = await API.post('/auth/login', { email, password });
 
             if (data.success && data.user) {
                 setUser(data.user);
@@ -74,19 +69,12 @@ export const AuthProvider = ({ children }) => {
 
     const logout = async () => {
         try {
-            const token = await getCsrfToken();
-            if (token) {
-                 // Let's use the lowercase header name here too!
-                await API.post('/auth/logout', 
-                    { _csrf: token },
-                    { headers: { 'x-csrf-token': token } }
-                );
-            }
+            // The interceptor adds the header here too! Effortless!
+            await API.post('/auth/logout');
         } catch (error) {
             console.error('Logout failed ;w;', error);
         } finally {
             setUser(null);
-            clearCsrfToken();
             navigate('/');
         }
     };
