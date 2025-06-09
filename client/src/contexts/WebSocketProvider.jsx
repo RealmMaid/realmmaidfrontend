@@ -1,7 +1,6 @@
-// client/src/contexts/WebSocketProvider.jsx
-
 import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import API from '../api/axios'; // Import our API instance
 
 const WebSocketContext = createContext(null);
 
@@ -76,7 +75,6 @@ export const WebSocketProvider = ({ children }) => {
                         const updatedSession = {
                             ...prev[sessionId],
                             messages: [...prev[sessionId].messages, msgData],
-                            // Also update the session details with the new last message!
                             sessionDetails: {
                                 ...prev[sessionId].sessionDetails,
                                 last_message_text: msgData.message_text,
@@ -109,6 +107,32 @@ export const WebSocketProvider = ({ children }) => {
         };
     }, [isAuthLoading]);
 
+    const loadSessionHistory = useCallback(async (sessionId) => {
+        // Don't re-fetch if we already have messages for this session
+        if (adminCustomerSessions[sessionId]?.messages?.length > 0) {
+            console.log(`[WebSocketProvider] History for session ${sessionId} already loaded.`);
+            return;
+        }
+
+        console.log(`[WebSocketProvider] Fetching history for session ${sessionId}...`);
+        try {
+            const response = await API.get(`/admin/chat/sessions/${sessionId}/messages`);
+            if (response.data.success) {
+                setAdminCustomerSessions(prev => {
+                    if (!prev[sessionId]) return prev; // Safety check
+                    return {
+                        ...prev,
+                        [sessionId]: {
+                            ...prev[sessionId],
+                            messages: response.data.messages || []
+                        }
+                    };
+                });
+            }
+        } catch (error) {
+            console.error(`[WebSocketProvider] Failed to fetch history for session ${sessionId}:`, error);
+        }
+    }, [adminCustomerSessions]);
 
     const sendCustomerMessage = useCallback((messageText, targetSessionId) => {
         if (socketRef.current?.readyState === WebSocket.OPEN && targetSessionId) {
@@ -123,14 +147,11 @@ export const WebSocketProvider = ({ children }) => {
                 session_id: targetSessionId
             };
             
-            // --- FIX: The optimistic update for the admin view needs to update the session details too! ---
             setAdminCustomerSessions(prev => {
                 if (!prev[targetSessionId]) return prev;
                 const updatedSession = {
                     ...prev[targetSessionId],
-                    // Add the new message to the messages array
                     messages: [...prev[targetSessionId].messages, optimisticMessage],
-                    // AND update the session details so it stays sorted correctly!
                     sessionDetails: {
                         ...prev[targetSessionId].sessionDetails,
                         last_message_text: optimisticMessage.message_text,
@@ -140,7 +161,6 @@ export const WebSocketProvider = ({ children }) => {
                 return { ...prev, [targetSessionId]: updatedSession };
             });
 
-            // The optimistic update for the customer's own chat window is simpler and can stay the same
             if (String(customerChat.sessionId) === String(targetSessionId)) {
                 setCustomerChat(prev => ({ ...prev, messages: [...prev.messages, optimisticMessage]}));
             }
@@ -169,6 +189,7 @@ export const WebSocketProvider = ({ children }) => {
         adminMessages,
         sendCustomerMessage,
         sendAdminMessage,
+        loadSessionHistory,
     };
 
     return (
