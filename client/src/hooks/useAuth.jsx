@@ -22,7 +22,7 @@ export const AuthProvider = ({ children }) => {
                 }
             } catch (error) {
                 if (error.name !== 'AbortError') {
-                    console.error("AuthProvider: The API call to /auth/session failed.", error);
+                    console.error("AuthProvider: The API call to /api/auth/session failed.", error);
                 }
             } finally {
                 setAuthLoading(false);
