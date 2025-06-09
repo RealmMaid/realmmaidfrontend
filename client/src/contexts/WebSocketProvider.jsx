@@ -1,3 +1,5 @@
+// client/src/contexts/WebSocketProvider.jsx
+
 import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
 
@@ -23,9 +25,6 @@ export const WebSocketProvider = ({ children }) => {
             return;
         }
 
-        // --- FIX: Use a dedicated environment variable for the WebSocket URL ---
-        // This ensures the frontend connects to the backend service, not itself.
-        // It falls back to a local URL for development.
         const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:3000';
 
         console.log(`[WebSocketProvider] Initializing connection to ${wsUrl}...`);
@@ -45,8 +44,9 @@ export const WebSocketProvider = ({ children }) => {
                 case 'admin_initialized':
                     setAdminMessages(message.data.adminChatHistory || []);
                     const sessionsObject = (message.data.customerChatSessions || []).reduce((acc, session) => {
-                        if (session && session.id) {
-                           acc[session.id] = { sessionDetails: session, messages: session.messages || [] };
+                        // --- FIX: Changed session.id to session.sessionId to match server data ---
+                        if (session && session.sessionId) {
+                           acc[session.sessionId] = { sessionDetails: session, messages: [] };
                         }
                         return acc;
                     }, {});
