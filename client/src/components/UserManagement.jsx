@@ -1,15 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import API, { getCsrfToken } from '../api/axios.js';
+// --- FIX: We only need our magical API instance now! ---
+import API from '../api/axios.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 
-const ConfirmationModal = ({ show, onClose, onConfirm, title, children }) => { /* ... modal code ... */
+const ConfirmationModal = ({ show, onClose, onConfirm, title, children }) => {
     if (!show) return null;
     return ( <div className="modal-backdrop" style={{ display: 'flex', position: 'fixed', zIndex: 1052 }}><div className="modal-content"><div className="modal-header"><h4>{title}</h4><button onClick={onClose} className="modal-close-btn">&times;</button></div><div className="modal-body">{children}</div><div className="modal-actions"><button onClick={onClose} className="btn btn-secondary-action">Cancel</button><button onClick={onConfirm} className="btn btn-danger-action">Confirm</button></div></div></div> );
 };
 
-/**
- * NEW: A modal to display detailed information about a single user.
- */
 const UserDetailsModal = ({ show, onClose, userId }) => {
     const [details, setDetails] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -17,7 +15,6 @@ const UserDetailsModal = ({ show, onClose, userId }) => {
     useEffect(() => {
         if (show && userId) {
             setLoading(true);
-            // Fetches data from GET /api/admin/users/:userId/details
             API.get(`/admin/users/${userId}/details`)
                 .then(res => {
                     if (res.data.success) setDetails(res.data.details);
@@ -56,11 +53,9 @@ function UserManagement() {
     const [error, setError] = useState('');
     const { user: currentUser } = useAuth();
     const [deleteModalState, setDeleteModalState] = useState({ isOpen: false, user: null });
-    
-    // State for the new details modal
     const [detailsModalState, setDetailsModalState] = useState({ isOpen: false, userId: null });
 
-    const fetchUsers = useCallback(async () => { /* ... fetchUsers logic ... */
+    const fetchUsers = useCallback(async () => {
         setLoading(true); setError('');
         try { const response = await API.get('/admin/users'); setUsers(response.data.users || []); }
         catch (err) { setError(err.response?.data?.message || 'Failed to fetch users.'); }
@@ -69,14 +64,23 @@ function UserManagement() {
 
     useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
-    const handleToggleAdmin = async (userId) => { /* ... handleToggleAdmin logic ... */
+    const handleToggleAdmin = async (userId) => {
         setError('');
-        try { const token = await getCsrfToken(); await API.put(`/admin/users/${userId}/toggle-admin`, { _csrf: token }); fetchUsers(); }
+        try {
+            // --- FIX: The token is handled automatically by the interceptor! ---
+            await API.put(`/admin/users/${userId}/toggle-admin`);
+            fetchUsers();
+        }
         catch (err) { setError(err.response?.data?.message || 'Failed to toggle admin status.'); }
     };
-    const handleDeleteUser = async (userId) => { /* ... handleDeleteUser logic ... */
+
+    const handleDeleteUser = async (userId) => {
         setDeleteModalState({ isOpen: false, user: null }); setError('');
-        try { const token = await getCsrfToken(); await API.delete(`/admin/users/${userId}`, { data: { _csrf: token } }); fetchUsers(); }
+        try {
+            // --- FIX: The token is handled automatically by the interceptor! ---
+            await API.delete(`/admin/users/${userId}`);
+            fetchUsers();
+        }
         catch (err) { setError(err.response?.data?.message || 'Failed to delete user.'); }
     };
 
