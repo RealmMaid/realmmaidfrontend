@@ -78,12 +78,30 @@ export const AuthProvider = ({ children }) => {
             navigate('/');
         }
     };
+    
+    // --- FIX: A new function for registration! ---
+    // It works just like login, using the magical interceptor!
+    const register = async (email, password) => {
+        try {
+            // The Axios interceptor will handle the CSRF token for us!
+            const { data } = await API.post('/auth/register', { email, password });
+            
+            // After a successful registration, we can send the user to verify their email!
+            if (data.success) {
+                navigate(`/please-verify?email=${encodeURIComponent(email)}`);
+            }
+            return data;
+        } catch (error) {
+             throw error.response?.data || new Error('An unknown error occurred during registration.');
+        }
+    };
 
     const value = {
         user,
         setUser,
         login,
         logout,
+        register, // We can now use this from any component!
         isAuthLoading,
         isAuthenticated: !!user,
     };
