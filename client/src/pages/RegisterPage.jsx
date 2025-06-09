@@ -1,9 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-
-// --- Real Dependencies ---
-// Import the central API instance and the CSRF token helper.
-import API, { getCsrfToken } from '../api/axios.js';
+import { useAuth } from '../hooks/useAuth';
 
 /**
  * --- STYLES FOR THE REGISTER PAGE ---
