@@ -1,11 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+// --- FIX: We only need our central API instance now! ---
+import API from '../api/axios';
 import { Link } from 'react-router-dom';
-// To make this work, we'll need to load the Stripe.js library.
-// This is a placeholder for adding the Stripe script to your main HTML file.
-// <script src="https://js.stripe.com/v3/"></script>
-// We'll also pretend we have the stripe-react-js library installed.
-// For this environment, we'll have to define placeholder components for Stripe.
 
 // --- A new, cute modal for showing order details! ---
 const OrderDetailsModal = ({ order, onClose }) => {
@@ -66,7 +62,8 @@ const MyOrders = () => {
     useEffect(() => {
         const fetchOrders = async () => {
             try {
-                const { data } = await axios.get('/api/user/orders');
+                // The interceptor in API will handle the CSRF token!
+                const { data } = await API.get('/user/orders');
                 if (data.success) {
                     setOrders(data.orders);
                 } else {
@@ -85,7 +82,7 @@ const MyOrders = () => {
         setDetailsLoading(true);
         setError('');
         try {
-            const { data } = await axios.get(`/api/user/orders/${orderId}`);
+            const { data } = await API.get(`/user/orders/${orderId}`);
             if (data.success) {
                 setSelectedOrderDetails(data.details);
             } else {
@@ -163,7 +160,7 @@ const ProfileSettings = () => {
     useEffect(() => {
         const fetchProfile = async () => {
             try {
-                const { data } = await axios.get('/api/user/settings');
+                const { data } = await API.get('/user/settings');
                 if (data.success) setProfile(data.settings);
                 else throw new Error(data.message);
             } catch (err) {
@@ -183,7 +180,7 @@ const ProfileSettings = () => {
         setProfileError('');
         setProfileSuccess('');
         try {
-            const { data } = await axios.put('/api/user/settings', profile);
+            const { data } = await API.put('/user/settings', profile);
             if (data.success) setProfileSuccess('Your profile is all updated, superstar! 🌟');
             else throw new Error(data.message);
         } catch (err) {
@@ -200,7 +197,7 @@ const ProfileSettings = () => {
             return;
         }
         try {
-            const { data } = await axios.post('/api/user/change-password', passwords);
+            const { data } = await API.post('/user/change-password', passwords);
             if (data.success) {
                 setPasswordSuccess('Password changed successfully! You\'re so secure now! 💖');
                 setPasswords({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
@@ -273,7 +270,7 @@ const PaymentMethods = () => {
     const fetchMethods = useCallback(async () => {
         setLoading(true);
         try {
-            const { data } = await axios.get('/api/user/payment-methods');
+            const { data } = await API.get('/user/payment-methods');
             if (data.success) {
                 setMethods(data.paymentMethods || []);
             } else {
@@ -295,7 +292,7 @@ const PaymentMethods = () => {
             return;
         }
         try {
-            const { data } = await axios.delete(`/api/user/payment-methods/${methodId}`);
+            const { data } = await API.delete(`/user/payment-methods/${methodId}`);
             if (data.success) {
                 fetchMethods(); // Refresh the list after deleting!
             } else {
@@ -354,16 +351,9 @@ const PaymentMethods = () => {
 function UserDashboardPage() {
     const [activeTab, setActiveTab] = useState('orders');
 
+    // --- FIX: We don't need to get the CSRF token on load anymore! ---
     useEffect(() => {
-        const getCsrfToken = async () => {
-            try {
-                const { data } = await axios.get('/api/auth/csrf-token');
-                axios.defaults.headers.common['X-CSRF-Token'] = data.csrfToken;
-            } catch (err) {
-                console.error('Failed to fetch CSRF token:', err);
-            }
-        };
-        getCsrfToken();
+        // This effect can be used for other things later if you want!
     }, []);
 
     const renderActiveTab = () => {
