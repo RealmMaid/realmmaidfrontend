@@ -15,7 +15,6 @@ export const AuthProvider = ({ children }) => {
 
         const checkSession = async () => {
             try {
-                // --- FIX: The path no longer needs /api, as it's in the baseURL ---
                 const { data } = await API.get('/auth/session', { signal });
                 if (data.success && data.user) {
                     setUser(data.user);
@@ -51,10 +50,12 @@ export const AuthProvider = ({ children }) => {
                 throw new Error('Could not retrieve security token. Please refresh and try again.');
             }
 
-            // --- FIX: The path no longer needs /api, as it's in the baseURL ---
+            // --- FIX: Send the CSRF token in BOTH the request body and headers. ---
+            // This is a highly robust approach that handles different server-side
+            // configurations for the `lusca` middleware without needing backend changes.
             const { data } = await API.post('/auth/login', 
-                { email, password },
-                { headers: { 'X-CSRF-Token': token } }
+                { email, password, _csrf: token }, // Request body now includes `_csrf`
+                { headers: { 'X-CSRF-Token': token } } // Header remains for best practice
             );
 
             if (data.success && data.user) {
@@ -77,10 +78,10 @@ export const AuthProvider = ({ children }) => {
         try {
             const token = await getCsrfToken();
             if (token) {
-                // --- FIX: The path no longer needs /api, as it's in the baseURL ---
+                // --- FIX: Also send the token in the body for the logout request. ---
                 await API.post('/auth/logout', 
-                    {},
-                    { headers: { 'X-CSRF-Token': token } }
+                    { _csrf: token }, // Request body with `_csrf`
+                    { headers: { 'X-CSRF-Token': token } } // Header remains
                 );
             }
         } catch (error) {
