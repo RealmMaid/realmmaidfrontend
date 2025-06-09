@@ -1,5 +1,7 @@
+// client/src/components/admin/ChatManagement.jsx
+
 import React, { useState, useEffect, useRef } from 'react';
-import { useWebSocket } from '../contexts/WebSocketProvider';
+import { useWebSocket } from '../../contexts/WebSocketProvider'; // Corrected path
 
 // Modal for viewing and replying to a chat session
 const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnected }) => {
@@ -14,20 +16,21 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
 
   const handleSend = (e) => {
     e.preventDefault();
-    if (messageText.trim() && session.id) {
-      onSendMessage(messageText, session.id);
+    if (messageText.trim() && session.sessionId) {
+      onSendMessage(messageText, session.sessionId);
       setMessageText('');
     }
   };
 
   return (
     <div className="modal-backdrop active">
-      <div className="modal-content chat-modal" style={{height: '600px', width: '450px', display: 'flex', flexDirection: 'column'}}>
+      <div className="modal-content chat-modal">
         <div className="modal-header">
-          <h4>Chat with {session.guest_name || `User ${session.user_id}` || `Session ${session.id}`}</h4>
+          {/* --- FIX: Use sessionId --- */}
+          <h4>Chat with {session.participantName || `Session ${session.sessionId}`}</h4>
           <button type="button" className="modal-close" onClick={onClose}>&times;</button>
         </div>
-        <div className="modal-body chat-messages-container" style={{flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem', overflowY: 'auto'}}>
+        <div className="modal-body chat-messages-container">
           {messages.map((msg, index) => (
             <div key={msg.id || `msg-${index}`} className={`chat-message-item ${msg.sender_type === 'admin' ? 'admin-message' : 'user-message'}`}>
               <p className="msg-text">{msg.message_text}</p>
@@ -59,14 +62,16 @@ function ChatManagement() {
   const { adminCustomerSessions, sendCustomerMessage, isConnected } = useWebSocket();
   const [activeModal, setActiveModal] = useState({ show: false, sessionId: null });
 
-  // Convert the sessions object to an array and filter out any invalid entries.
+  // Convert sessions to an array and sort by most recently updated
   const sessionsArray = Object.values(adminCustomerSessions)
     .map(s => s.sessionDetails)
-    .filter(Boolean);
+    .filter(Boolean)
+    .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
   
   const handleViewChat = (session) => {
-    if (session && session.id) {
-      setActiveModal({ show: true, sessionId: session.id });
+    // --- FIX: Use sessionId ---
+    if (session && session.sessionId) {
+      setActiveModal({ show: true, sessionId: session.sessionId });
     }
   };
   
@@ -103,20 +108,21 @@ function ChatManagement() {
 
         <div className="card-list-container">
             {sessionsArray.length > 0 ? sessionsArray.map((session) => {
-                // The defensive check inside the map is no longer strictly necessary but is kept for safety.
-                if (!session || !session.id) return null;
+                // --- FIX: Use sessionId ---
+                if (!session || !session.sessionId) return null;
                 
-                const messageCount = adminCustomerSessions[session.id]?.messages?.length || 0;
+                const messageCount = adminCustomerSessions[session.sessionId]?.messages?.length || 0;
                 return (
-                    <div key={session.id} className="card chat-session-item">
-                        <div>
-                            <strong>Session ID:</strong> {session.id} <br/>
-                            <strong>Participant:</strong> {session.guest_name || `User ${session.user_id}`} <br/>
-                            <strong>Status:</strong> {session.status} | <strong>Messages:</strong> {messageCount} <br/>
-                            <small>Last Update: {new Date(session.updated_at).toLocaleString()}</small>
+                    <div key={session.sessionId} className="card chat-session-item">
+                        <div className="session-details">
+                            <strong className="participant-name">{session.participantName}</strong>
+                            <span className="session-id">Session ID: {session.sessionId}</span>
+                            <span className={`session-status status-${session.status}`}>{session.status}</span>
+                            <p className="last-message">"{session.last_message_text || 'No messages yet...'}"</p>
+                            <small className="last-update">Last Update: {new Date(session.updated_at).toLocaleString()}</small>
                         </div>
                         <div className="chat-actions">
-                            <button onClick={() => handleViewChat(session)} className="btn btn-sm btn-secondary-action">View</button>
+                            <button onClick={() => handleViewChat(session)} className="btn btn-sm btn-secondary-action">View Chat</button>
                         </div>
                     </div>
                 );
