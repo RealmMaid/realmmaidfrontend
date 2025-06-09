@@ -1,13 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-
-// --- Real Dependencies ---
-// Correctly import the configured API instance, the CSRF token helper, and the auth hook.
-import API, { getCsrfToken } from '../api/axios.js';
+// --- FIX: We only need our magical API instance and useAuth hook now! ---
+import API from '../api/axios.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 
-/**
- * A reusable modal component for confirming actions.
- */
 const ConfirmationModal = ({ show, onClose, onConfirm, title, children }) => {
     if (!show) return null;
     return (
@@ -21,24 +16,22 @@ const ConfirmationModal = ({ show, onClose, onConfirm, title, children }) => {
         </div></div>
     );
 };
+
 function SettingsManagement() {
-    const { user } = useAuth(); // Get the current user
+    const { user } = useAuth();
     const [settings, setSettings] = useState({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     
-    // State specifically for the database reset form
     const [resetTables, setResetTables] = useState([]);
     const [isResetModalOpen, setResetModalOpen] = useState(false);
 
-    // Fetches the current site settings from the backend.
     const fetchSettings = useCallback(async () => {
         setLoading(true);
         setError('');
         setSuccess('');
         try {
-            // API call to GET /api/admin/settings from adminRoutes.js
             const response = await API.get('/admin/settings');
             if (response.data.success) {
                 setSettings(response.data.settings || {});
@@ -54,10 +47,8 @@ function SettingsManagement() {
         fetchSettings();
     }, [fetchSettings]);
 
-    // Handles changes to form inputs.
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
-        // The backend expects boolean values as strings "true" or "false"
         const finalValue = type === 'checkbox' ? String(checked) : value;
         setSettings(prev => ({
             ...prev,
@@ -65,15 +56,13 @@ function SettingsManagement() {
         }));
     };
 
-    // Saves the updated settings to the backend.
     const handleSaveSettings = async (e) => {
         e.preventDefault();
         setSuccess('');
         setError('');
         try {
-            const token = await getCsrfToken();
-            // API call to PUT /api/admin/settings, now with the token included
-            const response = await API.put('/admin/settings', { ...settings, _csrf: token });
+            // --- FIX: The token is handled automatically by the interceptor! ---
+            const response = await API.put('/admin/settings', settings);
             if (response.data.success) {
                 setSuccess('Settings saved successfully!');
             }
@@ -82,7 +71,6 @@ function SettingsManagement() {
         }
     };
     
-    // Handles toggling which database tables are selected for reset.
     const handleResetTableChange = (e) => {
         const { value, checked } = e.target;
         setResetTables(prev => 
@@ -90,26 +78,22 @@ function SettingsManagement() {
         );
     };
 
-    // Submits the database reset request to the backend.
     const handleResetRequest = async () => {
-        setResetModalOpen(false); // Close the modal first
+        setResetModalOpen(false);
         setSuccess('');
         setError('');
         try {
-            const token = await getCsrfToken();
-            // API call to POST /api/admin/database/reset/request, now with the token included
-            const response = await API.post('/admin/database/reset/request', { tables: resetTables, _csrf: token });
+            // --- FIX: The token is handled automatically by the interceptor! ---
+            const response = await API.post('/admin/database/reset/request', { tables: resetTables });
             if(response.data.success) {
                 setSuccess(response.data.message);
-                setResetTables([]); // Clear selections on success
+                setResetTables([]);
             }
         } catch (err) {
             setError(err.response?.data?.message || 'Failed to request database reset.');
         }
     };
 
-    // --- FIX: The check for the Danger Zone now ONLY relies on the 'isPrimaryAdmin' flag ---
-    // The backend is the source of truth for this permission.
     const canViewDangerZone = settings.isPrimaryAdmin;
 
     if (loading) {
@@ -160,7 +144,6 @@ function SettingsManagement() {
                         </div>
                     </form>
 
-                    {/* This will now correctly render for any user the backend designates as the primary admin */}
                     {canViewDangerZone && (
                         <div className="danger-zone" style={{borderTop: '2px solid var(--accent-red)', marginTop: 'var(--spacing-xl)', paddingTop: 'var(--spacing-lg)'}}>
                             <h3 style={{color: 'var(--accent-red)'}}>Danger Zone</h3>
