@@ -267,5 +267,110 @@ body.dashboard {
         width: calc(100% - 40px);
         right: 20px;
         bottom: 90px;
-    }
+}
+/* Chat Management Styles */
+.card-list-container {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.chat-session-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  transition: box-shadow 0.2s ease-in-out;
+}
+
+.chat-session-item:hover {
+    box-shadow: 0 4px 15px rgba(var(--accent-lavender-rgb), 0.2);
+}
+
+.session-details .participant-name {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: var(--text-bright);
+}
+
+.session-details .session-id {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-left: 0.5rem;
+}
+
+.session-details .session-status {
+  display: inline-block;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  margin-left: 0.5rem;
+  text-transform: capitalize;
+  font-weight: 600;
+}
+
+.session-status.status-open { background-color: rgba(var(--accent-blue-rgb), 0.2); color: var(--accent-blue); }
+.session-status.status-active { background-color: rgba(var(--accent-green-rgb), 0.2); color: var(--accent-green); }
+.session-status.status-pending_user_message { background-color: rgba(var(--accent-pink-rgb), 0.2); color: var(--accent-pink); }
+.session-status.status-closed { background-color: rgba(var(--text-secondary-rgb), 0.2); color: var(--text-secondary); }
+
+
+.session-details .last-message {
+  margin: 0.5rem 0;
+  color: var(--text-primary);
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 40ch;
+}
+
+.session-details .last-update {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.chat-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Chat Modal Specific Styles */
+.chat-modal .chat-messages-container {
+  padding: 1rem;
+}
+
+.chat-message-item {
+  display: flex;
+  flex-direction: column;
+  max-width: 80%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 15px;
+  line-height: 1.4;
+}
+
+.chat-message-item .msg-text {
+  margin: 0;
+}
+
+.chat-message-item .msg-timestamp {
+  font-size: 0.7rem;
+  margin-top: 4px;
+  opacity: 0.7;
+}
+
+.chat-message-item.user-message {
+  background-color: var(--accent-pink);
+  color: var(--text-dark);
+  border-bottom-right-radius: 3px;
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.chat-message-item.admin-message {
+  background-color: var(--accent-lavender);
+  color: var(--text-dark);
+  border-bottom-left-radius: 3px;
+  align-self: flex-start;
+  align-items: flex-start;
 }
