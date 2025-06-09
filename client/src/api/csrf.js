@@ -1,21 +1,21 @@
 // client/src/api/csrf.js
-
-import axios from './axios'; // We're using your special axios instance! uwu
+import API from './axios'; // We now import our special, pre-configured API instance!
 
 /**
- * Fetches the CSRF token from the server and configures the main axios instance
- * to include it in the headers of all subsequent requests. So magical! ✨
+ * Fetches the CSRF token from the server and configures our API instance
+ * to include it in the headers of all subsequent requests.
  */
 export const getCsrfToken = async () => {
   try {
-    // Let's go ask the server for the token!
-    const response = await axios.get('/api/auth/csrf-token');
+    // We now call .get() on our API instance, and the path is relative to its baseURL.
+    // This will correctly call '.../api/auth/csrf-token'.
+    const response = await API.get('/auth/csrf-token');
     const csrfToken = response.data.csrfToken;
 
-    // Now we tell axios to put this token in its little backpack (headers) for every trip (request) it makes!
-    axios.defaults.headers.common['X-CSRF-Token'] = csrfToken;
+    // Set the token on the default headers for our single, special API instance.
+    API.defaults.headers.common['X-CSRF-Token'] = csrfToken;
 
-    console.log('CSRF token is all set and ready to go! (｡^ U ^｡)');
+    console.log('CSRF token fetched and set successfully! (｡^ U ^｡)');
   } catch (error) {
     console.error('O-oh no! Could not get the CSRF token... (╯︵╰,)', error);
   }
