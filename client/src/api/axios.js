@@ -1,41 +1,34 @@
 import axios from 'axios';
 
-// --- FIX: The base URL should now point directly to the /api endpoint. ---
-// This simplifies all future API calls, as they won't need to include '/api'.
-// On your frontend Render service, set the VITE_API_URL environment variable to:
+// The base URL should point directly to your /api endpoint.
+// On your frontend Render service, the VITE_API_URL environment variable should be:
 // https://realmmaid-backend.onrender.com/api
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://realmmaid-backend.onrender.com/api';
 
 const API = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: true, // This is crucial for sending session cookies across domains
+  withCredentials: true, // Super important for cookies!
 });
 
 /**
- * A simple, explicit function to get the CSRF token.
- * It makes one clean request to the backend to get the token.
+ * --- FIX: Always fetch a new token! ---
+ * This function now ALWAYS asks the server for a new token.
+ * This makes sure we never, ever use a stale one by accident. It's safer!
  */
-let csrfToken = null;
-
 export const getCsrfToken = async () => {
-  // Return the stored token if we already have it to avoid unnecessary requests
-  if (csrfToken) {
-    return csrfToken;
-  }
   try {
-    // --- FIX: The path no longer needs /api, as it's in the baseURL ---
     const { data } = await API.get('/auth/csrf-token');
-    csrfToken = data.csrfToken;
-    return csrfToken;
+    return data.csrfToken;
   } catch (error) {
-    console.error("Could not fetch CSRF token", error);
+    console.error("Oh noes! Couldn't fetch the CSRF token >.<", error);
     return null;
   }
 };
 
-// Function to clear the token, e.g., on logout or after a major error
+// This function doesn't need to do anything anymore since we're not caching the token,
+// but we'll keep it here just in case!
 export const clearCsrfToken = () => {
-    csrfToken = null;
+    // It's a resting function now, teehee!
 };
 
 export default API;
