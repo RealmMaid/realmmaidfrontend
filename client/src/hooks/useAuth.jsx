@@ -1,6 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-// --- UPDATED: Importing the new clearCsrfToken function ---
 import API, { getCsrfToken, clearCsrfToken } from '../api/axios.js';
 
 const AuthContext = createContext(null);
@@ -11,27 +10,43 @@ export const AuthProvider = ({ children }) => {
     const navigate = useNavigate();
 
     useEffect(() => {
+        // Use an AbortController to cancel the request if it takes too long or the component unmounts
+        const controller = new AbortController();
+        const signal = controller.signal;
+
         const checkSession = async () => {
             try {
-                const { data } = await API.get('/auth/session');
+                // Pass the signal to the API call
+                const { data } = await API.get('/auth/session', { signal });
                 if (data.success && data.user) {
                     setUser(data.user);
                 }
             } catch (error) {
-                console.error("AuthProvider: The API call to /api/auth/session failed.", error);
+                // Ignore the error if it's from aborting the request
+                if (error.name !== 'AbortError') {
+                    console.error("AuthProvider: The API call to /api/auth/session failed.", error);
+                }
             } finally {
+                // Always set loading to false so the app can render
                 setAuthLoading(false);
             }
         };
+        
+        // Set a timeout to abort the request if it's hanging
+        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8-second timeout
+
         checkSession();
+
+        // Cleanup function to run when the component unmounts
+        return () => {
+            clearTimeout(timeoutId);
+            controller.abort();
+        };
     }, []);
 
     const login = async (email, password) => {
         try {
-            console.log("Login function: Attempting to get CSRF token...");
             const token = await getCsrfToken();
-            console.log("Login function: Got token. Sending it in the request body...");
-
             const { data } = await API.post('/auth/login', {
                 email,
                 password,
@@ -40,7 +55,6 @@ export const AuthProvider = ({ children }) => {
 
             if (data.success && data.user) {
                 setUser(data.user);
-                // --- FIX: Clear the old token after a successful login ---
                 clearCsrfToken(); 
                 if (data.user.isAdmin) {
                     navigate('/admin');
@@ -59,13 +73,10 @@ export const AuthProvider = ({ children }) => {
         try {
             const token = await getCsrfToken();
             await API.post('/auth/logout', { _csrf: token });
-            setUser(null);
-            // --- FIX: Clear the token after a successful logout ---
-            clearCsrfToken();
-            navigate('/');
         } catch (error) {
             console.error('Logout failed', error);
-            // Even if the backend call fails, log the user out on the frontend
+        } finally {
+            // Always log the user out on the frontend
             setUser(null);
             clearCsrfToken();
             navigate('/');
