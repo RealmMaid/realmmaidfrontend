@@ -1,10 +1,10 @@
 import axios from 'axios';
 
-// --- FIX: Use an environment variable for the backend URL ---
-// This makes the app configurable for any environment without code changes.
-// For local development, create a .env file in your `client` directory
-// and add the line: VITE_API_URL=http://localhost:3000
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://realmmaid-backend.onrender.com';
+// --- FIX: The base URL should now point directly to the /api endpoint. ---
+// This simplifies all future API calls, as they won't need to include '/api'.
+// On your frontend Render service, set the VITE_API_URL environment variable to:
+// https://realmmaid-backend.onrender.com/api
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://realmmaid-backend.onrender.com/api';
 
 const API = axios.create({
   baseURL: API_BASE_URL,
@@ -12,8 +12,7 @@ const API = axios.create({
 });
 
 /**
- * --- FIX: A simple, explicit function to get the CSRF token. ---
- * This is more reliable and less error-prone than using an interceptor for this purpose.
+ * A simple, explicit function to get the CSRF token.
  * It makes one clean request to the backend to get the token.
  */
 let csrfToken = null;
@@ -24,7 +23,8 @@ export const getCsrfToken = async () => {
     return csrfToken;
   }
   try {
-    const { data } = await API.get('/api/auth/csrf-token');
+    // --- FIX: The path no longer needs /api, as it's in the baseURL ---
+    const { data } = await API.get('/auth/csrf-token');
     csrfToken = data.csrfToken;
     return csrfToken;
   } catch (error) {
