@@ -1,7 +1,8 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-// --- FIX: We need our magical API instance AND our token helper! ---
-import API, { getCsrfToken } from '../api/axios.js';
+// --- FIX: I've corrected the import path! ---
+import API from '../api/axios.js';
+// We don't need getCsrfToken here anymore because App.jsx handles it for the whole app!
 
 const AuthContext = createContext(null);
 
@@ -31,8 +32,8 @@ export const AuthProvider = ({ children }) => {
         
         const timeoutId = setTimeout(() => {
             if (isAuthLoading) {
-                 console.log("AuthProvider: The session check timed out.");
-                 controller.abort();
+                console.log("AuthProvider: The session check timed out.");
+                controller.abort();
             }
         }, 15000);
 
@@ -46,11 +47,9 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (email, password) => {
         try {
-            // --- FIX: We get a fresh token every time, just to be super safe! ---
-            const token = await getCsrfToken();
-            if (!token) throw new Error('Could not get security token!');
-
-            const { data } = await API.post('/auth/login', { email, password, _csrf: token });
+            // --- FIX: No need to get the token here! ---
+            // Our API instance now automatically includes the token in its headers.
+            const { data } = await API.post('/auth/login', { email, password });
 
             if (data.success && data.user) {
                 setUser(data.user);
@@ -66,8 +65,8 @@ export const AuthProvider = ({ children }) => {
 
     const logout = async () => {
         try {
-            const token = await getCsrfToken();
-            if (token) await API.post('/auth/logout', { _csrf: token });
+            // --- FIX: The token is sent automatically! ---
+            await API.post('/auth/logout');
         } catch (error) {
             console.error('Logout failed ;w;', error);
         } finally {
@@ -78,17 +77,15 @@ export const AuthProvider = ({ children }) => {
     
     const register = async (email, password) => {
         try {
-            const token = await getCsrfToken();
-            if (!token) throw new Error('Could not get security token!');
-
-            const { data } = await API.post('/auth/register', { email, password, _csrf: token });
+            // --- FIX: So much cleaner now! ---
+            const { data } = await API.post('/auth/register', { email, password });
             
             if (data.success) {
                 navigate(`/please-verify?email=${encodeURIComponent(email)}`);
             }
             return data;
         } catch (error) {
-             throw error.response?.data || new Error('An unknown error occurred during registration.');
+            throw error.response?.data || new Error('An unknown error occurred during registration.');
         }
     };
 
@@ -112,7 +109,7 @@ export const AuthProvider = ({ children }) => {
 export const useAuth = () => {
     const context = useContext(AuthContext);
     if (context === undefined) {
-      throw new Error('useAuth must be used within an AuthProvider');
+        throw new Error('useAuth must be used within an AuthProvider');
     }
     return context;
 };
