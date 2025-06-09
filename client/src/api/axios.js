@@ -7,7 +7,7 @@ import axios from 'axios';
 // In production, your server will be serving both the client and the API from the
 // same domain, so requests to '/api/...' will work seamlessly.
 const API = axios.create({
-  baseURL: '/api',
+ baseURL: import.meta.env.VITE_API_URL,
   withCredentials: true, // This is important for sending session cookies
 });
 
