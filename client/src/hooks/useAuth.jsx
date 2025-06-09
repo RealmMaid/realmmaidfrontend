@@ -1,7 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-// --- FIX: We only need to import our magical API instance now! ---
-import API from '../api/axios.js';
+// --- FIX: We need our magical API instance AND our token helper! ---
+import API, { getCsrfToken } from '../api/axios.js';
 
 const AuthContext = createContext(null);
 
@@ -16,14 +16,13 @@ export const AuthProvider = ({ children }) => {
 
         const checkSession = async () => {
             try {
-                // The interceptor in axios.js will automatically add the CSRF header!
                 const { data } = await API.get('/auth/session', { signal });
                 if (data.success && data.user) {
                     setUser(data.user);
                 }
             } catch (error) {
                 if (error.name !== 'AbortError') {
-                    console.error("AuthProvider: The API call to /api/auth/session failed.", error);
+                    console.error("AuthProvider: The API call to /auth/session failed.", error);
                 }
             } finally {
                 setAuthLoading(false);
@@ -47,18 +46,16 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (email, password) => {
         try {
-            // --- FIX: So simple now! ---
-            // We don't need to get or send the token at all!
-            // The Axios interceptor handles EVERYTHING automatically! So cute!
-            const { data } = await API.post('/auth/login', { email, password });
+            // --- FIX: We get a fresh token every time, just to be super safe! ---
+            const token = await getCsrfToken();
+            if (!token) throw new Error('Could not get security token!');
+
+            const { data } = await API.post('/auth/login', { email, password, _csrf: token });
 
             if (data.success && data.user) {
                 setUser(data.user);
-                if (data.user.isAdmin) {
-                    navigate('/admin');
-                } else {
-                    navigate('/dashboard');
-                }
+                if (data.user.isAdmin) navigate('/admin');
+                else navigate('/dashboard');
             }
             return data;
         } catch (error) {
@@ -69,8 +66,8 @@ export const AuthProvider = ({ children }) => {
 
     const logout = async () => {
         try {
-            // The interceptor adds the header here too! Effortless!
-            await API.post('/auth/logout');
+            const token = await getCsrfToken();
+            if (token) await API.post('/auth/logout', { _csrf: token });
         } catch (error) {
             console.error('Logout failed ;w;', error);
         } finally {
@@ -79,14 +76,13 @@ export const AuthProvider = ({ children }) => {
         }
     };
     
-    // --- FIX: A new function for registration! ---
-    // It works just like login, using the magical interceptor!
     const register = async (email, password) => {
         try {
-            // The Axios interceptor will handle the CSRF token for us!
-            const { data } = await API.post('/auth/register', { email, password });
+            const token = await getCsrfToken();
+            if (!token) throw new Error('Could not get security token!');
+
+            const { data } = await API.post('/auth/register', { email, password, _csrf: token });
             
-            // After a successful registration, we can send the user to verify their email!
             if (data.success) {
                 navigate(`/please-verify?email=${encodeURIComponent(email)}`);
             }
@@ -101,7 +97,7 @@ export const AuthProvider = ({ children }) => {
         setUser,
         login,
         logout,
-        register, // We can now use this from any component!
+        register,
         isAuthLoading,
         isAuthenticated: !!user,
     };
