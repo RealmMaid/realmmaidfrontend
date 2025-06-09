@@ -23,14 +23,10 @@ export const WebSocketProvider = ({ children }) => {
             return;
         }
 
-        // --- PRODUCTION-READY SETUP ---
-        // This logic dynamically creates the correct WebSocket URL for any environment.
-        // It checks if the page is secure (https) to use 'wss', otherwise 'ws'.
-        // It uses `window.location.host` to connect to the same server that served the page,
-        // which is exactly how it will work on Render.
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const host = window.location.host;
-        const wsUrl = `${protocol}//${host}`;
+        // --- FIX: Use a dedicated environment variable for the WebSocket URL ---
+        // This ensures the frontend connects to the backend service, not itself.
+        // It falls back to a local URL for development.
+        const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:3000';
 
         console.log(`[WebSocketProvider] Initializing connection to ${wsUrl}...`);
         const ws = new WebSocket(wsUrl);
