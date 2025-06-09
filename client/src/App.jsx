@@ -1,5 +1,8 @@
-import React from 'react';
+// client/src/App.jsx
+
+import React, { useEffect } from 'react'; // I added useEffect!
 import { Routes, Route } from 'react-router-dom';
+import { getCsrfToken } from './api/csrf'; // Importing our new helper! <3
 
 // --- Page Imports ---
 import MainLayout from './components/MainLayout.jsx';
@@ -15,6 +18,12 @@ import CheckoutPage from './pages/CheckoutPage.jsx';
 
 
 function App() {
+  // --- NEW: This little hook runs once when the app starts! ---
+  useEffect(() => {
+    // We're calling our function to get the token right away!
+    getCsrfToken();
+  }, []); // The empty brackets mean it only runs one time!
+
   return (
     <Routes>
       {/* --- Public Layout & Routes --- */}
@@ -28,7 +37,6 @@ function App() {
       {/* --- Protected User Routes --- */}
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<UserDashboardPage />} />
-        {/* --- NEW: Add the route for the checkout page --- */}
         <Route path="/checkout" element={<CheckoutPage />} />
       </Route>
 
