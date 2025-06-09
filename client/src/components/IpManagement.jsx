@@ -1,12 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
+// --- FIX: We only need our magical API instance! ---
+import API from '../api/axios.js';
 
-// --- Real Dependencies ---
-// Correctly import the API instance and the CSRF helper.
-import API, { getCsrfToken } from '../api/axios.js';
-
-/**
- * A reusable modal component for confirming destructive actions.
- */
 const ConfirmationModal = ({ show, onClose, onConfirm, title, children }) => {
     if (!show) return null;
     return (
@@ -23,10 +18,6 @@ const ConfirmationModal = ({ show, onClose, onConfirm, title, children }) => {
     );
 };
 
-
-/**
- * Renders the IP Management tab, now with CSRF protection for blocking/unblocking IPs.
- */
 function IpManagement() {
     const [blacklist, setBlacklist] = useState([]);
     const [ipLogs, setIpLogs] = useState([]);
@@ -34,23 +25,18 @@ function IpManagement() {
     const [error, setError] = useState('');
     const [ipToBlock, setIpToBlock] = useState('');
     const [reason, setReason] = useState('');
-
-    // State for managing confirmation modals
     const [modalState, setModalState] = useState({ isOpen: false, onConfirm: null, title: '', message: '' });
 
-    // Fetches all necessary IP-related data from the backend in parallel.
     const fetchIpData = useCallback(async () => {
         setLoading(true);
         setError('');
         try {
             const [blacklistRes, logsRes] = await Promise.all([
-                API.get('/admin/ip/blacklist'), // GET /api/admin/ip/blacklist
-                API.get('/admin/ip/logs')       // GET /api/admin/ip/logs
+                API.get('/admin/ip/blacklist'),
+                API.get('/admin/ip/logs')
             ]);
-
             if (blacklistRes.data.success) setBlacklist(blacklistRes.data.blacklist || []);
             if (logsRes.data.success) setIpLogs(logsRes.data.logs || []);
-
         } catch (err) {
             setError(err.response?.data?.message || 'Failed to fetch IP data.');
         } finally {
@@ -62,40 +48,32 @@ function IpManagement() {
         fetchIpData();
     }, [fetchIpData]);
     
-    // Submits the form to add a new IP to the blacklist.
     const handleBlockSubmit = async (e) => {
         e.preventDefault();
         setError('');
         try {
-            // --- FIX: Fetch the CSRF token before the request ---
-            const token = await getCsrfToken();
-            // POST /api/admin/ip/blacklist
-            await API.post('/admin/ip/blacklist', { ipAddress: ipToBlock, reason, _csrf: token });
-            
+            // --- FIX: The token is handled automatically by the interceptor! ---
+            await API.post('/admin/ip/blacklist', { ipAddress: ipToBlock, reason });
             setIpToBlock('');
             setReason('');
-            fetchIpData(); // Refresh all data after blocking
+            fetchIpData();
         } catch(err) {
             setError(err.response?.data?.message || 'Failed to block IP address.');
         }
     };
     
-    // Removes an IP from the blacklist after confirmation from the modal.
     const handleUnblockIp = async (ip) => {
         closeModal();
         setError('');
         try {
-            // --- FIX: Fetch the CSRF token before the request ---
-            const token = await getCsrfToken();
-            // DELETE /api/admin/ip/blacklist/:ipAddress
-            await API.delete(`/admin/ip/blacklist/${encodeURIComponent(ip)}`, { data: { _csrf: token } });
-            fetchIpData(); // Refresh all data
+            // --- FIX: The token is handled automatically by the interceptor! ---
+            await API.delete(`/admin/ip/blacklist/${encodeURIComponent(ip)}`);
+            fetchIpData();
         } catch(err) {
             setError(err.response?.data?.message || 'Failed to unblock IP address.');
         }
     };
 
-    // --- Modal helpers ---
     const openConfirmModal = (ip) => {
         setModalState({
             isOpen: true,
@@ -105,7 +83,6 @@ function IpManagement() {
         });
     };
     const closeModal = () => setModalState({ isOpen: false, onConfirm: null, title: '', message: '' });
-
 
     if (loading) {
         return <div className="loading-spinner-container"><div className="loading-spinner"></div><p>Loading IP Data...</p></div>;
