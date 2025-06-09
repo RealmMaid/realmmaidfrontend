@@ -31,7 +31,6 @@ function RegisterPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
   
   // --- FIX: Get the new register function from our hook! ---
   const { register } = useAuth();
@@ -103,7 +102,7 @@ function RegisterPage() {
               </div>
 
               <button type="submit" className="btn auth-btn-primary" disabled={loading}>
-                {loading ? 'Joining...' : "Let's Go! 💖"}
+                {loading ? 'Joining...' : "Let's Go! �"}
               </button>
             </form>
 
@@ -118,3 +117,4 @@ function RegisterPage() {
 }
 
 export default RegisterPage;
+�
