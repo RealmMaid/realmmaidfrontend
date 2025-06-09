@@ -1,12 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
+// --- FIX: We only need our magical API instance now! ---
+import API from '../api/axios.js';
 
-// --- Real Dependencies ---
-// Correctly import the API instance and the CSRF helper.
-import API, { getCsrfToken } from '../api/axios.js';
-
-/**
- * A reusable modal component for confirming destructive actions.
- */
 const ConfirmationModal = ({ show, onClose, onConfirm, title, children }) => {
     if (!show) return null;
     return (
@@ -23,9 +18,6 @@ const ConfirmationModal = ({ show, onClose, onConfirm, title, children }) => {
     );
 };
 
-/**
- * A reusable modal containing a form for adding or editing product details.
- */
 const ProductFormModal = ({ show, onClose, onSave, product, setProduct }) => {
     if (!show) return null;
 
@@ -67,9 +59,6 @@ const ProductFormModal = ({ show, onClose, onSave, product, setProduct }) => {
     );
 };
 
-/**
- * Renders the Product Management tab, now with CSRF protection.
- */
 function ProductManagement() {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -99,13 +88,11 @@ function ProductManagement() {
     const handleSaveProduct = async () => {
         setError(null);
         try {
-            // --- FIX: Fetch the CSRF token before the request ---
-            const token = await getCsrfToken();
-            const productData = { ...selectedProduct, _csrf: token };
-
+            // --- FIX: The token is handled automatically by the interceptor! ---
+            const productData = { ...selectedProduct };
             const action = selectedProduct.id
-                ? API.put(`/admin/products/${selectedProduct.id}`, productData) // PUT /api/admin/products/:productId
-                : API.post('/admin/products', productData); // POST /api/admin/products
+                ? API.put(`/admin/products/${selectedProduct.id}`, productData)
+                : API.post('/admin/products', productData);
             
             await action;
             setFormModalOpen(false);
@@ -119,10 +106,8 @@ function ProductManagement() {
         setError(null);
         setDeleteModalOpen(false);
         try {
-            // --- FIX: Fetch the CSRF token before the request ---
-            const token = await getCsrfToken();
-            // DELETE /api/admin/products/:productId, with CSRF token in the data payload
-            await API.delete(`/admin/products/${selectedProduct.id}`, { data: { _csrf: token } });
+            // --- FIX: The token is handled automatically by the interceptor! ---
+            await API.delete(`/admin/products/${selectedProduct.id}`);
             fetchProducts();
         } catch(err) {
              setError(err.response?.data?.message || 'Failed to delete the product.');
