@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+// --- FIX: Import our magical API instance instead of the plain one! ---
+import API from '../api/axios';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-// import './LoginPage.css'; // Reusing auth page styles
 
 function ResetPasswordPage() {
   const [password, setPassword] = useState('');
@@ -18,16 +18,7 @@ function ResetPasswordPage() {
     if (!token) {
       setError("It looks like your reset link is missing its magic sparkle! ✨ Please request a new one.");
     }
-    // Fetch CSRF token on load
-    const getCsrfToken = async () => {
-      try {
-        const { data } = await axios.get('/api/auth/csrf-token');
-        axios.defaults.headers.common['X-CSRF-Token'] = data.csrfToken;
-      } catch (err) {
-        setError('A wittle security error occurred! Please refresh the page, cutie. >.<');
-      }
-    };
-    getCsrfToken();
+    // --- FIX: We don't need to get the CSRF token anymore! It's automatic! ---
   }, [token]);
 
   const handleResetPassword = async (e) => {
@@ -46,7 +37,8 @@ function ResetPasswordPage() {
     setLoading(true);
 
     try {
-      const response = await axios.post('/api/auth/reset-password', { token, password, confirmPassword });
+      // --- FIX: Use our API instance which handles tokens automatically! ---
+      const response = await API.post('/auth/reset-password', { token, password, confirmPassword });
       setMessage(response.data.message + " Redirecting you to login now, cutie pie! ;3");
       setTimeout(() => navigate('/login'), 4000);
     } catch (err) {
@@ -58,7 +50,7 @@ function ResetPasswordPage() {
 
   return (
     <div className="auth-page reset-password-page">
-      <div id="stars-container-colorful"></div>
+      {/* You should add your cute starry background component here! */}
       <Link to="/" className="btn-back-home">« Back to Home</Link>
 
       <div className="auth-container">
