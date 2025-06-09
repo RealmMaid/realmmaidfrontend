@@ -1,0 +1,138 @@
+/* --- HEADER & NAVIGATION --- */
+.main-header {
+    position: sticky;
+    top: 0;
+    z-index: 1020;
+    padding: 10px 20px;
+    background: rgba(var(--primary-dark-rgb), 0.8);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(var(--card-border-rgb), 0.5);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.logo {
+    font-family: var(--font-pixel);
+    font-size: 1.2rem;
+    color: var(--text-primary);
+    text-shadow: 0 0 8px var(--accent-pink);
+    text-decoration: none;
+}
+
+.main-nav {
+    display: flex;
+    align-items: center;
+}
+
+#navLinksContainer {
+    display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    align-items: center;
+}
+
+#navLinksContainer li {
+    margin-left: 15px;
+}
+
+#navLinksContainer li a.btn,
+#navLinksContainer li button.btn,
+.auth-buttons-container .btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+    border-radius: var(--radius-md);
+    text-transform: none;
+    font-family: var(--font-sans);
+    letter-spacing: normal;
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid transparent;
+}
+.auth-buttons-container .btn.btn-outline {
+    border-color: var(--accent-lavender);
+}
+
+#navLinksContainer li a.btn:hover,
+#navLinksContainer li button.btn:hover,
+.auth-buttons-container .btn:hover {
+    color: var(--text-primary);
+    background-color: rgba(var(--accent-lavender-rgb), 0.1);
+    transform: none;
+    box-shadow: none;
+}
+.auth-buttons-container .btn.btn-outline:hover {
+    background-color: var(--accent-lavender);
+    color: var(--primary-dark);
+}
+
+.auth-buttons-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: 20px;
+}
+
+.cart-icon-container {
+    position: relative;
+    margin-left: 20px;
+}
+
+.cart-icon-button {
+    background: none;
+    border: none;
+    color: var(--accent-lavender);
+    font-size: 1.6rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    position: relative;
+    transition: color var(--transition-fast);
+}
+
+.cart-icon-button:hover {
+    color: var(--accent-pink);
+}
+
+#cartItemCountBadge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    background-color: var(--accent-pink);
+    color: var(--text-primary);
+    font-size: 0.65rem;
+    width: 16px; /* Fixed width */
+    height: 16px; /* Fixed height */
+    line-height: 16px;
+    text-align: center;
+    border-radius: 50%;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    display: none; /* Hidden by default */
+    border: 1px solid var(--primary-dark);
+}
+
+.menu-toggle-btn {
+    display: none;
+    flex-direction: column;
+    justify-content: space-around;
+    width: 30px;
+    height: 25px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    z-index: 1030;
+}
+
+.menu-toggle-btn span {
+    width: 100%;
+    height: 3px;
+    background-color: var(--text-primary);
+    border-radius: 10px;
+    transition: all 0.3s linear;
+    position: relative;
+    transform-origin: 1px;
+}

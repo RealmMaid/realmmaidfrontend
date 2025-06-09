@@ -1,0 +1,271 @@
+
+body.dashboard {
+    padding-bottom: 0; /* Remove bottom padding, panel is now floating */
+}
+
+/* Admin Dashboard Layout */
+.dashboard-container {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: var(--spacing-lg);
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: var(--spacing-lg);
+    min-height: calc(100vh - (2 * var(--spacing-lg)));
+}
+.dashboard-sidebar {
+    background-color: var(--card-bg);
+    height: calc(100vh - (2 * var(--spacing-lg)));
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: var(--spacing-lg);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--card-border);
+}
+.sidebar-header {
+    padding: var(--spacing-lg);
+    border-bottom: 1px solid var(--card-border);
+    text-align: center;
+}
+.sidebar-header .gradient-text {
+    font-size: 1.5rem;
+    font-family: var(--font-pixel);
+}
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    padding: var(--spacing-md);
+    gap: var(--spacing-xs);
+}
+.nav-link {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    color: var(--text-secondary);
+    text-decoration: none;
+    border-radius: var(--radius-md);
+    transition: all var(--transition-normal);
+    font-family: var(--font-pixel);
+    font-size: 0.85rem;
+}
+.nav-link:hover {
+    background: rgba(var(--accent-pink-rgb), 0.1);
+    color: var(--accent-pink);
+}
+.nav-link.active {
+    background: var(--gradient-primary);
+    color: var(--text-dark);
+    box-shadow: var(--shadow-glow);
+}
+.nav-icon {
+    font-size: 1.1rem;
+    margin-right: var(--spacing-xs);
+}
+.dashboard-main {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+    overflow-y: auto;
+    padding-right: var(--spacing-sm);
+}
+.tab-content {
+    display: none;
+}
+.tab-content.active {
+    display: block;
+    animation: fadeInAdminDashboard 0.5s ease-in-out;
+}
+@keyframes fadeInAdminDashboard {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* --- NEW: Floating Action Button for Chat --- */
+.chat-fab {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: var(--gradient-primary);
+    color: var(--text-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    border: none;
+    cursor: pointer;
+    box-shadow: var(--shadow-lg);
+    z-index: 1060; /* Above the chat panel when closed */
+    transition: transform 0.2s ease-out;
+}
+.chat-fab:hover {
+    transform: scale(1.1);
+}
+
+/* --- UPDATED: Admin Chat Panel Styles --- */
+.admin-chat-panel {
+    position: fixed;
+    bottom: 90px; /* Position above the FAB */
+    right: 20px;
+    width: 450px;
+    max-width: 90vw;
+    z-index: 1050;
+    border-radius: var(--radius-lg);
+    display: none;
+    flex-direction: column;
+    height: 500px;
+    max-height: calc(100vh - 120px);
+    box-shadow: 0 5px 25px rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--card-border);
+    transform: translateY(20px) scale(0.95);
+    opacity: 0;
+    transition:
+        transform 0.2s ease-out,
+        opacity 0.2s ease-out;
+}
+.admin-chat-panel.visible {
+    display: flex;
+    transform: translateY(0) scale(1);
+    opacity: 1;
+}
+.admin-chat-panel .admin-message-board {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: var(--spacing-md);
+    background-color: var(--primary-bg);
+}
+.admin-chat-panel .admin-message-input-area {
+    border-top: 1px solid var(--card-border);
+}
+
+/* Admin Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-lg);
+}
+.stat-card .stat-icon {
+    font-size: 1.8rem;
+    padding: var(--spacing-sm);
+    background-color: rgba(var(--highlight-rgb), 0.1);
+    border-radius: var(--radius-md);
+    line-height: 1;
+    color: var(--highlight);
+}
+.stat-card h3.text-secondary {
+    font-size: 0.85rem;
+    font-family: var(--font-sans);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+}
+.stat-card .text-xl {
+    font-size: 1.75rem;
+    font-family: var(--font-pixel);
+    line-height: 1.2;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Admin Table Styles */
+.table-container {
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-lg);
+    background-color: rgba(var(--primary-dark-rgb), 0.05);
+    overflow-x: auto;
+    margin-top: var(--spacing-md);
+}
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.admin-table th,
+.admin-table td {
+    padding: var(--spacing-sm) var(--spacing-md);
+    white-space: nowrap;
+    border-bottom: 1px solid var(--card-border);
+    text-align: left;
+}
+.admin-table th {
+    font-size: 0.7rem;
+    color: var(--accent-lavender);
+    background-color: rgba(var(--primary-dark-rgb), 0.1);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.admin-table tbody tr:nth-child(even) {
+    background-color: rgba(var(--primary-dark-rgb), 0.02);
+}
+.admin-table tbody tr:hover {
+    background-color: rgba(var(--accent-pink-rgb), 0.05);
+}
+.admin-table .product-table-image {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    margin-right: var(--spacing-sm);
+    vertical-align: middle;
+}
+
+/* Admin Chat - Image Upload & Preview */
+.admin-message-input-area form {
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-md);
+}
+.admin-message-input-area .image-preview {
+    display: none;
+    max-width: 80px;
+    max-height: 80px;
+    border-radius: var(--radius-md);
+    margin-right: var(--spacing-sm);
+    border: 2px solid var(--card-border);
+    object-fit: cover;
+}
+.admin-chat-image {
+    max-width: 250px;
+    max-height: 250px;
+    border-radius: var(--radius-md);
+    margin-top: var(--spacing-sm);
+    cursor: pointer;
+    border: 1px solid var(--card-border);
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
+}
+.admin-chat-image:hover {
+    transform: scale(1.03);
+    box-shadow: 0 0 15px rgba(var(--accent-pink-rgb), 0.3);
+}
+
+/* Image Modal Styles */
+.modal.image-modal #modalImageContent {
+    max-width: 90vw;
+    max-height: 90vh;
+    object-fit: contain;
+    border-radius: var(--radius-lg);
+}
+
+@media (max-width: 850px) {
+    .admin-chat-panel {
+        width: calc(100% - 40px);
+        right: 20px;
+        bottom: 90px;
+    }
+}
