@@ -1,6 +1,9 @@
-/* index.css - Final Combined Stylesheet */
-
-/* --- Base Styles (from your common-styles.css) --- */
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
 :root { 
     --primary-dark: #1a0922; 
     --primary-dark-rgb: 26, 9, 34; 
