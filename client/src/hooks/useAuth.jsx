@@ -10,7 +10,6 @@ export const AuthProvider = ({ children }) => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        // Use an AbortController to cancel the request if it takes too long or the component unmounts
         const controller = new AbortController();
         const signal = controller.signal;
 
@@ -22,9 +21,10 @@ export const AuthProvider = ({ children }) => {
                     setUser(data.user);
                 }
             } catch (error) {
-                // Ignore the error if it's from aborting the request
                 if (error.name !== 'AbortError') {
                     console.error("AuthProvider: The API call to /api/auth/session failed.", error);
+                } else {
+                    console.log("AuthProvider: The session check timed out, likely because the service was spinning up. This is normal on free tiers.");
                 }
             } finally {
                 // Always set loading to false so the app can render
@@ -32,8 +32,9 @@ export const AuthProvider = ({ children }) => {
             }
         };
         
-        // Set a timeout to abort the request if it's hanging
-        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8-second timeout
+        // --- FIX: Increased timeout to 15 seconds ---
+        // This gives Render's free tier services enough time to "wake up" from a sleep state.
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15-second timeout
 
         checkSession();
 
