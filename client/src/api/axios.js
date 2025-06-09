@@ -1,29 +1,43 @@
 import axios from 'axios';
 
-// --- PRODUCTION-READY SETUP ---
-// By setting the baseURL to '/api', we can now make requests like `API.get('/auth/session')`.
-// In development, the Vite proxy (in vite.config.js) will catch this and forward it
-// to 'http://localhost:3000/api/auth/session'.
-// In production, your server will be serving both the client and the API from the
-// same domain, so requests to '/api/...' will work seamlessly.
+// --- AXIOS INSTANCE ---
+// Creates a base instance of Axios for API calls.
 const API = axios.create({
- baseURL: import.meta.env.VITE_API_URL,
-  withCredentials: true, // This is important for sending session cookies
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001/api',
+  withCredentials: true,
 });
 
-// Axios interceptor to add the CSRF token to all non-GET requests
+let csrfToken = null;
+
+// --- CSRF TOKEN MANAGEMENT ---
+// Fetches the CSRF token from the server.
+export const getCsrfToken = async () => {
+  if (csrfToken) return csrfToken;
+  try {
+    const { data } = await API.get('/auth/csrf-token');
+    csrfToken = data.csrfToken;
+    return csrfToken;
+  } catch (error) {
+    console.error('Failed to get CSRF token:', error);
+    return null;
+  }
+};
+
+// Clears the locally stored CSRF token.
+export const clearCsrfToken = () => {
+  csrfToken = null;
+};
+
+// --- AXIOS INTERCEPTORS ---
+// Request interceptor to automatically add the CSRF token to relevant requests.
 API.interceptors.request.use(async (config) => {
-  if (config.method !== 'get') {
-    // Fetch the CSRF token if we don't have it or it's for a different request type
-    const tokenResponse = await axios.get('/api/auth/csrf-token', { withCredentials: true });
-    if (tokenResponse.data.csrfToken) {
-      config.headers['csrf-token'] = tokenResponse.data.csrfToken;
+  if (['post', 'put', 'patch', 'delete'].includes(config.method)) {
+    const token = await getCsrfToken();
+    if (token) {
+      config.headers['X-CSRF-Token'] = token;
     }
   }
   return config;
-}, (error) => {
-  return Promise.reject(error);
 });
-
 
 export default API;
