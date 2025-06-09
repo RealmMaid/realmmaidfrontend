@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import { useAuth } from '../hooks/useAuth';
 import { useCart } from '../contexts/CartContext';
-import API, { getCsrfToken } from '../api/axios';
+// --- FIX: We only need our magical API instance! ---
+import API from '../api/axios';
 
 // --- Reusable Starry Background from other auth pages ---
 const StarryBackground = () => {
@@ -39,8 +40,6 @@ const CheckoutStyles = () => (
         .auth-card .card-header { text-align: center; margin-bottom: 2rem; }
         .auth-card .card-header h2 { font-family: var(--font-pixel); color: var(--text-primary); text-shadow: 0 0 8px var(--accent-lavender); margin-bottom: 0.25rem; font-size: 1.6rem; }
         .auth-card .card-header p { font-size: 1rem; margin-top: 0.5rem; color: var(--text-secondary); line-height: 1.5; }
-
-        /* Checkout specific layout */
         .checkout-layout { display: grid; grid-template-columns: 1fr; gap: 2.5rem; margin-bottom: 2rem; }
         .checkout-section h3 { font-size: 1.2rem; font-family: var(--font-pixel); color: var(--accent-teal); margin-bottom: 1.5rem; padding-bottom: 0.5rem; border-bottom: 1px dashed var(--card-border); }
         .form-group { width: 100%; margin-bottom: 1.5rem; }
@@ -49,7 +48,6 @@ const CheckoutStyles = () => (
         .form-group input:focus { border-color: var(--accent-pink); box-shadow: 0 0 0 3px rgba(var(--accent-pink-rgb), 0.25); }
         .checkout-items-list { max-height: 300px; overflow-y: auto; padding-right: 0.5rem; margin-bottom: 1rem; }
         .checkout-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid var(--card-border); font-size: 0.9rem; }
-        .checkout-item:last-child { border-bottom: none; }
         .item-details { display: flex; align-items: center; gap: 1rem; }
         .item-details img { width: 40px; height: 40px; border-radius: var(--radius-sm); object-fit: cover; }
         .item-name { color: var(--text-primary); font-weight: 600; }
@@ -57,7 +55,6 @@ const CheckoutStyles = () => (
         .summary-row { display: flex; justify-content: space-between; padding: 0.25rem 0; font-size: 0.95rem; }
         .summary-row.total-row { font-size: 1.2rem; font-weight: 600; margin-top: 0.5rem; }
         .summary-row .gradient-text { background: var(--gradient-primary); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
-
         .auth-btn-primary { width: 100%; margin-top: 1rem; }
         #stars-container-colorful { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; overflow: hidden; background: #1a0922; }
         .star { position: absolute; width: 2px; height: 2px; border-radius: 50%; animation: authTwinkle 5s infinite ease-in-out alternate; }
@@ -65,15 +62,8 @@ const CheckoutStyles = () => (
         .message-area { display: block; width: 100%; padding: 1rem; margin: 1.5rem 0; border-radius: var(--radius-md); font-size: 0.95rem; text-align: center; border: 1px solid transparent; }
         .message-area.error { background-color: rgba(var(--accent-red-rgb), 0.1); border-color: var(--accent-red); color: var(--accent-red); }
         .empty-cart-message { text-align: center; padding: 3rem 1rem; }
-        /* --- UPDATED: Add margin to the Back to Shopping button --- */
-        .empty-cart-message .auth-btn-primary {
-            margin-top: 3rem; /* Adjust as needed for equal spacing */
-        }
-
-        @media (min-width: 768px) {
-            .checkout-layout { grid-template-columns: 1.5fr 1fr; }
-            .order-summary { position: sticky; top: 2rem; }
-        }
+        .empty-cart-message .auth-btn-primary { margin-top: 3rem; }
+        @media (min-width: 768px) { .checkout-layout { grid-template-columns: 1.5fr 1fr; } .order-summary { position: sticky; top: 2rem; } }
     `}</style>
 );
 
@@ -81,7 +71,6 @@ const CheckoutStyles = () => (
 function CheckoutPage() {
     const { user } = useAuth();
     const { cartItems, cartItemCount } = useCart();
-    const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [shippingDetails, setShippingDetails] = useState({
@@ -89,7 +78,6 @@ function CheckoutPage() {
         addressLine2: '', city: '', postalCode: '', state: '', country: '',
     });
 
-    // Pre-fill user info
     useEffect(() => {
         if (user) {
             setShippingDetails(prev => ({
@@ -114,13 +102,11 @@ function CheckoutPage() {
         setError('');
 
         try {
-            const csrfToken = await getCsrfToken();
-
+            // --- FIX: No need to get the token, it's automatic! ---
             const orderData = {
                 items: cartItems.map(item => ({ id: item.id, name: item.name, price: item.price, quantity: item.quantity, image: item.image })),
                 shippingDetails,
                 customerEmail: shippingDetails.email,
-                _csrf: csrfToken
             };
 
             const response = await API.post('/checkout/create-checkout-session', orderData);
