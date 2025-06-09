@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { useState } from 'react';
+// --- FIX: We use our magical API instance now! ---
+import API from '../api/axios';
 import { Link } from 'react-router-dom';
-// import './LoginPage.css'; // Reusing auth page styles
 
 function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -9,18 +9,7 @@ function ForgotPasswordPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Fetch CSRF token on load
-  useEffect(() => {
-    const getCsrfToken = async () => {
-      try {
-        const { data } = await axios.get('/api/auth/csrf-token');
-        axios.defaults.headers.common['X-CSRF-Token'] = data.csrfToken;
-      } catch (err) {
-        setError('A wittle security error occurred! Please refresh the page, cutie. >.<');
-      }
-    };
-    getCsrfToken();
-  }, []);
+  // --- FIX: We don't need the useEffect to get the CSRF token anymore! ---
 
   const handleRequestReset = async (e) => {
     e.preventDefault();
@@ -29,7 +18,8 @@ function ForgotPasswordPage() {
     setLoading(true);
 
     try {
-      const response = await axios.post('/api/auth/request-password-reset', { email });
+      // --- FIX: The interceptor in axios.js will add the CSRF header automatically! ---
+      const response = await API.post('/auth/request-password-reset', { email });
       // To prevent email enumeration, we show a success message even if the email doesn't exist.
       setMessage(response.data.message || 'If that email is in our system, a reset link has been sent! Check your inbox, sweetie! 💕');
     } catch (err) {
@@ -42,7 +32,7 @@ function ForgotPasswordPage() {
 
   return (
     <div className="auth-page forgot-password-page">
-      <div id="stars-container-colorful"></div>
+      {/* You should add your cute starry background component here! */}
       <Link to="/login" className="btn-back-home">« Back to Login!</Link>
 
       <div className="auth-container">
