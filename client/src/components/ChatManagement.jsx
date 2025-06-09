@@ -1,7 +1,4 @@
-// client/src/components/admin/ChatManagement.jsx
-
 import React, { useState, useEffect, useRef } from 'react';
-// --- FIX: Corrected the import path to the WebSocketProvider ---
 import { useWebSocket } from '../contexts/WebSocketProvider.jsx';
 
 // Modal for viewing and replying to a chat session
@@ -59,7 +56,7 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
 
 
 function ChatManagement() {
-  const { adminCustomerSessions, sendCustomerMessage, isConnected } = useWebSocket();
+  const { adminCustomerSessions, sendCustomerMessage, isConnected, loadSessionHistory } = useWebSocket();
   const [activeModal, setActiveModal] = useState({ show: false, sessionId: null });
 
   // Convert sessions to an array and sort by most recently updated
@@ -68,9 +65,10 @@ function ChatManagement() {
     .filter(Boolean)
     .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
   
-  const handleViewChat = (session) => {
+  const handleViewChat = async (session) => {
     if (session && session.sessionId) {
-      setActiveModal({ show: true, sessionId: session.sessionId });
+      await loadSessionHistory(session.sessionId); // 1. Fetch the history
+      setActiveModal({ show: true, sessionId: session.sessionId }); // 2. Then open the modal
     }
   };
   
