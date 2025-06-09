@@ -45,17 +45,18 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (email, password) => {
         try {
+            // --- FIX: Force a fresh token fetch to prevent using a stale one. ---
+            // This clears any cached token before requesting a new one, ensuring
+            // we always use the most up-to-date token for the current session.
+            clearCsrfToken(); 
             const token = await getCsrfToken();
             if (!token) {
                 throw new Error('Could not retrieve security token. Please refresh and try again.');
             }
 
-            // --- FIX: Send the CSRF token in BOTH the request body and headers. ---
-            // This is a highly robust approach that handles different server-side
-            // configurations for the `lusca` middleware without needing backend changes.
             const { data } = await API.post('/auth/login', 
-                { email, password, _csrf: token }, // Request body now includes `_csrf`
-                { headers: { 'X-CSRF-Token': token } } // Header remains for best practice
+                { email, password, _csrf: token },
+                { headers: { 'X-CSRF-Token': token } }
             );
 
             if (data.success && data.user) {
@@ -76,12 +77,13 @@ export const AuthProvider = ({ children }) => {
 
     const logout = async () => {
         try {
+            // --- FIX: Also force a fresh token for logout. ---
+            clearCsrfToken();
             const token = await getCsrfToken();
             if (token) {
-                // --- FIX: Also send the token in the body for the logout request. ---
                 await API.post('/auth/logout', 
-                    { _csrf: token }, // Request body with `_csrf`
-                    { headers: { 'X-CSRF-Token': token } } // Header remains
+                    { _csrf: token },
+                    { headers: { 'X-CSRF-Token': token } }
                 );
             }
         } catch (error) {
