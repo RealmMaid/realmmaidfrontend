@@ -1,7 +1,8 @@
 // client/src/components/admin/ChatManagement.jsx
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useWebSocket } from '../../contexts/WebSocketProvider'; // Corrected path
+// --- FIX: Corrected the import path to the WebSocketProvider ---
+import { useWebSocket } from '../contexts/WebSocketProvider.jsx';
 
 // Modal for viewing and replying to a chat session
 const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnected }) => {
@@ -26,7 +27,6 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
     <div className="modal-backdrop active">
       <div className="modal-content chat-modal">
         <div className="modal-header">
-          {/* --- FIX: Use sessionId --- */}
           <h4>Chat with {session.participantName || `Session ${session.sessionId}`}</h4>
           <button type="button" className="modal-close" onClick={onClose}>&times;</button>
         </div>
@@ -69,7 +69,6 @@ function ChatManagement() {
     .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
   
   const handleViewChat = (session) => {
-    // --- FIX: Use sessionId ---
     if (session && session.sessionId) {
       setActiveModal({ show: true, sessionId: session.sessionId });
     }
@@ -108,7 +107,6 @@ function ChatManagement() {
 
         <div className="card-list-container">
             {sessionsArray.length > 0 ? sessionsArray.map((session) => {
-                // --- FIX: Use sessionId ---
                 if (!session || !session.sessionId) return null;
                 
                 const messageCount = adminCustomerSessions[session.sessionId]?.messages?.length || 0;
