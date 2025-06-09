@@ -137,6 +137,8 @@ const Footer = () => ( <footer className="site-footer"> <p>© 2025 Realm Maid. A
 
 function MainLayout() {
     const [isCartOpen, setIsCartOpen] = useState(false);
+    // --- FIX: Get the authentication loading state from the useAuth hook ---
+    const { isAuthLoading } = useAuth();
 
     return (
         <div className="site-container">
@@ -148,7 +150,10 @@ function MainLayout() {
             </main>
             <Footer />
             <ShoppingCart isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
-            <ChatWidget />
+            
+            {/* --- FIX: Conditionally render the ChatWidget --- */}
+            {/* This ensures the WebSocket connection is only attempted AFTER the initial authentication check is complete. */}
+            {!isAuthLoading && <ChatWidget />}
         </div>
     );
 }
