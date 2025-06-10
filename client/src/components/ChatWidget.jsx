@@ -175,14 +175,20 @@ const ChatWidgetStyles = () => (
 const ChatWidget = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [newMessage, setNewMessage] = useState('');
-    const { customerChat, isConnected, sendCustomerMessage, typingPeers, emitStartTyping, emitStopTyping } = useWebSocket();
+    const { 
+        isConnected, 
+        customerChat, 
+        sendCustomerMessage, 
+        typingPeers, 
+        emitStartTyping, 
+        emitStopTyping 
+    } = useWebSocket();
     const { user: currentUser } = useAuth();
     
+    // We get sessionId and messages from customerChat state
     const { sessionId, messages } = customerChat;
     
-    // Use our new custom hook to handle read receipts
     const messageRef = useReadReceipts(messages, sessionId);
-    
     const messagesEndRef = useRef(null);
     const typingTimeoutRef = useRef(null);
 
@@ -193,7 +199,6 @@ const ChatWidget = () => {
     }, [messages, isOpen]);
 
     useEffect(() => {
-      // Cleanup the timeout when the component unmounts
       return () => clearTimeout(typingTimeoutRef.current);
     }, []);
     
@@ -201,11 +206,11 @@ const ChatWidget = () => {
         const newText = e.target.value;
         setNewMessage(newText);
         
-        if (!typingTimeoutRef.current && sessionId) {
-            emitStartTyping(sessionId);
-        }
-
+        // Only emit typing events if we have a session
         if (sessionId) {
+            if (!typingTimeoutRef.current) {
+                emitStartTyping(sessionId);
+            }
             clearTimeout(typingTimeoutRef.current);
             typingTimeoutRef.current = setTimeout(() => {
                 emitStopTyping(sessionId);
@@ -216,23 +221,23 @@ const ChatWidget = () => {
 
     const handleSend = (e) => {
         e.preventDefault();
-        if (newMessage.trim() && isConnected && sessionId) {
-            clearTimeout(typingTimeoutRef.current);
-            emitStopTyping(sessionId);
-            typingTimeoutRef.current = null;
-            sendCustomerMessage(newMessage.trim(), sessionId);
+        if (newMessage.trim() && isConnected) {
+            if (sessionId) {
+                clearTimeout(typingTimeoutRef.current);
+                emitStopTyping(sessionId);
+                typingTimeoutRef.current = null;
+            }
+            // This function now just sends the text! The server does the rest.
+            sendCustomerMessage(newMessage.trim());
             setNewMessage('');
         }
     };
+    
+    // The chat is ready to send a message as long as we are connected.
+    const isChatReady = isConnected;
+    const peerIsTyping = sessionId && typingPeers[sessionId];
 
-    const isChatReady = isConnected && sessionId;
-    const peerIsTyping = typingPeers[sessionId];
-
-    // The entire widget should only appear if a customer session has been initialized.
-    if (!sessionId) {
-        return null;
-    }
-
+    // The ChatWidget is no longer hidden! It will always be available!
     return (
         <>
             <ChatWidgetStyles />
@@ -245,10 +250,16 @@ const ChatWidget = () => {
                     <button onClick={() => setIsOpen(false)} aria-label="Close Chat">×</button>
                 </div>
                 <div className={`chat-status ${isConnected ? 'connected' : 'disconnected'}`}>
-                    {isChatReady ? 'Connected' : 'Initializing...'}
+                    {isConnected ? 'Connected' : 'Connecting...'}
                 </div>
                 <div className="chat-messages-area">
+                    {messages.length === 0 && (
+                        <div style={{textAlign: 'center', color: 'var(--text-secondary)', marginTop: '2rem'}}>
+                            Send a message to start the chat!
+                        </div>
+                    )}
                     {messages.map((msg) => {
+                        if (!msg || !msg.id) return null; // Defensive check
                         const isAdminMessage = msg.sender_type === 'admin';
                         let isMyMessage = false;
                         if (currentUser) {
