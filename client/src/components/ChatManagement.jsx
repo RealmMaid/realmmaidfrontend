@@ -4,7 +4,8 @@ import { useAuth } from '../hooks/useAuth.jsx';
 import { useReadReceipts } from '../hooks/useReadReceipts.js';
 import API from '../api/axios';
 
-const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnected, currentUser, emitStartTyping, emitStopTyping, isPeerTyping }) => { // <-- 1. Accept the new prop
+// The ChatModal component remains the same as the last version I sent.
+const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnected, currentUser, emitStartTyping, emitStopTyping, isPeerTyping }) => {
   const [messageText, setMessageText] = useState('');
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -15,7 +16,7 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
     if (show) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages, show, isPeerTyping]); // Added isPeerTyping to scroll smoothly when it appears
+  }, [messages, show, isPeerTyping]);
 
   useEffect(() => {
     return () => {
@@ -81,16 +82,11 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
             );
           })}
 
-          {/* --- 2. ADD THIS LOGIC --- */}
-          {/* This will display the typing indicator animation when the peer is typing. */}
+          {/* --- DEBUGGING CHANGE 1: SIMPLIFIED INDICATOR --- */}
+          {/* We are temporarily displaying simple text to rule out CSS issues. */}
           {isPeerTyping && (
-            <div className="chat-message-item-wrapper user-message">
-                <span className="msg-sender-name">{session.participantName || 'Guest'}</span>
-                <div className="chat-message-item">
-                    <div className="typing-indicator">
-                        <span></span><span></span><span></span>
-                    </div>
-                </div>
+            <div style={{ padding: '5px 10px', color: 'grey' }}>
+              Typing...
             </div>
           )}
 
@@ -124,6 +120,9 @@ function ChatManagement() {
   const { user: currentUser } = useAuth();
   const [activeModal, setActiveModal] = useState({ show: false, sessionId: null });
 
+  // --- DEBUGGING CHANGE 2: ADDED CONSOLE LOG ---
+  console.log('[DEBUG] Current Typing Peers:', typingPeers);
+
   const sessionsArray = Object.values(adminCustomerSessions)
     .filter(s => s && s.sessionDetails)
     .map(s => {
@@ -139,43 +138,27 @@ function ChatManagement() {
     }
   };
   
+  // ... other functions are the same ...
   const handleAdminSendMessage = (messageText, sessionId) => {
-    if (!isConnected) {
-        console.error("Cannot send message: WebSocket is disconnected.");
-        return;
-    }
+    if (!isConnected) { console.error("WS disconnected."); return; }
     sendAdminReply(messageText, sessionId);
   };
-  
-  const closeModal = () => {
-    setActiveModal({ show: false, sessionId: null });
-  };
-
+  const closeModal = () => { setActiveModal({ show: false, sessionId: null }); };
   const handleSessionStatusChange = async (sessionId, action) => {
-    const endpoint = `/admin/chat/sessions/${sessionId}/${action}`;
     try {
-        const response = await API.post(endpoint);
-        if (response.data.success) {
-            if(setAdminCustomerSessions) {
-                setAdminCustomerSessions(prev => {
-                    const newSessions = { ...prev };
-                    if (newSessions[sessionId]) {
-                        newSessions[sessionId].sessionDetails.status = action === 'archive' ? 'archived' : 'resolved';
-                    }
-                    return newSessions;
-                });
-            }
+        const response = await API.post(`/admin/chat/sessions/${sessionId}/${action}`);
+        if (response.data.success && setAdminCustomerSessions) {
+            setAdminCustomerSessions(prev => ({ ...prev, [sessionId]: { ...prev[sessionId], sessionDetails: { ...prev[sessionId].sessionDetails, status: action === 'archive' ? 'archived' : 'resolved' }}}));
         }
-    } catch (error) {
-        console.error(`Failed to ${action} session ${sessionId}:`, error);
-    }
+    } catch (error) { console.error(`Failed to ${action} session ${sessionId}:`, error); }
   };
   
   const modalSessionData = activeModal.sessionId ? adminCustomerSessions[activeModal.sessionId] : null;
   
-  // --- 3. ADD THIS LINE ---
-  // Check the typingPeers state for the session that is currently open in the modal.
   const isModalPeerTyping = activeModal.sessionId ? typingPeers[activeModal.sessionId] : false;
+
+  // --- DEBUGGING CHANGE 3: ADDED CONSOLE LOG ---
+  console.log(`[DEBUG] Is modal peer typing for session ${activeModal.sessionId}?`, isModalPeerTyping);
 
   return (
     <>
@@ -189,10 +172,10 @@ function ChatManagement() {
         currentUser={currentUser}
         emitStartTyping={emitStartTyping}
         emitStopTyping={emitStopTyping}
-        isPeerTyping={isModalPeerTyping} // <-- 4. PASS THE PROP HERE
+        isPeerTyping={isModalPeerTyping}
       />
-
-      <div className="content-section">
+       {/* ... rest of JSX is the same ... */}
+       <div className="content-section">
         <div className="content-header">
           <h2>Chat Management</h2>
           <p>View and manage all active customer chat sessions in real-time.</p>
