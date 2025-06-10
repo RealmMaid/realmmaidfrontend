@@ -15,6 +15,7 @@ export const WebSocketProvider = ({ children }) => {
     const [customerChat, setCustomerChat] = useState({ sessionId: null, messages: [] });
     const [adminMessages, setAdminMessages] = useState([]);
     const [adminCustomerSessions, setAdminCustomerSessions] = useState({});
+    const [typingPeers, setTypingPeers] = useState({}); // --- NEW: State to track who is typing
 
     useEffect(() => {
         if (isAuthLoading) {
@@ -75,7 +76,7 @@ export const WebSocketProvider = ({ children }) => {
 
         socket.on('new_customer_message', (message) => {
             console.log('[Socket.IO Provider] Event received: new_customer_message', message);
-            const msgData = message; // The data is the message itself now
+            const msgData = message;
             const sessionId = msgData.session_id;
             
             setCustomerChat(prev => {
@@ -103,6 +104,21 @@ export const WebSocketProvider = ({ children }) => {
         socket.on('new_admin_message', (message) => {
             console.log('[Socket.IO Provider] Event received: new_admin_message', message);
             setAdminMessages(prev => [...prev, message]);
+        });
+
+        // --- NEW: Listen for typing events from the server ---
+        socket.on('peer_is_typing', ({ sessionId, userName }) => {
+            console.log(`[Socket.IO Provider] Event received: peer_is_typing for session ${sessionId}`);
+            setTypingPeers(prev => ({ ...prev, [sessionId]: userName || true }));
+        });
+
+        socket.on('peer_stopped_typing', ({ sessionId }) => {
+            console.log(`[Socket.IO Provider] Event received: peer_stopped_typing for session ${sessionId}`);
+            setTypingPeers(prev => {
+                const newPeers = { ...prev };
+                delete newPeers[sessionId];
+                return newPeers;
+            });
         });
 
         return () => {
@@ -134,8 +150,22 @@ export const WebSocketProvider = ({ children }) => {
         }
     }, [adminCustomerSessions]);
 
+    // --- NEW: Functions to emit typing events TO the server ---
+    const emitStartTyping = useCallback((sessionId) => {
+        if (socketRef.current?.connected) {
+            socketRef.current.emit('start_typing', { sessionId });
+        }
+    }, []);
+
+    const emitStopTyping = useCallback((sessionId) => {
+        if (socketRef.current?.connected) {
+            socketRef.current.emit('stop_typing', { sessionId });
+        }
+    }, []);
+
     const sendCustomerMessage = useCallback((messageText, targetSessionId) => {
         if (socketRef.current?.connected && targetSessionId) {
+            emitStopTyping(targetSessionId); // Stop typing when message is sent
             socketRef.current.emit('customer_chat_message', { text: messageText, sessionId: targetSessionId });
             
             const optimisticMessage = {
@@ -164,7 +194,7 @@ export const WebSocketProvider = ({ children }) => {
                 return { ...prev, [targetSessionId]: updatedSession };
             });
         }
-    }, [customerChat.sessionId, user]);
+    }, [customerChat.sessionId, user, emitStopTyping]);
     
     const sendAdminMessage = useCallback((messageText) => {
         if (socketRef.current?.connected) {
@@ -182,6 +212,9 @@ export const WebSocketProvider = ({ children }) => {
         sendCustomerMessage,
         sendAdminMessage,
         loadSessionHistory,
+        typingPeers, // --- NEW: Expose typing status
+        emitStartTyping, // --- NEW: Expose function
+        emitStopTyping, // --- NEW: Expose function
     };
 
     return (
