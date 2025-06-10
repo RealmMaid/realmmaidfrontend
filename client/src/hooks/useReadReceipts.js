@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { useWebSocket } from '../contexts/WebSocketProvider';
+import { useWebSocketActions } from '../contexts/WebSocketProvider';
 import { useAuth } from './useAuth';
 
 export const useReadReceipts = (messages, sessionId) => {
