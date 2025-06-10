@@ -1,17 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useWebSocket } from '../contexts/WebSocketProvider.jsx';
+import { useAuth } from '../hooks/useAuth.jsx';
+import { useReadReceipts } from '../hooks/useReadReceipts.js';
 import API from '../api/axios';
 
 // Modal for viewing and replying to a chat session
-const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnected, typingPeers, emitStartTyping, emitStopTyping }) => {
+const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnected, currentUser }) => {
   const [messageText, setMessageText] = useState('');
   const messagesEndRef = useRef(null);
-  const typingTimeoutRef = useRef(null); // Ref to hold the typing timeout
+  const typingTimeoutRef = useRef(null);
 
-  // Scroll to new messages
+  // Use our new custom hook to handle read receipts
+  const messageRef = useReadReceipts(messages, session?.sessionId);
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    if (show) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, show]);
 
   // Cleanup the typing timeout when the modal is closed
   useEffect(() => {
@@ -25,34 +31,26 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
   const handleTyping = (e) => {
     const newText = e.target.value;
     setMessageText(newText);
-
-    // If there's no timeout running, it means we're starting to type
     if (!typingTimeoutRef.current) {
-      emitStartTyping(session.sessionId);
+      onSendMessage('start_typing', session.sessionId);
     }
-    
-    // Clear the previous timeout and set a new one
     clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
-      emitStopTyping(session.sessionId);
-      typingTimeoutRef.current = null; // Reset the ref
-    }, 1500); // 1.5 seconds after user stops typing
+      onSendMessage('stop_typing', session.sessionId);
+      typingTimeoutRef.current = null;
+    }, 1500);
   };
   
   const handleSend = (e) => {
     e.preventDefault();
     if (messageText.trim() && session.sessionId) {
-      // Clear any pending "stop_typing" event when we send
       clearTimeout(typingTimeoutRef.current);
-      emitStopTyping(session.sessionId);
+      onSendMessage('stop_typing', session.sessionId);
       typingTimeoutRef.current = null;
-
       onSendMessage(messageText, session.sessionId);
       setMessageText('');
     }
   };
-  
-  const peerIsTyping = typingPeers[session.sessionId];
 
   return (
     <div className="modal-backdrop active">
@@ -62,17 +60,30 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
           <button type="button" className="modal-close" onClick={onClose}>&times;</button>
         </div>
         <div className="modal-body chat-messages-container">
-          {messages.map((msg, index) => (
-            <div key={msg.id || `msg-${index}`} className={`chat-message-item ${msg.sender_type === 'admin' ? 'admin-message' : 'user-message'}`}>
-              <p className="msg-text">{msg.message_text}</p>
-              <span className="msg-timestamp">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-            </div>
-          ))}
+          {messages.map((msg) => {
+            const isAdminMessage = msg.sender_type === 'admin';
+            // An admin is looking at this modal, so "my" message is one I sent as an admin
+            const isMyMessage = isAdminMessage && msg.admin_user_id === currentUser.id;
+            
+            let senderName = isMyMessage ? 'You' : (session.participantName || 'Guest');
+            
+            return (
+              <div ref={messageRef} data-message-id={msg.id} key={msg.id} className={`chat-message-item-wrapper ${isMyMessage ? 'admin-message' : 'user-message'}`}>
+                <span className="msg-sender-name">{senderName}</span>
+                <div className="chat-message-item">
+                  <p className="msg-text">{msg.message_text}</p>
+                  <span className="msg-timestamp">
+                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {isMyMessage && <span className={`read-receipt ${msg.read_at ? 'read' : ''}`}>✓✓</span>}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
           <div ref={messagesEndRef} />
         </div>
-        {/* NEW: Typing indicator */}
         <div className="typing-indicator-container">
-          {peerIsTyping && <div className="typing-indicator"><span>{typingPeers[session.sessionId]} is typing</span></div>}
+          {/* Typing indicator logic will be added in a later step */}
         </div>
         <div className="modal-footer">
             <form onSubmit={handleSend}>
@@ -95,6 +106,7 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
 
 function ChatManagement() {
   const { adminCustomerSessions, setAdminCustomerSessions, sendCustomerMessage, isConnected, loadSessionHistory, typingPeers, emitStartTyping, emitStopTyping } = useWebSocket();
+  const { user: currentUser } = useAuth();
   const [activeModal, setActiveModal] = useState({ show: false, sessionId: null });
 
   const sessionsArray = Object.values(adminCustomerSessions)
@@ -153,6 +165,7 @@ function ChatManagement() {
         messages={modalSessionData?.messages || []}
         onSendMessage={handleAdminSendMessage}
         isConnected={isConnected}
+        currentUser={currentUser}
         typingPeers={typingPeers}
         emitStartTyping={emitStartTyping}
         emitStopTyping={emitStopTyping}
@@ -189,7 +202,6 @@ function ChatManagement() {
                             <span className="session-id">Session ID: {session.sessionId}</span>
                             <span className={`session-status status-${session.status}`}>{session.status}</span>
                             <p className="last-message">"{session.last_message_text || 'No messages yet...'}"</p>
-                            {/* NEW: Typing indicator in the list view */}
                             {isPeerTyping && <div className="typing-indicator"><span>typing...</span></div>}
                             <small className="last-update">Last Update: {new Date(session.updated_at).toLocaleString()}</small>
                         </div>
@@ -198,7 +210,7 @@ function ChatManagement() {
                             {session.status !== 'resolved' && (
                                 <button onClick={() => handleSessionStatusChange(session.sessionId, 'resolve')} className="btn btn-sm btn-success-action">Resolve</button>
                             )}
-                            <button onClick={() => handleSessionStatusChange(sessionId, 'archive')} className="btn btn-sm btn-danger-action">Archive</button>
+                            <button onClick={() => handleSessionStatusChange(session.sessionId, 'archive')} className="btn btn-sm btn-danger-action">Archive</button>
                         </div>
                     </div>
                 );
