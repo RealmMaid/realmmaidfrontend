@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import API from '../api/axios'; // Use the configured axios instance
-import { useWebSocket } from '../contexts/WebSocketProvider'; // Import the WebSocket hook
+import { useWebSocketActions } from '../contexts/WebSocketProvider'; // Import the WebSocket hook
 
 // Modal for viewing and replying to a chat session
 const ChatModal = ({ show, onClose, session, onSendMessage, messages, loadingMessages, isConnected }) => {
@@ -84,7 +84,7 @@ function ChatManagement() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
-  const { messages: liveMessages, sendMessage, isConnected } = useWebSocket();
+  const { messages: liveMessages, sendMessage, isConnected } = useWebSocketActions();
 
   const [modal, setModal] = useState({ type: null, data: null });
   const [selectedSessionMessages, setSelectedSessionMessages] = useState([]);

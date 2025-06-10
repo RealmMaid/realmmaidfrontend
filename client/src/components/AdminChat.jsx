@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useWebSocket } from '../contexts/WebSocketProvider';
+import { useWebSocketActions } from '../contexts/WebSocketProvider';
 import { useAuth } from '../hooks/useAuth';
 
 const AdminChat = () => {
@@ -8,7 +8,7 @@ const AdminChat = () => {
     const { user } = useAuth();
     
     // --- UPDATED: Using new state and functions from the WebSocket context ---
-    const { adminMessages, sendAdminMessage, isConnected } = useWebSocket();
+    const { adminMessages, sendAdminMessage, isConnected } = useWebSocketActions();
     const messagesEndRef = useRef(null);
 
     useEffect(() => {

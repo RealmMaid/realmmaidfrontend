@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useWebSocket } from '../contexts/WebSocketProvider.jsx';
+import { useWebSocketActions } from '../contexts/WebSocketProvider.jsx';
 import API from '../api/axios';
 import { useChatSessions } from '../hooks/useChatSessions.js';
 import { useUpdateSessionStatus } from '../hooks/useUpdateSessionStatus.js'; // 1. Import our new mutation hook
@@ -14,7 +14,7 @@ function ChatManagement() {
     // 'isPending' is a boolean that is true while the mutation is in progress.
     const { mutateAsync: updateStatus, isPending: isUpdatingStatus } = useUpdateSessionStatus();
     
-    const { isConnected, typingPeers, activeAdminChat, setActiveAdminChat, sendAdminReply, emitStartTyping, emitStopTyping } = useWebSocket();
+    const { isConnected, typingPeers, activeAdminChat, setActiveAdminChat, sendAdminReply, emitStartTyping, emitStopTyping } = useWebSocketActions();
     const [isModalOpen, setIsModalOpen] = useState(false);
     
     const handleViewChat = async (session) => {

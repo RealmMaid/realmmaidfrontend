@@ -3,7 +3,7 @@ import { useWebSocketActions } from '../contexts/WebSocketProvider';
 import { useAuth } from './useAuth';
 
 export const useReadReceipts = (messages, sessionId) => {
-    const { emitMessagesRead } = useWebSocket();
+    const { emitMessagesRead } = useWebSocketActions();
     const { user: currentUser } = useAuth();
     const observer = useRef(null);
     const observedMessageIds = useRef(new Set());
