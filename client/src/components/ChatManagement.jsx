@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useWebSocket } from '../contexts/WebSocketProvider.jsx';
 import API from '../api/axios';
 import { useChatSessions } from '../hooks/useChatSessions.js';
@@ -6,15 +7,15 @@ import { ChatModal } from './ChatModal.jsx';
 
 function ChatManagement() {
     const { data: sessions, isLoading, isError, error } = useChatSessions();
-    
-    // --- WE NOW CORRECTLY GET THE TYPING FUNCTIONS FROM THE PROVIDER ---
     const { isConnected, typingPeers, activeAdminChat, setActiveAdminChat, sendAdminReply, emitStartTyping, emitStopTyping } = useWebSocket();
-    
     const [isModalOpen, setIsModalOpen] = useState(false);
+
+    // Get the query client so we can invalidate the cache after a mutation
+    const queryClient = useQueryClient();
 
     const handleViewChat = async (session) => {
         try {
-            const response = await API.get(`/admin/chat/sessions/${session.sessionId}/messages`);
+            const response = await API.get(`/api/chat/sessions/${session.sessionId}/messages`);
             if (response.data.success) {
                 setActiveAdminChat({
                     sessionId: session.sessionId,
@@ -31,6 +32,18 @@ function ChatManagement() {
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setActiveAdminChat({ sessionId: null, participantName: null, messages: [] });
+    };
+
+    // --- THIS FUNCTION IS NOW RESTORED ---
+    const handleSessionStatusChange = async (sessionId, action) => {
+        try {
+            // We call the same API endpoint as before
+            await API.post(`/api/admin/chat/sessions/${sessionId}/${action}`);
+            // On success, we tell React Query the list is stale
+            await queryClient.invalidateQueries({ queryKey: ['chatSessions'] });
+        } catch (err) {
+            console.error(`Failed to ${action} session ${sessionId}:`, err);
+        }
     };
 
     if (isLoading) {
@@ -56,7 +69,6 @@ function ChatManagement() {
                 messages={activeAdminChat.messages}
                 onSendMessage={sendAdminReply}
                 isConnected={isConnected}
-                // --- THESE ARE NOW PASSED CORRECTLY ---
                 emitStartTyping={emitStartTyping}
                 emitStopTyping={emitStopTyping}
             />
@@ -73,11 +85,21 @@ function ChatManagement() {
                             <div key={session.sessionId} className="card chat-session-item">
                                 <div className="session-details">
                                     <strong className="participant-name">{participantDisplay}</strong>
+                                    <span className="session-id">Session ID: {session.sessionId}</span>
+                                    <span className={`session-status status-${session.status}`}>{session.status}</span>
                                     <p className="last-message">"{session.last_message_text || 'No messages yet...'}"</p>
                                     {session.isTyping && <div className="typing-indicator"><span>typing...</span></div>}
+                                    <small className="last-update">Last Update: {new Date(session.updated_at).toLocaleString()}</small>
                                 </div>
                                 <div className="chat-actions">
                                     <button onClick={() => handleViewChat(session)} className="btn btn-sm btn-secondary-action">View Chat</button>
+                                    
+                                    {/* --- THESE BUTTONS ARE NOW RESTORED --- */}
+                                    {session.status !== 'resolved' && (
+                                        <button onClick={() => handleSessionStatusChange(session.sessionId, 'resolve')} className="btn btn-sm btn-success-action">Resolve</button>
+                                    )}
+                                    <button onClick={() => handleSessionStatusChange(session.sessionId, 'archive')} className="btn btn-sm btn-danger-action">Archive</button>
+                                    
                                 </div>
                             </div>
                         );
