@@ -1,19 +1,24 @@
 import React, { useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { useWebSocket } from '../contexts/WebSocketProvider.jsx';
 import API from '../api/axios';
 import { useChatSessions } from '../hooks/useChatSessions.js';
+import { useUpdateSessionStatus } from '../hooks/useUpdateSessionStatus.js'; // 1. Import our new mutation hook
 import { ChatModal } from './ChatModal.jsx';
 
 function ChatManagement() {
+    // Our existing query for fetching data
     const { data: sessions, isLoading, isError, error } = useChatSessions();
+    
+    // 2. Our new mutation hook!
+    // 'mutateAsync' is the function we call to trigger the action.
+    // 'isPending' is a boolean that is true while the mutation is in progress.
+    const { mutateAsync: updateStatus, isPending: isUpdatingStatus } = useUpdateSessionStatus();
+    
     const { isConnected, typingPeers, activeAdminChat, setActiveAdminChat, sendAdminReply, emitStartTyping, emitStopTyping } = useWebSocket();
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const queryClient = useQueryClient();
-
+    
     const handleViewChat = async (session) => {
         try {
-            // NOTE: The URL here is correct because it's inside the /api/chat router on the backend.
             const response = await API.get(`/chat/sessions/${session.sessionId}/messages`);
             if (response.data.success) {
                 setActiveAdminChat({
@@ -33,46 +38,27 @@ function ChatManagement() {
         setActiveAdminChat({ sessionId: null, participantName: null, messages: [] });
     };
 
+    // 3. This function is now much simpler. It just calls our mutation hook.
     const handleSessionStatusChange = async (sessionId, action) => {
         try {
-            // --- THIS IS THE CORRECTED LINE ---
-            // The extra '/api' is removed. The axios instance will add it correctly.
-            await API.post(`/admin/chat/sessions/${sessionId}/${action}`);
-            
-            // On success, we tell React Query the list is stale
-            await queryClient.invalidateQueries({ queryKey: ['chatSessions'] });
+            await updateStatus({ sessionId, action });
+            // We can show a success toast here in the future!
         } catch (err) {
-            console.error(`Failed to ${action} session ${sessionId}:`, err);
+            // Error handling is already done inside the hook, but we can add more here if needed.
+            console.error("Handler caught error:", err);
         }
     };
 
-    if (isLoading) {
-        return <div className="content-section"><p>Loading chat sessions...</p></div>;
-    }
-    if (isError) {
-        return <div className="content-section"><p>Error loading sessions: {error.message}</p></div>;
-    }
+    if (isLoading) return <div className="content-section"><p>Loading chat sessions...</p></div>;
+    if (isError) return <div className="content-section"><p>Error loading sessions: {error.message}</p></div>;
 
     const sessionsArray = sessions
-        ?.map(s => ({
-            ...s,
-            isTyping: typingPeers[s.sessionId],
-        }))
+        ?.map(s => ({ ...s, isTyping: typingPeers[s.sessionId] }))
         .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
 
     return (
         <>
-            <ChatModal
-                show={isModalOpen}
-                onClose={handleCloseModal}
-                session={activeAdminChat}
-                messages={activeAdminChat.messages}
-                onSendMessage={sendAdminReply}
-                isConnected={isConnected}
-                emitStartTyping={emitStartTyping}
-                emitStopTyping={emitStopTyping}
-            />
-
+            <ChatModal show={isModalOpen} onClose={handleCloseModal} session={activeAdminChat} messages={activeAdminChat.messages} onSendMessage={sendAdminReply} isConnected={isConnected} emitStartTyping={emitStartTyping} emitStopTyping={emitStopTyping} />
             <div className="content-section">
                 <div className="content-header">
                     <h2>Chat Management</h2>
@@ -92,11 +78,15 @@ function ChatManagement() {
                                     <small className="last-update">Last Update: {new Date(session.updated_at).toLocaleString()}</small>
                                 </div>
                                 <div className="chat-actions">
-                                    <button onClick={() => handleViewChat(session)} className="btn btn-sm btn-secondary-action">View Chat</button>
+                                    <button onClick={() => handleViewChat(session)} className="btn btn-sm btn-secondary-action" disabled={isUpdatingStatus}>View Chat</button>
                                     {session.status !== 'resolved' && (
-                                        <button onClick={() => handleSessionStatusChange(session.sessionId, 'resolve')} className="btn btn-sm btn-success-action">Resolve</button>
+                                        <button onClick={() => handleSessionStatusChange(session.sessionId, 'resolve')} className="btn btn-sm btn-success-action" disabled={isUpdatingStatus}>
+                                            {isUpdatingStatus ? 'Resolving...' : 'Resolve'}
+                                        </button>
                                     )}
-                                    <button onClick={() => handleSessionStatusChange(session.sessionId, 'archive')} className="btn btn-sm btn-danger-action">Archive</button>
+                                    <button onClick={() => handleSessionStatusChange(session.sessionId, 'archive')} className="btn btn-sm btn-danger-action" disabled={isUpdatingStatus}>
+                                        {isUpdatingStatus ? 'Archiving...' : 'Archive'}
+                                    </button>
                                 </div>
                             </div>
                         );
