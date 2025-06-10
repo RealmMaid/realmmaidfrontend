@@ -16,6 +16,7 @@ export const useUpdateSessionStatus = () => {
         
         // This function runs after the mutation is successful
         onSuccess: (data, variables) => {
+            console.log("Mutation was successful! Should be showing a toast now.");
             // First, invalidate the cache so the list updates
             queryClient.invalidateQueries({ queryKey: ['chatSessions'] });
 
