@@ -1,0 +1,72 @@
+File tree for: C:\Users\admin\projects\realmmaid_frontend
+
+├── realmmaid_frontend/
+│   ├── client
+│   └── file_tree.txt
+│   ├── client/
+│   │   ├── dist
+│   │   ├── src
+│   │   ├── index.html
+│   │   ├── package-lock.json
+│   │   ├── package.json
+│   │   └── vite.config.js
+│   │   ├── dist/
+│   │   │   ├── assets
+│   │   │   └── index.html
+│   │   │   ├── assets/
+│   │   │   │   ├── index-Bv03OH9e.css
+│   │   │   │   └── index-BW3O4cBO.js
+│   │   ├── src/
+│   │   │   ├── admin-dashboard-modules
+│   │   │   ├── api
+│   │   │   ├── components
+│   │   │   ├── contexts
+│   │   │   ├── hooks
+│   │   │   ├── pages
+│   │   │   ├── App.jsx
+│   │   │   ├── index.css
+│   │   │   └── main.jsx
+│   │   │   ├── admin-dashboard-modules/
+│   │   │   │   └── ChatManagement.jsx
+│   │   │   ├── api/
+│   │   │   │   ├── axios.js
+│   │   │   │   └── csrf.js
+│   │   │   ├── components/
+│   │   │   │   ├── AdminChat.jsx
+│   │   │   │   ├── ChatManagement.jsx
+│   │   │   │   ├── ChatModal.jsx
+│   │   │   │   ├── ChatWidget.jsx
+│   │   │   │   ├── DashboardHome.jsx
+│   │   │   │   ├── Header.css
+│   │   │   │   ├── Header.jsx
+│   │   │   │   ├── IpManagement.jsx
+│   │   │   │   ├── MainLayout.jsx
+│   │   │   │   ├── OrderManagement.jsx
+│   │   │   │   ├── ProductManagement.jsx
+│   │   │   │   ├── ProtectedRoute.jsx
+│   │   │   │   ├── SettingsManagement.jsx
+│   │   │   │   ├── ShoppingCart.jsx
+│   │   │   │   └── UserManagement.jsx
+│   │   │   ├── contexts/
+│   │   │   │   ├── CartContext.jsx
+│   │   │   │   └── WebSocketProvider.jsx
+│   │   │   ├── hooks/
+│   │   │   │   ├── useAuth.jsx
+│   │   │   │   ├── useChatSessions.js
+│   │   │   │   ├── useChatStore.js
+│   │   │   │   ├── useReadReceipts.js
+│   │   │   │   └── useUpdateSessionStatus.js
+│   │   │   ├── pages/
+│   │   │   │   ├── AdminDashboardPage.css
+│   │   │   │   ├── AdminDashboardPage.jsx
+│   │   │   │   ├── CheckoutPage.jsx
+│   │   │   │   ├── ForgotPasswordPage.jsx
+│   │   │   │   ├── HomePage.css
+│   │   │   │   ├── HomePage.jsx
+│   │   │   │   ├── LoginPage.css
+│   │   │   │   ├── LoginPage.jsx
+│   │   │   │   ├── NotFoundPage.jsx
+│   │   │   │   ├── PleaseVerifyPage.jsx
+│   │   │   │   ├── RegisterPage.jsx
+│   │   │   │   ├── ResetPasswordPage.jsx
+│   │   │   │   └── UserDashboardPage.jsx

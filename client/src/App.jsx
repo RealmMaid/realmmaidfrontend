@@ -1,8 +1,6 @@
 import React, { useEffect } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { getCsrfToken } from './api/csrf';
-
-// 1. Ensure this import is present
 import { Toaster } from 'react-hot-toast';
 
 // --- Page Imports ---
@@ -17,6 +15,13 @@ import AdminDashboardPage from './pages/AdminDashboardPage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
 import CheckoutPage from './pages/CheckoutPage.jsx';
 
+// --- Dashboard Component Imports ---
+import MyOrders from './components/dashboard/MyOrders.jsx';
+import ProfileSettings from './components/dashboard/ProfileSettings.jsx';
+import PaymentMethods from './components/dashboard/PaymentMethods.jsx';
+import MyWishlist from './components/dashboard/MyWishlist.jsx';
+import PixelClickerGame from './components/dashboard/PixelClickerGame.jsx'; // The import!
+
 
 function App() {
   useEffect(() => {
@@ -24,28 +29,34 @@ function App() {
   }, []);
 
   return (
-    // A React component must return a single parent element.
-    // We use a React Fragment (<>...</>) to wrap Routes and Toaster.
     <>
       <Routes>
-        {/* All your Route components go here... */}
         <Route element={<MainLayout />}>
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/please-verify" element={<PleaseVerifyPage />} />
         </Route>
+        
         <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard" element={<UserDashboardPage />} />
+            <Route path="/dashboard" element={<UserDashboardPage />}>
+              <Route index element={<Navigate to="orders" replace />} />
+              <Route path="orders" element={<MyOrders />} />
+              <Route path="settings"element={<ProfileSettings />} />
+              <Route path="payments" element={<PaymentMethods />} />
+              <Route path="wishlist" element={<MyWishlist />} />
+              <Route path="game" element={<PixelClickerGame />} /> {/* The usage! */}
+            </Route>
             <Route path="/checkout" element={<CheckoutPage />} />
         </Route>
+
         <Route element={<ProtectedRoute adminOnly={true} />}>
             <Route path="/admin" element={<AdminDashboardPage />} />
         </Route>
+
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
 
-      {/* 2. Ensure this Toaster component is present */}
       <Toaster 
         position="bottom-right"
         toastOptions={{

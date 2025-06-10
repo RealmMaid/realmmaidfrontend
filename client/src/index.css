@@ -366,6 +366,42 @@ input:focus, textarea:focus {
     display: inline-block; 
     font-family: var(--font-sans); 
 }
+.clicker-container {
+  text-align: center;
+  padding: 1rem;
+}
+
+.gem-button {
+  font-size: 6rem;
+  cursor: pointer;
+  user-select: none;
+  animation: float-animation 3s ease-in-out infinite;
+  transition: transform 0.1s ease;
+}
+
+.gem-button:active {
+  transform: scale(0.9);
+}
+
+@keyframes float-animation {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-15px); }
+  100% { transform: translateY(0); }
+}
+
+.upgrades-shop {
+  margin-top: 2rem;
+  border-top: 2px dashed var(--card-border);
+  padding-top: 1.5rem;
+}
+
+.btn-upgrade {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0.5rem;
+  padding: 0.75rem 1.5rem;
+}
 .badge.verified { background-color: #2ecc71; }
 .badge.not-verified { background-color: #e74c3c; }
 .badge.admin { background-color: #9b59b6; }
