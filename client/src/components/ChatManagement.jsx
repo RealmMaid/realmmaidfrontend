@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth.jsx';
 import { useReadReceipts } from '../hooks/useReadReceipts.js';
 import API from '../api/axios';
 
-const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnected, currentUser, emitStartTyping, emitStopTyping }) => {
+const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnected, currentUser, emitStartTyping, emitStopTyping, isPeerTyping }) => { // <-- 1. Accept the new prop
   const [messageText, setMessageText] = useState('');
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -15,7 +15,7 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
     if (show) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages, show]);
+  }, [messages, show, isPeerTyping]); // Added isPeerTyping to scroll smoothly when it appears
 
   useEffect(() => {
     return () => {
@@ -58,23 +58,14 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
         </div>
         <div className="modal-body chat-messages-container">
           {Array.isArray(messages) && messages.map((msg, index) => {
-            // --- SPECIAL DEBUGGING LOGS ---
-            // We are logging the message object to see its exact structure.
-            console.log(`[DEBUG] Rendering message index ${index}:`, msg);
-
             if (!msg || typeof msg !== 'object') {
                 return null;
             }
 
             const isAdminMessage = msg.sender_type === 'admin';
             const isMyMessage = currentUser && isAdminMessage && (msg.admin_user_id === currentUser.id || msg.adminUserId === currentUser.id);
-            
-            // This will tell us what the check is evaluating to
-            if(isAdminMessage) {
-                 console.log(`[DEBUG] Message from admin: ${isAdminMessage}. Is it from me? ${isMyMessage}. My ID: ${currentUser?.id}, Message's Admin ID: ${msg.admin_user_id || msg.adminUserId}`);
-            }
 
-            let senderName = isMyMessage ? 'You' : (session.participantName || 'Guest');
+            let senderName = isMyMessage ? 'You' : (isAdminMessage ? 'Admin' : (session.participantName || 'Guest'));
             
             return (
               <div ref={messageRef} data-message-id={msg.id} key={msg.id || `msg-${index}`} className={`chat-message-item-wrapper ${isMyMessage ? 'admin-message' : 'user-message'}`}>
@@ -89,6 +80,20 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
               </div>
             );
           })}
+
+          {/* --- 2. ADD THIS LOGIC --- */}
+          {/* This will display the typing indicator animation when the peer is typing. */}
+          {isPeerTyping && (
+            <div className="chat-message-item-wrapper user-message">
+                <span className="msg-sender-name">{session.participantName || 'Guest'}</span>
+                <div className="chat-message-item">
+                    <div className="typing-indicator">
+                        <span></span><span></span><span></span>
+                    </div>
+                </div>
+            </div>
+          )}
+
           <div ref={messagesEndRef} />
         </div>
         <div className="modal-footer">
@@ -167,6 +172,10 @@ function ChatManagement() {
   };
   
   const modalSessionData = activeModal.sessionId ? adminCustomerSessions[activeModal.sessionId] : null;
+  
+  // --- 3. ADD THIS LINE ---
+  // Check the typingPeers state for the session that is currently open in the modal.
+  const isModalPeerTyping = activeModal.sessionId ? typingPeers[activeModal.sessionId] : false;
 
   return (
     <>
@@ -180,6 +189,7 @@ function ChatManagement() {
         currentUser={currentUser}
         emitStartTyping={emitStartTyping}
         emitStopTyping={emitStopTyping}
+        isPeerTyping={isModalPeerTyping} // <-- 4. PASS THE PROP HERE
       />
 
       <div className="content-section">
