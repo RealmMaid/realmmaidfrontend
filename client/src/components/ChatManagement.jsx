@@ -58,7 +58,14 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
         </div>
         <div className="modal-body chat-messages-container">
           {Array.isArray(messages) && messages.map((msg, index) => {
-            if (!msg || typeof msg !== 'object') {
+            
+            // --- NEW DEBUG LOG ---
+            // This will show us the exact data for each message being rendered.
+            console.log('[DEBUG] ChatModal is rendering message:', msg);
+            // ---------------------
+
+            if (!msg || typeof msg !== 'object' || !msg.id) {
+                console.warn('[DEBUG] ChatModal skipped rendering a malformed message object:', msg);
                 return null;
             }
             const isAdminMessage = msg.sender_type === 'admin';
@@ -66,7 +73,7 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
             let senderName = isMyMessage ? 'You' : (isAdminMessage ? 'Admin' : (session.participantName || 'Guest'));
             
             return (
-              <div ref={messageRef} data-message-id={msg.id} key={msg.id || `msg-${index}`} className={`chat-message-item-wrapper ${isMyMessage ? 'admin-message' : 'user-message'}`}>
+              <div ref={messageRef} data-message-id={msg.id} key={msg.id} className={`chat-message-item-wrapper ${isMyMessage ? 'admin-message' : 'user-message'}`}>
                 <span className="msg-sender-name">{senderName}</span>
                 <div className="chat-message-item">
                   <p className="msg-text">{msg.message_text}</p>
@@ -123,16 +130,7 @@ function ChatManagement() {
   const { user: currentUser } = useAuth();
   const [activeModal, setActiveModal] = useState({ show: false, sessionId: null });
 
-  // --- THIS IS THE DEBUGGING HOOK YOU REQUESTED ---
-  useEffect(() => {
-    // This hook will run whenever the adminCustomerSessions object changes.
-    // It will help us see if the state is updating correctly in this component.
-    if (activeModal.sessionId && adminCustomerSessions[activeModal.sessionId]) {
-      const messageCount = adminCustomerSessions[activeModal.sessionId].messages.length;
-      console.log(`[DEBUG] ChatManagement saw an update for session ${activeModal.sessionId}. It now has ${messageCount} messages.`);
-    }
-  }, [adminCustomerSessions, activeModal.sessionId]);
-  // --------------------------------------------------
+  // The previous useEffect has been removed as it served its purpose.
 
   const sessionsArray = Object.values(adminCustomerSessions)
     .filter(s => s && s.sessionDetails)
