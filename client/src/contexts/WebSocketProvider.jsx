@@ -10,7 +10,7 @@ export const useWebSocket = () => useContext(WebSocketContext);
 export const WebSocketProvider = ({ children }) => {
     const socketRef = useRef(null);
     const [isConnected, setIsConnected] = useState(false);
-    const { user, isAuthLoading } = useAuth();
+    const { user } = useAuth();
     
     const [customerChat, setCustomerChat] = useState({ sessionId: null, messages: [] });
     const [adminMessages, setAdminMessages] = useState([]);
@@ -50,75 +50,74 @@ export const WebSocketProvider = ({ children }) => {
             if (!payload || !payload.data) return;
             setAdminCustomerSessions(prev => ({ ...prev, [payload.data.id]: { sessionDetails: payload.data, messages: [] } }));
         };
-
+        
+        // --- CORRECTED ---
+        // This function handles new messages from the GUEST.
         const handleNewCustomerMessage = (payload) => {
             const message = payload.savedMessage;
             if (!message || !message.session_id) return;
             const sessionId = message.session_id;
             
+            // Update the guest's own chat window if they have it open elsewhere
             setCustomerChat(prev => {
-                if (String(prev.sessionId) === String(sessionId)) {
-                    const newMessages = prev.messages.filter(m => !String(m.id).startsWith('local-'));
-                    if (!newMessages.some(m => m.id === message.id)) { newMessages.push(message); }
-                    return { ...prev, messages: newMessages };
-                }
-                return prev;
+                if (String(prev.sessionId) !== String(sessionId)) return prev;
+                // Add the new message if it's not already there
+                if (prev.messages.some(m => m.id === message.id)) return prev;
+                return { ...prev, messages: [...prev.messages, message] };
             });
 
-            setAdminCustomerSessions(prev => {
-                if (!prev[sessionId] || prev[sessionId].messages.some(m => m.id === message.id)) return prev;
+            // Update the admin's view of this specific customer session
+            setAdminCustomerSessions(prevSessions => {
+                const targetSession = prevSessions[sessionId];
+                if (!targetSession) return prevSessions; // Don't do anything if session is not in view
+                // Add new message if it doesn't already exist in the array
+                if (targetSession.messages.some(m => m.id === message.id)) return prevSessions;
+
                 const updatedSession = { 
-                    ...prev[sessionId], 
-                    messages: [...prev[sessionId].messages, message], 
-                    sessionDetails: { ...prev[sessionId].sessionDetails, last_message_text: message.message_text, updated_at: message.created_at }
+                    ...targetSession, 
+                    messages: [...targetSession.messages, message], 
+                    sessionDetails: { ...targetSession.sessionDetails, last_message_text: message.message_text, updated_at: message.created_at }
                 };
-                return { ...prev, [sessionId]: updatedSession };
+                
+                // Return a new state object to trigger re-render
+                return { ...prevSessions, [sessionId]: updatedSession };
             });
         };
 
-        // --- THIS IS THE CORRECTED FUNCTION ---
+        // --- CORRECTED ---
+        // This function handles new messages from the ADMIN.
         const handleNewAdminMessage = (payload) => {
-            // This debug log is still needed to test the guest client.
-            console.log("[DEBUG] Guest client received 'new_admin_message' event with payload:", payload);
-
             const message = payload.savedMessage;
             if (!message || !message.id) return;
-
             const sessionId = message.session_id;
             
-            // This block updates the guest's chat window.
+            // Update the guest's chat window.
             setCustomerChat(prev => {
-                if (String(prev.sessionId) === String(sessionId)) {
-                    const newMessages = prev.messages.filter(m => !String(m.id).startsWith('local-'));
-                    if (!newMessages.some(m => m.id === message.id)) {
-                        newMessages.push(message);
-                    }
-                    return { ...prev, messages: newMessages };
-                }
-                return prev;
+                if (String(prev.sessionId) !== String(sessionId)) return prev;
+                if (prev.messages.some(m => m.id === message.id)) return prev;
+
+                const newMessages = prev.messages.filter(m => !String(m.id).startsWith('local-'));
+                return { ...prev, messages: [...newMessages, message] };
             });
             
-            // This block updates the admin's view of the customer session.
-            // THIS WAS THE MISSING CODE THAT CAUSED THE BUILD ERROR.
-            setAdminCustomerSessions(prev => {
-                if (!sessionId || !prev[sessionId]) return prev;
-
-                const newMessages = prev[sessionId].messages.filter(m => !String(m.id).startsWith('local-'));
-                if (!newMessages.some(m => m.id === message.id)) {
-                    newMessages.push(message);
-                }
-
+            // Update the admin's view of the customer session.
+            setAdminCustomerSessions(prevSessions => {
+                const targetSession = prevSessions[sessionId];
+                if (!targetSession) return prevSessions;
+                // Replace optimistic message and add real one if it's not a duplicate
+                const newMessages = targetSession.messages.filter(m => !String(m.id).startsWith('local-'));
+                if (newMessages.some(m => m.id === message.id)) return prevSessions;
+                
                 const updatedSession = { 
-                    ...prev[sessionId], 
-                    messages: newMessages, 
-                    sessionDetails: { ...prev[sessionId].sessionDetails, last_message_text: message.message_text, updated_at: message.created_at }
+                    ...targetSession, 
+                    messages: [...newMessages, message],
+                    sessionDetails: { ...targetSession.sessionDetails, last_message_text: message.message_text, updated_at: message.created_at }
                 };
-                return { ...prev, [sessionId]: updatedSession };
+                return { ...prevSessions, [sessionId]: updatedSession };
             });
         };
 
         const handlePeerIsTyping = ({ sessionId, userName }) => setTypingPeers(prev => ({ ...prev, [sessionId]: userName || true }));
-        
         const handlePeerStoppedTyping = ({ sessionId }) => {
             setTypingPeers(prev => {
                 const newPeers = { ...prev };
@@ -126,7 +125,6 @@ export const WebSocketProvider = ({ children }) => {
                 return newPeers;
             });
         };
-        
         const handleMessagesWereRead = ({ sessionId, messageIds, readAt }) => {
             const updateMessages = (msgs) => msgs.map(m => messageIds.includes(m.id) ? { ...m, read_at: readAt } : m);
             setCustomerChat(prev => String(prev.sessionId) === String(sessionId) ? { ...prev, messages: updateMessages(prev.messages) } : prev);
@@ -166,10 +164,7 @@ export const WebSocketProvider = ({ children }) => {
 
     const sendCustomerMessage = useCallback((messageText) => {
         if (socketRef.current?.connected) {
-            const optimisticMessage = {
-                id: `local-${Date.now()}`, message_text: messageText, sender_type: 'guest',
-                created_at: new Date().toISOString(), session_id: customerChat.sessionId
-            };
+            const optimisticMessage = { id: `local-${Date.now()}`, message_text: messageText, sender_type: 'guest', created_at: new Date().toISOString(), session_id: customerChat.sessionId };
             setCustomerChat(prev => ({ ...prev, messages: [...prev.messages, optimisticMessage]}));
             socketRef.current.emit('customer_chat_message', { text: messageText });
         }
@@ -177,10 +172,7 @@ export const WebSocketProvider = ({ children }) => {
 
     const sendAdminReply = useCallback((messageText, targetSessionId) => {
         if (socketRef.current?.connected && targetSessionId && user) {
-            const optimisticMessage = {
-                id: `local-${Date.now()}`, message_text: messageText, sender_type: 'admin',
-                created_at: new Date().toISOString(), session_id: targetSessionId, admin_user_id: user.id,
-            };
+            const optimisticMessage = { id: `local-${Date.now()}`, message_text: messageText, sender_type: 'admin', created_at: new Date().toISOString(), session_id: targetSessionId, admin_user_id: user.id };
             setAdminCustomerSessions(prev => {
                 if (!prev[targetSessionId]) return prev;
                 return { ...prev, [targetSessionId]: { ...prev[targetSessionId], messages: [...prev[targetSessionId].messages, optimisticMessage] }};
@@ -202,24 +194,12 @@ export const WebSocketProvider = ({ children }) => {
     }, [adminCustomerSessions]);
 
     const sendAdminMessage = useCallback((messageText) => {
-        if (socketRef.current?.connected) {
-             socketRef.current.emit('admin_chat_message', { text: messageText });
-        }
+        if (socketRef.current?.connected) { socketRef.current.emit('admin_chat_message', { text: messageText }); }
     }, []);
     
-    const emitStartTyping = useCallback((sessionId) => {
-        if (socketRef.current?.connected) { socketRef.current.emit('start_typing', { sessionId }); }
-    }, []);
-
-    const emitStopTyping = useCallback((sessionId) => {
-        if (socketRef.current?.connected) { socketRef.current.emit('stop_typing', { sessionId }); }
-    }, []);
-
-    const emitMessagesRead = useCallback((sessionId, messageIds) => {
-        if (socketRef.current?.connected && sessionId && messageIds.length > 0) {
-            socketRef.current.emit('messages_read', { sessionId, messageIds });
-        }
-    }, []);
+    const emitStartTyping = useCallback((sessionId) => { if (socketRef.current?.connected) { socketRef.current.emit('start_typing', { sessionId }); } }, []);
+    const emitStopTyping = useCallback((sessionId) => { if (socketRef.current?.connected) { socketRef.current.emit('stop_typing', { sessionId }); } }, []);
+    const emitMessagesRead = useCallback((sessionId, messageIds) => { if (socketRef.current?.connected && sessionId && messageIds.length > 0) { socketRef.current.emit('messages_read', { sessionId, messageIds }); } }, []);
     
     const value = {
         isConnected, user, customerChat, adminCustomerSessions, setAdminCustomerSessions, adminMessages,
