@@ -5,16 +5,14 @@ import { useChatSessions } from '../hooks/useChatSessions.js';
 import { ChatModal } from './ChatModal.jsx';
 
 function ChatManagement() {
-    // Data fetching is now handled perfectly by React Query
     const { data: sessions, isLoading, isError, error } = useChatSessions();
     
-    // We get the necessary real-time data and functions from our corrected provider
-    const { isConnected, typingPeers, activeAdminChat, setActiveAdminChat, sendAdminReply } = useWebSocket();
+    // --- WE NOW CORRECTLY GET THE TYPING FUNCTIONS FROM THE PROVIDER ---
+    const { isConnected, typingPeers, activeAdminChat, setActiveAdminChat, sendAdminReply, emitStartTyping, emitStopTyping } = useWebSocket();
     
     const [isModalOpen, setIsModalOpen] = useState(false);
 
     const handleViewChat = async (session) => {
-        // When we open a chat, we fetch its history and set it as the "active" chat
         try {
             const response = await API.get(`/admin/chat/sessions/${session.sessionId}/messages`);
             if (response.data.success) {
@@ -38,7 +36,6 @@ function ChatManagement() {
     if (isLoading) {
         return <div className="content-section"><p>Loading chat sessions...</p></div>;
     }
-
     if (isError) {
         return <div className="content-section"><p>Error loading sessions: {error.message}</p></div>;
     }
@@ -59,9 +56,9 @@ function ChatManagement() {
                 messages={activeAdminChat.messages}
                 onSendMessage={sendAdminReply}
                 isConnected={isConnected}
-                // We pass placeholder functions for typing for now, can be wired up if needed
-                emitStartTyping={() => {}}
-                emitStopTyping={() => {}}
+                // --- THESE ARE NOW PASSED CORRECTLY ---
+                emitStartTyping={emitStartTyping}
+                emitStopTyping={emitStopTyping}
             />
 
             <div className="content-section">
