@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useContext, useCallback, useRef, useMemo } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth.jsx';
 import API from '../api/axios';
@@ -24,7 +24,7 @@ export const WebSocketProvider = ({ children }) => {
     const socketRef = useRef(null);
     const [isConnected, setIsConnected] = useState(false);
     const { user } = useAuth();
-    
+
     const [customerChat, setCustomerChat] = useState({ sessionId: null, messages: [] });
     const [activeAdminChat, setActiveAdminChat] = useState({ sessionId: null, messages: [] });
     const [typingPeers, setTypingPeers] = useState({});
@@ -47,22 +47,18 @@ export const WebSocketProvider = ({ children }) => {
 
         const handleNewCustomerSession = (payload) => {
             toast(`New chat started with ${payload?.data?.participantName || 'a new visitor'}.`, { icon: '💬' });
-            // For a brand new session, invalidating is perfect.
             queryClient.invalidateQueries({ queryKey: ['chatSessions'] });
         };
-        
-        // --- THIS IS THE NEW, OPTIMIZED LOGIC ---
+
         const updateSessionInCache = (message) => {
             if (!message || !message.session_id) return;
             const sessionId = message.session_id;
 
-            // setQueryData lets us directly and instantly manipulate the cached data
-            // without making an API call.
             queryClient.setQueryData(['chatSessions'], (oldData) => {
                 if (!oldData) return oldData;
                 const sessionIndex = oldData.findIndex(s => s.sessionId === sessionId);
                 if (sessionIndex === -1) return oldData;
-                
+
                 const newSessions = [...oldData];
                 newSessions[sessionIndex] = {
                     ...newSessions[sessionIndex],
@@ -72,16 +68,16 @@ export const WebSocketProvider = ({ children }) => {
                 return newSessions;
             });
         };
-        
+
         const handleNewCustomerMessage = (payload) => {
             const message = payload.savedMessage;
-            updateSessionInCache(message); // Update the list cache smartly
+            updateSessionInCache(message);
             setActiveAdminChat(prev => (prev.sessionId === message.session_id) ? { ...prev, messages: [...prev.messages, message] } : prev);
         };
 
         const handleNewAdminMessage = (payload) => {
             const message = payload.savedMessage;
-            updateSessionInCache(message); // Update the list cache smartly
+            updateSessionInCache(message);
             setCustomerChat(prev => (String(prev.sessionId) === String(message.session_id)) ? { ...prev, messages: [...prev.messages, message] } : prev);
             setActiveAdminChat(prev => {
                 if (prev.sessionId === message.session_id) {
@@ -102,13 +98,13 @@ export const WebSocketProvider = ({ children }) => {
         };
 
         const handleAdminInitialized = (data) => {
-            if(data.customerChatSessions) {
+            if (data.customerChatSessions) {
                 queryClient.setQueryData(['chatSessions'], data.customerChatSessions);
             }
         };
 
         const handleCustomerSessionInitialized = (data) => {
-            if(data.sessionId) {
+            if (data.sessionId) {
                 setCustomerChat({ sessionId: data.sessionId, messages: data.history || [] });
             }
         };
@@ -126,11 +122,104 @@ export const WebSocketProvider = ({ children }) => {
         return () => { if (socketRef.current) socketRef.current.disconnect(); };
     }, [queryClient, user]);
 
-    const sendCustomerMessage = useCallback((messageText) => { if (socketRef.current?.connected && customerChat.sessionId) { const optimisticMessage = { id: `local-${Date.now()}`, message_text: messageText, sender_type: 'guest', created_at: new Date().toISOString(), session_id: customerChat.sessionId }; setCustomerChat(prev => ({ ...prev, messages: [...prev.messages, optimisticMessage]})); socketRef.current.emit('customer_chat_message', { text: messageText }); } }, [customerChat.sessionId]);
-    const sendAdminReply = useCallback((messageText, targetSessionId) => { if (socketRef.current?.connected && targetSessionId && user) { const optimisticMessage = { id: `local-${Date.now()}`, message_text: messageText, sender_type: 'admin', created_at: new Date().toISOString(), session_id: targetSessionId, admin_user_id: user.id }; setActiveAdminChat(prev => ({...prev, messages: [...prev.messages, optimisticMessage]})); socketRef.current.emit('admin_to_customer_message', { text: messageText, sessionId: targetSessionId }); } }, [user]);
+    // NEW: useMutation for sending customer messages
+    const { mutate: sendCustomerMessage } = useMutation({
+        mutationFn: (messageText) => {
+            return new Promise((resolve, reject) => {
+                if (socketRef.current?.connected && customerChat.sessionId) {
+                    socketRef.current.emit('customer_chat_message', { text: messageText }, (response) => {
+                        if (response.success) {
+                            resolve(response.data);
+                        } else {
+                            reject(new Error(response.error || 'Failed to send message.'));
+                        }
+                    });
+                } else {
+                    reject(new Error('Socket not connected.'));
+                }
+            });
+        },
+        onMutate: async (messageText) => {
+            await queryClient.cancelQueries({ queryKey: ['messages', customerChat.sessionId] });
+            const optimisticMessage = {
+                id: `local-${Date.now()}`,
+                message_text: messageText,
+                sender_type: 'guest',
+                created_at: new Date().toISOString(),
+                session_id: customerChat.sessionId,
+            };
+            setCustomerChat(prev => ({ ...prev, messages: [...prev.messages, optimisticMessage] }));
+            return { optimisticMessage };
+        },
+        onError: (err, newMessage, context) => {
+            toast.error("Failed to send message.");
+            setCustomerChat(prev => ({
+                ...prev,
+                messages: prev.messages.filter(msg => msg.id !== context.optimisticMessage.id),
+            }));
+        },
+        onSuccess: (data, sentMessage, context) => {
+            setCustomerChat(prev => ({
+                ...prev,
+                messages: prev.messages.map(msg =>
+                    msg.id === context.optimisticMessage.id ? data.savedMessage : msg
+                ),
+            }));
+            queryClient.invalidateQueries({ queryKey: ['messages', customerChat.sessionId] });
+        },
+    });
+
+    // NEW: useMutation for sending admin replies
+    const { mutate: sendAdminReply } = useMutation({
+        mutationFn: ({ messageText, targetSessionId }) => {
+            return new Promise((resolve, reject) => {
+                if (socketRef.current?.connected && targetSessionId && user) {
+                    socketRef.current.emit('admin_to_customer_message', { text: messageText, sessionId: targetSessionId }, (response) => {
+                        if (response.success) {
+                            resolve(response.data);
+                        } else {
+                            reject(new Error(response.error || 'Failed to send reply.'));
+                        }
+                    });
+                } else {
+                    reject(new Error('Socket not connected or user not authenticated.'));
+                }
+            });
+        },
+        onMutate: async ({ messageText, targetSessionId }) => {
+            await queryClient.cancelQueries({ queryKey: ['messages', targetSessionId] });
+            const optimisticMessage = {
+                id: `local-${Date.now()}`,
+                message_text: messageText,
+                sender_type: 'admin',
+                created_at: new Date().toISOString(),
+                session_id: targetSessionId,
+                admin_user_id: user.id,
+            };
+            setActiveAdminChat(prev => ({ ...prev, messages: [...prev.messages, optimisticMessage] }));
+            return { optimisticMessage };
+        },
+        onError: (err, newReply, context) => {
+            toast.error("Failed to send reply.");
+            setActiveAdminChat(prev => ({
+                ...prev,
+                messages: prev.messages.filter(msg => msg.id !== context.optimisticMessage.id),
+            }));
+        },
+        onSuccess: (data, sentReply, context) => {
+            setActiveAdminChat(prev => ({
+                ...prev,
+                messages: prev.messages.map(msg =>
+                    msg.id === context.optimisticMessage.id ? data.savedMessage : msg
+                ),
+            }));
+            queryClient.invalidateQueries({ queryKey: ['messages', context.optimisticMessage.session_id] });
+        },
+    });
+
     const emitStartTyping = useCallback((sessionId) => { if (socketRef.current?.connected) { socketRef.current.emit('start_typing', { sessionId }); } }, []);
     const emitStopTyping = useCallback((sessionId) => { if (socketRef.current?.connected) { socketRef.current.emit('stop_typing', { sessionId }); } }, []);
-    
+
     const value = useMemo(() => ({
         isConnected, user, customerChat, activeAdminChat, setActiveAdminChat, typingPeers,
         sendAdminReply, sendCustomerMessage, emitStartTyping, emitStopTyping
