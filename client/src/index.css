@@ -402,6 +402,24 @@ input:focus, textarea:focus {
   margin: 0.5rem;
   padding: 0.75rem 1.5rem;
 }
+.gem-button img.fading-out {
+  animation: fade-out-animation 4s forwards;
+}
+
+@keyframes fade-out-animation {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+}
+
+.portal-prompt {
+  margin-top: 1rem;
+}
 .badge.verified { background-color: #2ecc71; }
 .badge.not-verified { background-color: #e74c3c; }
 .badge.admin { background-color: #9b59b6; }
