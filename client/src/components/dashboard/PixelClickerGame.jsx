@@ -106,23 +106,32 @@ function PixelClickerGame() {
 
     const currentBoss = bosses[gameState.currentBossIndex];
 
+    // ✨ UPDATED: This useEffect now ONLY checks if a boss is defeated! ✨
     useEffect(() => {
         if (!currentBoss) return;
+        
         if (gameState.clicksOnCurrentBoss >= currentBoss.clickThreshold && gamePhase === 'clicking') {
+            new Audio(currentBoss.breakSound).play();
             if (gameState.currentBossIndex === bosses.length - 1) {
-                new Audio(currentBoss.breakSound).play();
                 setGameWon(true);
                 setGamePhase('finished');
             } else {
+                // We just set the phase, and the other useEffect will handle the timer!
                 setGamePhase('transitioning');
-                new Audio(currentBoss.breakSound).play();
-                const timer = setTimeout(() => {
-                    setGamePhase('portal');
-                }, 4000);
-                return () => clearTimeout(timer);
             }
         }
-    }, [gameState.clicksOnCurrentBoss, currentBoss, gamePhase, gameState.currentBossIndex]);
+    }, [gameState.clicksOnCurrentBoss, gameState.currentBossIndex, currentBoss, gamePhase]);
+
+    // ✨ NEW: This useEffect's ONLY job is to handle the 4-second portal timer! ✨
+    useEffect(() => {
+        if (gamePhase === 'transitioning') {
+            const timer = setTimeout(() => {
+                setGamePhase('portal');
+            }, 4000); // 4 seconds for the fade-out animation
+            
+            return () => clearTimeout(timer); // Cleanup the timer
+        }
+    }, [gamePhase]); // This only runs when gamePhase changes!
 
     const handleClassSelect = (className) => {
         setGameState(prev => ({ ...prev, playerClass: className }));
@@ -155,11 +164,9 @@ function PixelClickerGame() {
         new Audio(currentBoss.clickSound).play();
         const { minDamage, maxDamage } = calculateDamageRange();
         const damageDealt = Math.floor(Math.random() * (maxDamage - minDamage + 1)) + minDamage;
-
         const rect = event.currentTarget.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const topY = rect.top;
-
         setFloatingNumbers(current => [...current, {
             id: uuidv4(),
             value: damageDealt,
@@ -192,8 +199,7 @@ function PixelClickerGame() {
     const handleBuyUpgrade = (upgrade) => {
         const currentCost = calculateUpgradeCost(upgrade);
         if (gameState.score >= currentCost) {
-            const healAmount = Math.floor(currentCost * (Math.random() * 0.25 + 0.25)); // Heal for 25% to 50% of cost
-
+            const healAmount = Math.floor(currentCost * (Math.random() * 0.25 + 0.25));
             if (gemButtonRef.current) {
                 const rect = gemButtonRef.current.getBoundingClientRect();
                 const centerX = rect.left + rect.width / 2;
@@ -205,7 +211,6 @@ function PixelClickerGame() {
                     y: topY + (Math.random() * 20 - 10),
                 }]);
             }
-
             setGameState(prev => {
                 const newOwned = { ...prev.upgradesOwned, [upgrade.id]: (prev.upgradesOwned[upgrade.id] || 0) + 1 };
                 let newPps = prev.pointsPerSecond;
@@ -319,6 +324,7 @@ function PixelClickerGame() {
                 )}
                 {gamePhase === 'portal' && (
                     <div className="portal-prompt">
+                        <img src="/winecellar.png" alt="The Wine Cellar" className="portal-image" />
                         <h4>A portal has opened! Do you enter?</h4>
                         <button onClick={handleEnterPortal}>Enter!~</button>
                     </div>
