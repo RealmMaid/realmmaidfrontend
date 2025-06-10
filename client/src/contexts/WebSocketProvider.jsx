@@ -56,7 +56,8 @@ export const WebSocketProvider = ({ children }) => {
 
         socket.on('customer_session_initialized', (data) => {
             if (!data) return;
-            console.log('[Socket.IO Provider] Event received: customer_session_initialized');
+            console.log(`[Socket.IO Provider] Event received: customer_session_initialized for session ${data.sessionId}`);
+            // When the session is initialized, we get the ID and any existing history.
             setCustomerChat({ sessionId: data.sessionId, messages: data.history || [] });
         });
 
@@ -70,16 +71,13 @@ export const WebSocketProvider = ({ children }) => {
         });
 
         socket.on('new_customer_message', (payload) => {
-            // === Here we open the box! ===
-            const message = payload.savedMessage;
+            const message = payload; // The server now sends the message directly
             if (!message || !message.session_id) {
-                console.warn('[Socket.IO Provider] Received a malformed new_customer_message. Ignoring.', payload);
                 return;
             }
             console.log('[Socket.IO Provider] Event received: new_customer_message');
             const sessionId = message.session_id;
             
-            // This logic is for the admin panel, to add the customer's message to the correct session
             setAdminCustomerSessions(prev => {
                 if (!prev[sessionId]) return prev;
                 const updatedSession = {
@@ -96,24 +94,19 @@ export const WebSocketProvider = ({ children }) => {
         });
 
         socket.on('new_admin_message', (payload) => {
-            // === Here we open the box too! ===
-            const message = payload.savedMessage;
+            const message = payload; // The server now sends the message directly
             if (!message || !message.id) {
-                console.warn('[Socket.IO Provider] Received a malformed new_admin_message. Ignoring.', payload);
                 return;
             }
             console.log('[Socket.IO Provider] Event received: new_admin_message');
             
-            // This is for the admin-to-admin chat
             if (!message.session_id) {
                 setAdminMessages(prev => [...prev, message]);
                 return;
             }
 
-            // This is for the admin-to-customer chat
             const sessionId = message.session_id;
 
-            // Update the customer's chat widget
             setCustomerChat(prev => {
                 if (String(prev.sessionId) === String(sessionId)) {
                    return { ...prev, messages: [...prev.messages, message] };
@@ -121,9 +114,12 @@ export const WebSocketProvider = ({ children }) => {
                 return prev;
             });
 
-            // Update the admin's view of the customer session
             setAdminCustomerSessions(prev => {
                 if (!prev[sessionId]) return prev;
+                // Avoid adding duplicate optimistic message if it exists
+                if (prev[sessionId].messages.some(m => m.id === message.id)) {
+                    return prev;
+                }
                 const updatedSession = {
                     ...prev[sessionId],
                     messages: [...prev[sessionId].messages, message],
@@ -188,18 +184,42 @@ export const WebSocketProvider = ({ children }) => {
         }
     }, [adminCustomerSessions]);
 
+    // For the GUEST to send a message
     const sendCustomerMessage = useCallback((messageText) => {
         if (socketRef.current?.connected) {
             socketRef.current.emit('customer_chat_message', { text: messageText });
+            // The guest's UI will update when the server sends 'customer_session_initialized'
+            // and the first 'new_customer_message'.
         }
     }, []);
 
+    // For the ADMIN to reply to a GUEST
     const sendAdminReply = useCallback((messageText, targetSessionId) => {
         if (socketRef.current?.connected && targetSessionId) {
+            const optimisticMessage = {
+                id: `local-${Date.now()}`,
+                message_text: messageText,
+                sender_type: 'admin',
+                created_at: new Date().toISOString(),
+                session_id: targetSessionId,
+                admin_user_id: user.id,
+            };
+
+            // Optimistically update the admin's UI
+            setAdminCustomerSessions(prev => {
+                if (!prev[targetSessionId]) return prev;
+                const updatedSession = {
+                    ...prev[targetSessionId],
+                    messages: [...prev[targetSessionId].messages, optimisticMessage],
+                };
+                return { ...prev, [targetSessionId]: updatedSession };
+            });
+
             socketRef.current.emit('admin_to_customer_message', { text: messageText, sessionId: targetSessionId });
         }
-    }, []);
+    }, [user]);
     
+    // For the ADMIN to chat with other ADMINS
     const sendAdminMessage = useCallback((messageText) => {
         if (socketRef.current?.connected) {
              socketRef.current.emit('admin_chat_message', { text: messageText });
