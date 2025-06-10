@@ -45,7 +45,10 @@ export const WebSocketProvider = ({ children }) => {
             updateSessionInCache(message);
             setActiveAdminChat(prev => {
                 if (prev.sessionId === message.session_id && !prev.messages.some(m => m.id === message.id)) {
-                    return { ...prev, messages: [...prev.messages, message] };
+                    // --- THIS IS THE FIX ---
+                    // Convert ID to string before checking .startsWith()
+                    const newMessages = prev.messages.filter(m => !String(m.id).startsWith('local-'));
+                    return { ...prev, messages: [...newMessages, message] };
                 }
                 return prev;
             });
@@ -57,14 +60,16 @@ export const WebSocketProvider = ({ children }) => {
             updateSessionInCache(message);
             setCustomerChat(prev => {
                 if (String(prev.sessionId) === String(message.session_id) && !prev.messages.some(m => m.id === message.id)) {
-                    const newMessages = prev.messages.filter(m => !m.id.startsWith('local-'));
+                    // --- THIS IS THE FIX ---
+                    const newMessages = prev.messages.filter(m => !String(m.id).startsWith('local-'));
                     return { ...prev, messages: [...newMessages, message] };
                 }
                 return prev;
             });
             setActiveAdminChat(prev => {
                 if (prev.sessionId === message.session_id && !prev.messages.some(m => m.id === message.id)) {
-                    const newMessages = prev.messages.filter(m => !m.id.startsWith('local-'));
+                    // --- AND THIS IS THE FIX ---
+                    const newMessages = prev.messages.filter(m => !String(m.id).startsWith('local-'));
                     return { ...prev, messages: [...newMessages, message] };
                 }
                 return prev;
@@ -107,7 +112,6 @@ export const WebSocketProvider = ({ children }) => {
         }
     }, [user]);
 
-    // --- THESE FUNCTIONS ARE NOW RESTORED ---
     const emitStartTyping = useCallback((sessionId) => {
         if (socketRef.current?.connected) { socketRef.current.emit('start_typing', { sessionId }); }
     }, []);
@@ -115,7 +119,6 @@ export const WebSocketProvider = ({ children }) => {
     const emitStopTyping = useCallback((sessionId) => {
         if (socketRef.current?.connected) { socketRef.current.emit('stop_typing', { sessionId }); }
     }, []);
-    // ------------------------------------------
 
     const value = useMemo(() => ({
         isConnected,
@@ -125,7 +128,6 @@ export const WebSocketProvider = ({ children }) => {
         typingPeers,
         sendAdminReply,
         sendCustomerMessage,
-        // --- AND ADDED BACK TO THE CONTEXT VALUE ---
         emitStartTyping,
         emitStopTyping,
     }), [isConnected, customerChat, activeAdminChat, typingPeers, sendAdminReply, sendCustomerMessage, emitStartTyping, emitStopTyping]);
