@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import API from '../api/axios';
+import { io } from 'socket.io-client'; // --- NEW: Import the Socket.IO client ---
 
 const WebSocketContext = createContext(null);
 
@@ -20,128 +21,130 @@ export const WebSocketProvider = ({ children }) => {
             return;
         }
 
+        // Prevent multiple connections
         if (socketRef.current) {
             return;
         }
 
-        const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:3000';
+        // --- NEW: Use the Socket.IO server URL ---
+        // Note: For Socket.IO, we use the base HTTP URL, not a 'ws://' URL.
+        const socketIOUrl = import.meta.env.VITE_API_BASE_URL.replace('/api', '') || 'http://localhost:3000';
+        
+        console.log(`[Socket.IO Provider] Initializing connection to ${socketIOUrl}...`);
 
-        console.log(`[WebSocketProvider] Initializing connection to ${wsUrl}...`);
-        const ws = new WebSocket(wsUrl);
-        socketRef.current = ws;
+        // --- NEW: Connect using io() and enable withCredentials for session handling ---
+        const socket = io(socketIOUrl, {
+            withCredentials: true,
+        });
+        socketRef.current = socket;
 
-        ws.onopen = () => {
-            console.log('[WebSocketProvider] WebSocket Connected.');
+        // --- NEW: Standard Socket.IO event listeners ---
+        socket.on('connect', () => {
+            console.log('[Socket.IO Provider] Connected with socket ID:', socket.id);
             setIsConnected(true);
-        };
+        });
 
-        ws.onmessage = (event) => {
-            const message = JSON.parse(event.data);
-            console.log('[WebSocketProvider] Message received:', message);
-
-            switch (message.type) {
-                case 'admin_initialized':
-                    setAdminMessages(message.data.adminChatHistory || []);
-                    const sessionsObject = (message.data.customerChatSessions || []).reduce((acc, session) => {
-                        if (session && session.sessionId) {
-                           acc[session.sessionId] = { sessionDetails: session, messages: [] };
-                        }
-                        return acc;
-                    }, {});
-                    setAdminCustomerSessions(sessionsObject);
-                    break;
-                case 'customer_session_initialized':
-                    setCustomerChat({ sessionId: message.sessionId, messages: message.history || [] });
-                    break;
-                case 'new_customer_session':
-                    setAdminCustomerSessions(prev => ({
-                        ...prev,
-                        [message.data.id]: { sessionDetails: message.data, messages: [] }
-                    }));
-                    break;
-                case 'new_customer_message':
-                    const msgData = message.data;
-                    const sessionId = msgData.session_id;
-                    
-                    setCustomerChat(prev => {
-                        if (String(prev.sessionId) === String(sessionId)) {
-                           return { ...prev, messages: [...prev.messages, msgData] };
-                        }
-                        return prev;
-                    });
-
-                    setAdminCustomerSessions(prev => {
-                        if (!prev[sessionId]) return prev;
-                        const updatedSession = {
-                            ...prev[sessionId],
-                            messages: [...prev[sessionId].messages, msgData],
-                            sessionDetails: {
-                                ...prev[sessionId].sessionDetails,
-                                last_message_text: msgData.message_text,
-                                updated_at: msgData.created_at,
-                            }
-                        };
-                        return { ...prev, [sessionId]: updatedSession };
-                    });
-                    break;
-                case 'new_admin_message':
-                    setAdminMessages(prev => [...prev, message.data]);
-                    break;
-            }
-        };
-
-        ws.onerror = (error) => console.error('[WebSocketProvider] WebSocket Error:', error);
-
-        ws.onclose = () => {
-            console.log('[WebSocketProvider] WebSocket Disconnected.');
+        socket.on('disconnect', () => {
+            console.log('[Socket.IO Provider] Disconnected.');
             setIsConnected(false);
-            socketRef.current = null; 
-        };
+        });
+        
+        socket.on('connect_error', (error) => {
+            console.error('[Socket.IO Provider] Connection Error:', error);
+        });
 
+        // --- Listen for our custom events from the server ---
+        socket.on('admin_initialized', (data) => {
+            console.log('[Socket.IO Provider] Event received: admin_initialized', data);
+            setAdminMessages(data.adminChatHistory || []);
+            const sessionsObject = (data.customerChatSessions || []).reduce((acc, session) => {
+                if (session && session.sessionId) {
+                   acc[session.sessionId] = { sessionDetails: session, messages: [] };
+                }
+                return acc;
+            }, {});
+            setAdminCustomerSessions(sessionsObject);
+        });
+
+        socket.on('customer_session_initialized', (data) => {
+            console.log('[Socket.IO Provider] Event received: customer_session_initialized', data);
+            setCustomerChat({ sessionId: data.sessionId, messages: data.history || [] });
+        });
+
+        socket.on('new_customer_session', (message) => {
+            console.log('[Socket.IO Provider] Event received: new_customer_session', message);
+            setAdminCustomerSessions(prev => ({
+                ...prev,
+                [message.data.id]: { sessionDetails: message.data, messages: [] }
+            }));
+        });
+
+        socket.on('new_customer_message', (message) => {
+            console.log('[Socket.IO Provider] Event received: new_customer_message', message);
+            const msgData = message.data;
+            const sessionId = msgData.session_id;
+            
+            setCustomerChat(prev => {
+                if (String(prev.sessionId) === String(sessionId)) {
+                   return { ...prev, messages: [...prev.messages, msgData] };
+                }
+                return prev;
+            });
+
+            setAdminCustomerSessions(prev => {
+                if (!prev[sessionId]) return prev;
+                const updatedSession = {
+                    ...prev[sessionId],
+                    messages: [...prev[sessionId].messages, msgData],
+                    sessionDetails: {
+                        ...prev[sessionId].sessionDetails,
+                        last_message_text: msgData.message_text,
+                        updated_at: msgData.created_at,
+                    }
+                };
+                return { ...prev, [sessionId]: updatedSession };
+            });
+        });
+
+        socket.on('new_admin_message', (message) => {
+            console.log('[Socket.IO Provider] Event received: new_admin_message', message);
+            setAdminMessages(prev => [...prev, message.data]);
+        });
+
+        // Cleanup on component unmount
         return () => {
             if (socketRef.current) {
-                socketRef.current.onclose = null;
-                socketRef.current.close();
+                console.log('[Socket.IO Provider] Disconnecting socket...');
+                socketRef.current.disconnect();
             }
             socketRef.current = null;
         };
     }, [isAuthLoading]);
 
     const loadSessionHistory = useCallback(async (sessionId) => {
-        console.log(`[WebSocketProvider] loadSessionHistory called for session ID: ${sessionId}`);
-        
         if (adminCustomerSessions[sessionId]?.messages?.length > 0) {
-            console.log(`[WebSocketProvider] History for session ${sessionId} already exists. Skipping fetch.`);
             return;
         }
-
-        console.log(`[WebSocketProvider] Fetching history via API...`);
         try {
             const response = await API.get(`/admin/chat/sessions/${sessionId}/messages`);
-            console.log(`[WebSocketProvider] API response received for session ${sessionId}:`, response);
             if (response.data.success) {
-                console.log(`[WebSocketProvider] API call successful. Updating state with ${response.data.messages?.length || 0} messages.`);
                 setAdminCustomerSessions(prev => {
                     if (!prev[sessionId]) return prev;
-                    const newState = {
+                    return {
                         ...prev,
                         [sessionId]: { ...prev[sessionId], messages: response.data.messages || [] }
                     };
-                    console.log(`[WebSocketProvider] State update complete for session ${sessionId}.`);
-                    return newState;
                 });
-            } else {
-                console.error(`[WebSocketProvider] API call returned success:false for session ${sessionId}.`);
             }
         } catch (error) {
-            console.error(`[WebSocketProvider] API call FAILED for session ${sessionId}:`, error);
+            console.error(`[Socket.IO Provider] Failed to fetch history for session ${sessionId}:`, error);
         }
     }, [adminCustomerSessions]);
 
     const sendCustomerMessage = useCallback((messageText, targetSessionId) => {
-        if (socketRef.current?.readyState === WebSocket.OPEN && targetSessionId) {
-            const payload = { type: 'customer_chat_message', text: messageText, sessionId: targetSessionId };
-            socketRef.current.send(JSON.stringify(payload));
+        if (socketRef.current?.connected && targetSessionId) {
+            // Instead of .send(), we .emit() a named event
+            socketRef.current.emit('customer_chat_message', { text: messageText, sessionId: targetSessionId });
             
             const optimisticMessage = {
                 id: `local-${Date.now()}`,
@@ -172,8 +175,8 @@ export const WebSocketProvider = ({ children }) => {
     }, [customerChat.sessionId, user]);
     
     const sendAdminMessage = useCallback((messageText) => {
-        if (socketRef.current?.readyState === WebSocket.OPEN) {
-             socketRef.current.send(JSON.stringify({ type: 'admin_chat_message', text: messageText }));
+        if (socketRef.current?.connected) {
+             socketRef.current.emit('admin_chat_message', { text: messageText });
              const optimisticMessage = {
                 id: `local-${Date.now()}`,
                 message_text: messageText,
