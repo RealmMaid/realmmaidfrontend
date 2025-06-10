@@ -49,7 +49,12 @@ export const WebSocketProvider = ({ children }) => {
 
         const handleNewCustomerSession = (payload) => {
             if (!payload || !payload.data) return;
-            setAdminCustomerSessions(prev => ({ ...prev, [payload.data.id]: { sessionDetails: payload.data, messages: [] } }));
+            // This function correctly creates a new session card when a guest connects.
+            setAdminCustomerSessions(prev => {
+                // Avoid overwriting if it already exists
+                if(prev[payload.data.id]) return prev;
+                return { ...prev, [payload.data.id]: { sessionDetails: payload.data, messages: [] } };
+            });
         };
         
         // This function handles new messages from the GUEST.
@@ -58,17 +63,37 @@ export const WebSocketProvider = ({ children }) => {
             if (!message || !message.session_id) return;
             const sessionId = message.session_id;
 
-            // Update the admin's view of this specific customer session
             setAdminCustomerSessions(prevSessions => {
                 const targetSession = prevSessions[sessionId];
-                if (!targetSession || targetSession.messages.some(m => m.id === message.id)) {
-                    return prevSessions; 
+
+                // --- THIS IS THE FIX FOR THE ADMIN VIEW ---
+                // If the session doesn't exist, create it on the fly.
+                if (!targetSession) {
+                    console.log(`[WebSocket Provider] Received first message for new session ${sessionId}. Creating session card.`);
+                    const newSessionDetails = {
+                        sessionId: sessionId,
+                        participantName: 'Guest', // We can improve this later if needed
+                        status: 'active',
+                        updated_at: message.created_at,
+                        last_message_text: message.message_text
+                    };
+                    return { 
+                        ...prevSessions, 
+                        [sessionId]: { sessionDetails: newSessionDetails, messages: [message] } 
+                    };
                 }
+
+                // If session exists, just add the message.
+                if (targetSession.messages.some(m => m.id === message.id)) {
+                    return prevSessions; // Avoid duplicates
+                }
+
                 const updatedSession = { 
                     ...targetSession, 
                     messages: [...targetSession.messages, message], 
                     sessionDetails: { ...targetSession.sessionDetails, last_message_text: message.message_text, updated_at: message.created_at }
                 };
+                
                 return { ...prevSessions, [sessionId]: updatedSession };
             });
         };
@@ -79,11 +104,17 @@ export const WebSocketProvider = ({ children }) => {
             if (!message || !message.id) return;
             const sessionId = message.session_id;
             
+            // --- THIS IS THE FIX FOR THE GUEST VIEW ---
             // Update the GUEST's chat window.
             setCustomerChat(prev => {
-                if (String(prev.sessionId) !== String(sessionId) || prev.messages.some(m => m.id === message.id)) {
+                if (String(prev.sessionId) !== String(sessionId)) {
                     return prev;
                 }
+                if (prev.messages.some(m => m.id === message.id)) {
+                    return prev; // Duplicate message, do nothing.
+                }
+
+                // Replace optimistic message from admin (if any) and add the new one.
                 const newMessages = prev.messages.filter(m => !String(m.id).startsWith('local-'));
                 return { ...prev, messages: [...newMessages, message] };
             });
@@ -92,9 +123,10 @@ export const WebSocketProvider = ({ children }) => {
             setAdminCustomerSessions(prevSessions => {
                 const targetSession = prevSessions[sessionId];
                 if (!targetSession) return prevSessions;
+
                 const newMessages = targetSession.messages.filter(m => !String(m.id).startsWith('local-'));
-                if (newMessages.some(m => m.id === message.id)) return prevSessions;
-                
+                 if (newMessages.some(m => m.id === message.id)) return prevSessions;
+
                 const updatedSession = { 
                     ...targetSession, 
                     messages: [...newMessages, message],
