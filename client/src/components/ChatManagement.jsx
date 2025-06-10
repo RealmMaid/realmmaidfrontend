@@ -72,7 +72,7 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
           {messages.map((msg) => {
             const isAdminMessage = msg.sender_type === 'admin';
             // An admin is looking at this modal, so "my" message is one I sent as an admin
-            const isMyMessage = isAdminMessage && msg.admin_user_id === currentUser.id;
+            const isMyMessage = currentUser && isAdminMessage && msg.admin_user_id === currentUser.id;
             
             let senderName = isMyMessage ? 'You' : (session.participantName || 'Guest');
             
