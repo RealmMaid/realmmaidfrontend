@@ -15,6 +15,30 @@ export const WebSocketProvider = ({ children }) => {
     const [adminCustomerSessions, setAdminCustomerSessions] = useState({});
     const [typingPeers, setTypingPeers] = useState({});
 
+    // --- ADD THIS TEMPORARY TEST LISTENER ---
+    useEffect(() => {
+        // This check ensures we don't add the listener before the socket is ready.
+        if (!socketRef.current) return;
+
+        // This is the handler for our special test event.
+        const handleTestEvent = (data) => {
+            console.log('%c SUCCESS: TEST EVENT RECEIVED!', 'color: lime; font-weight: bold; font-size: 24px;', data);
+            alert('SUCCESS! The test broadcast was received!');
+        };
+
+        // Listen for the event from the server.
+        socketRef.current.on('test-event', handleTestEvent);
+
+        // Clean up the listener when the component unmounts.
+        return () => {
+            if (socketRef.current) {
+                socketRef.current.off('test-event', handleTestEvent);
+            }
+        };
+    }, []); // Note the empty dependency array, so this runs only once.
+    // ----------------------------------------
+
+
     useEffect(() => {
         if (socketRef.current) return;
         const socketIOUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000').replace('/api', '');
@@ -24,6 +48,7 @@ export const WebSocketProvider = ({ children }) => {
         const handleConnect = () => setIsConnected(true);
         const handleDisconnect = () => setIsConnected(false);
         const handleConnectError = (error) => console.error('[Socket.IO Provider] Connection Error:', error);
+        
         const handleAdminInitialized = (data) => { if (!data) return; setAdminMessages(data.adminChatHistory || []); const sessionsObject = (data.customerChatSessions || []).reduce((acc, session) => { if (session && session.sessionId) acc[session.sessionId] = { sessionDetails: session, messages: [] }; return acc; }, {}); setAdminCustomerSessions(sessionsObject); };
         const handleCustomerSessionInitialized = (data) => { if (!data || !data.sessionId) return; setCustomerChat({ sessionId: data.sessionId, messages: data.history || [] }); };
         const handleNewCustomerSession = (payload) => { if (!payload || !payload.data) return; setAdminCustomerSessions(prev => { if (prev[payload.data.id]) return prev; return { ...prev, [payload.data.id]: { sessionDetails: payload.data, messages: [] } }; }); };
