@@ -5,12 +5,12 @@ import { useReadReceipts } from '../hooks/useReadReceipts.js';
 import API from '../api/axios';
 
 // Modal for viewing and replying to a chat session
+// NOTE: This sub-component has NO changes, but is included so the file is complete.
 const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnected, currentUser, emitStartTyping, emitStopTyping }) => {
   const [messageText, setMessageText] = useState('');
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
-  // Use our new custom hook to handle read receipts
   const messageRef = useReadReceipts(messages, session?.sessionId);
 
   useEffect(() => {
@@ -19,7 +19,6 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
     }
   }, [messages, show]);
 
-  // Cleanup the typing timeout when the modal is closed
   useEffect(() => {
     return () => {
       clearTimeout(typingTimeoutRef.current);
@@ -31,17 +30,11 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
   const handleTyping = (e) => {
     const newText = e.target.value;
     setMessageText(newText);
-
-    // If the typing timer isn't already running, start it and emit the event
     if (!typingTimeoutRef.current) {
-      // CORRECTED: Use the specific function for the "start typing" event
       emitStartTyping(session.sessionId);
     }
-
-    // Reset the timer
     clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
-      // CORRECTED: When the timer runs out, emit the "stop typing" event
       emitStopTyping(session.sessionId);
       typingTimeoutRef.current = null;
     }, 1500);
@@ -50,12 +43,9 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
   const handleSend = (e) => {
     e.preventDefault();
     if (messageText.trim() && session.sessionId) {
-      // When a message is sent, clear the "typing" timeout and immediately emit "stop typing"
       clearTimeout(typingTimeoutRef.current);
-      // CORRECTED: Ensure stop typing is emitted on send
       emitStopTyping(session.sessionId);
       typingTimeoutRef.current = null;
-      
       onSendMessage(messageText, session.sessionId);
       setMessageText('');
     }
@@ -71,9 +61,7 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
         <div className="modal-body chat-messages-container">
           {messages.map((msg) => {
             const isAdminMessage = msg.sender_type === 'admin';
-            // An admin is looking at this modal, so "my" message is one I sent as an admin
             const isMyMessage = currentUser && isAdminMessage && msg.admin_user_id === currentUser.id;
-            
             let senderName = isMyMessage ? 'You' : (session.participantName || 'Guest');
             
             return (
@@ -92,7 +80,7 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
           <div ref={messagesEndRef} />
         </div>
         <div className="typing-indicator-container">
-          {/* Typing indicator logic will be added in a later step */}
+          {/* Typing indicator logic will be added here if you want it inside the modal */}
         </div>
         <div className="modal-footer">
             <form onSubmit={handleSend}>
@@ -114,7 +102,12 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
 
 
 function ChatManagement() {
-  const { adminCustomerSessions, setAdminCustomerSessions, sendCustomerMessage, isConnected, loadSessionHistory, typingPeers, emitStartTyping, emitStopTyping } = useWebSocket();
+  // === STEP 1: Get our new `sendAdminReply` function from the context ===
+  const { 
+    adminCustomerSessions, setAdminCustomerSessions, isConnected, 
+    loadSessionHistory, typingPeers, emitStartTyping, emitStopTyping, sendAdminReply 
+  } = useWebSocket();
+  
   const { user: currentUser } = useAuth();
   const [activeModal, setActiveModal] = useState({ show: false, sessionId: null });
 
@@ -131,12 +124,14 @@ function ChatManagement() {
     }
   };
   
+  // === STEP 2: This function now calls our new `sendAdminReply`! ===
   const handleAdminSendMessage = (messageText, sessionId) => {
     if (!isConnected) {
         console.error("Cannot send message: WebSocket is disconnected.");
         return;
     }
-    sendCustomerMessage(messageText, sessionId);
+    // It now calls the correct, dedicated function! No more confusion!
+    sendAdminReply(messageText, sessionId);
   };
   
   const closeModal = () => {
