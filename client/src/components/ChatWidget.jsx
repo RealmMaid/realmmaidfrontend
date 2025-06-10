@@ -5,7 +5,6 @@ import { useReadReceipts } from '../hooks/useReadReceipts.js';
 
 const ChatWidgetStyles = () => (
     <style>{`
-        /* --- THIS IS THE ONLY STYLE THAT IS NEW --- */
         .chat-resume-message {
             text-align: center;
             padding: 1rem 0;
@@ -22,8 +21,6 @@ const ChatWidgetStyles = () => (
             height: 1px;
             background: var(--card-border);
         }
-
-        /* --- ALL OF YOUR ORIGINAL STYLES ARE PRESERVED BELOW --- */
         .chat-fab { 
             position: fixed; 
             bottom: 20px; 
@@ -187,39 +184,40 @@ const ChatWidgetStyles = () => (
             color: var(--accent-blue);
             font-weight: bold;
         }
+        /* New status for sending messages */
+        .read-receipt.sending {
+            color: var(--text-secondary);
+            font-style: italic;
+        }
     `}</style>
 );
 
 const ChatWidget = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [newMessage, setNewMessage] = useState('');
-    const { 
-        isConnected, 
-        customerChat, 
-        sendCustomerMessage, 
-        typingPeers, 
-        emitStartTyping, 
-        emitStopTyping 
+    const {
+        isConnected,
+        customerChat,
+        sendCustomerMessage,
+        typingPeers,
+        emitStartTyping,
+        emitStopTyping
     } = useWebSocket();
     const { user: currentUser } = useAuth();
-    
-    // 1. Add a new piece of state to track if this is a resumed session.
+
     const [isResumedSession, setIsResumedSession] = useState(false);
 
     const { sessionId, messages } = customerChat;
-    
-    // I am removing the console.log you added for debugging to clean up the final code.
+
     const messageRef = useReadReceipts(messages, sessionId);
     const messagesEndRef = useRef(null);
     const typingTimeoutRef = useRef(null);
 
-    // 2. Add a useEffect to check the chat history when the widget first loads.
     useEffect(() => {
-        // When the widget loads and we already have messages, it's a resumed session.
-        if (messages && messages.length > 0) {
+        if (messages && messages.length > 0 && !isResumedSession) {
             setIsResumedSession(true);
         }
-    }, []); // The empty dependency array [] means this effect runs only ONCE.
+    }, [messages, isResumedSession]);
 
     useEffect(() => {
         if (isOpen) {
@@ -230,11 +228,11 @@ const ChatWidget = () => {
     useEffect(() => {
         return () => clearTimeout(typingTimeoutRef.current);
     }, []);
-    
+
     const handleTyping = (e) => {
         const newText = e.target.value;
         setNewMessage(newText);
-        
+
         if (sessionId) {
             if (!typingTimeoutRef.current) {
                 emitStartTyping(sessionId);
@@ -255,11 +253,23 @@ const ChatWidget = () => {
                 emitStopTyping(sessionId);
                 typingTimeoutRef.current = null;
             }
-            sendCustomerMessage(newMessage.trim());
+            // Calling the mutation
+            sendCustomerMessage({ text: newMessage.trim() });
             setNewMessage('');
         }
     };
     
+    // A small helper to add a visual cue for optimistic messages
+    const getMessageStatus = (msg) => {
+        if (String(msg.id).startsWith('local-')) {
+            return 'sending';
+        }
+        if (msg.read_at) {
+            return 'read';
+        }
+        return 'sent';
+    }
+
     const isChatReady = isConnected;
     const peerIsTyping = sessionId && typingPeers[sessionId];
 
@@ -279,12 +289,11 @@ const ChatWidget = () => {
                 </div>
                 <div className="chat-messages-area">
                     {messages.length === 0 && (
-                        <div style={{textAlign: 'center', color: 'var(--text-secondary)', marginTop: '2rem'}}>
+                        <div style={{ textAlign: 'center', color: 'var(--text-secondary)', marginTop: '2rem' }}>
                             Send a message to start the chat!
                         </div>
                     )}
 
-                    {/* 3. Conditionally render our new welcome message */}
                     {isResumedSession && (
                         <div className="chat-resume-message">
                             <span>Welcome back!</span>
@@ -296,20 +305,30 @@ const ChatWidget = () => {
                         const isAdminMessage = msg.sender_type === 'admin';
                         let isMyMessage = false;
                         if (currentUser) {
+                            // This case is for when an admin is viewing as a customer, which is unlikely but good to handle
                             isMyMessage = !isAdminMessage && msg.user_id === currentUser.id;
                         } else {
+                            // This is the standard guest/customer case
                             isMyMessage = msg.sender_type === 'guest';
                         }
                         let senderName = isMyMessage ? 'You' : 'Admin';
+                        const messageStatus = isMyMessage ? getMessageStatus(msg) : null;
+
                         return (
-                            <div ref={messageRef} data-message-id={msg.id} key={msg.id} className={`chat-message-item-wrapper ${isMyMessage ? 'user-message' : 'admin-message'}`}>
+                            <div 
+                                ref={messageRef} 
+                                data-message-id={msg.id} 
+                                key={msg.id} 
+                                className={`chat-message-item-wrapper ${isMyMessage ? 'user-message' : 'admin-message'}`}
+                                style={{ opacity: messageStatus === 'sending' ? 0.7 : 1 }}
+                            >
                                 <span className="msg-sender-name">{senderName}</span>
                                 <div className={`chat-message ${isMyMessage ? 'user' : 'admin'}`}>
-                                   {msg.message_text}
-                                   <span className="msg-timestamp">
+                                    {msg.message_text}
+                                    <span className="msg-timestamp">
                                         {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        {isMyMessage && <span className={`read-receipt ${msg.read_at ? 'read' : ''}`}>✓✓</span>}
-                                   </span>
+                                        {isMyMessage && <span className={`read-receipt ${messageStatus}`}>✓✓</span>}
+                                    </span>
                                 </div>
                             </div>
                         );
@@ -322,7 +341,7 @@ const ChatWidget = () => {
                 <div className="chat-input-area">
                     <form onSubmit={handleSend}>
                         <input type="text" className="selectable" placeholder={isChatReady ? "Type a message..." : "Please wait..."} value={newMessage} onChange={handleTyping} disabled={!isChatReady} autoFocus />
-                        <button type="submit" className="btn btn-primary" disabled={!isChatReady}>Send</button>
+                        <button type="submit" className="btn btn-primary" disabled={!isChatReady || !newMessage.trim()}>Send</button>
                     </form>
                 </div>
             </div>
