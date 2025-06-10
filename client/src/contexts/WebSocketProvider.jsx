@@ -116,7 +116,10 @@ export const WebSocketProvider = ({ children }) => {
         };
 
         // Handler for new messages from an admin (for both guest and admin)
-        const handleNewAdminMessage = (payload) => {
+            const handleNewAdminMessage = (payload) => {
+            // --- ADD THIS DEBUG LOG ---
+                console.log("[DEBUG] Guest client received 'new_admin_message' event with payload:", payload);
+
             const message = payload.savedMessage;
             if (!message || !message.id) return;
 
@@ -133,6 +136,12 @@ export const WebSocketProvider = ({ children }) => {
                 }
                 return prev;
             });
+            
+            // Update the admin's view of the customer session
+            setAdminCustomerSessions(prev => {
+                // ... this logic remains the same
+            });
+        };
             
             // Update the admin's view of the customer session
             setAdminCustomerSessions(prev => {
