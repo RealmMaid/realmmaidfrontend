@@ -23,7 +23,7 @@ const classUpgrades = {
     { id: 'item3', name: 'Ring of Exalted Mana', image: '/ringofexaltedattack.png', cost: 750, value: 4, type: 'perSecond', clickBonus: 3 },
   ],
   sorcerer: [
-    { id: 'item1', name: 'Wand of Ancient Power', image: '/wandofancientknowledge.png', cost: 50, minBonus: 1, maxBonus: 4, type: 'perClick' },
+    { id: 'item1', name: 'Wand of Ancient Power', image: '/wandofancientknowledge.png', cost: 50, minBonus: 3, maxBonus: 3, type: 'perClick' },
     { id: 'item2', name: 'Scepter of Skybolts', image: '/scepterofskybolts.png', cost: 250, value: 2, type: 'perSecond', clickBonus: 1 },
     { id: 'item3', name: 'Ring of Exalted Wisdom', image: '/ringofexalteddexterity.png', cost: 750, value: 4, type: 'perSecond', clickBonus: 3 },
   ],
@@ -133,12 +133,16 @@ function PixelClickerGame() {
         const currentUpgrades = classUpgrades[gameState.playerClass] || [];
         currentUpgrades.forEach(upgrade => {
             const owned = gameState.upgradesOwned[upgrade.id] || 0;
-            if (upgrade.type === 'perClick') {
-                minDamage += upgrade.minBonus * owned;
-                maxDamage += upgrade.maxBonus * owned;
-            } else if (upgrade.type === 'perSecond' && upgrade.clickBonus) {
-                minDamage += upgrade.clickBonus * owned;
-                maxDamage += upgrade.clickBonus * owned;
+            if (owned > 0) {
+                if (upgrade.type === 'perClick') {
+                    const bonus = Math.floor(Math.pow(owned, 0.9));
+                    minDamage += upgrade.minBonus * bonus;
+                    maxDamage += upgrade.maxBonus * bonus;
+                } else if (upgrade.type === 'perSecond' && upgrade.clickBonus) {
+                    const bonus = Math.floor(Math.pow(owned, 0.9));
+                    minDamage += upgrade.clickBonus * bonus;
+                    maxDamage += upgrade.clickBonus * bonus;
+                }
             }
         });
         return { minDamage, maxDamage };
@@ -160,7 +164,7 @@ function PixelClickerGame() {
         setGameState(prev => ({
             ...prev,
             score: prev.score + damageDealt,
-            clicksOnCurrentBoss: prev.clicksOnCurrentBoss + 1,
+            clicksOnCurrentBoss: prev.clicksOnCurrentBoss + damageDealt,
         }));
     };
 
@@ -258,7 +262,7 @@ function PixelClickerGame() {
             {(gamePhase === 'clicking' || gamePhase === 'transitioning') && (
                 <div className="health-bar-container">
                     <div className="health-bar-inner" style={{ width: `${getHealthPercent()}%` }}></div>
-                    <span className="health-bar-text">{currentBoss.clickThreshold - gameState.clicksOnCurrentBoss} / {currentBoss.clickThreshold}</span>
+                    <span className="health-bar-text">{Math.max(0, currentBoss.clickThreshold - gameState.clicksOnCurrentBoss)} / {currentBoss.clickThreshold}</span>
                 </div>
             )}
             
