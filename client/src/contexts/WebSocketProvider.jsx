@@ -1,14 +1,12 @@
-import React, { createContext, useState, useEffect, useContext, useCallback, useRef, useMemo } from 'react';
+import React, { createContext, useEffect, useRef, useMemo, useContext } from 'react';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { useAuth } from '../hooks/useAuth.jsx';
-import API from '../api/axios';
 import { io } from 'socket.io-client';
+import { useAuth } from '../hooks/useAuth.jsx';
+import { useChatStore } from '../hooks/useChatStore.js'; // Import the Zustand store
 import { v4 as uuidv4 } from 'uuid';
 
-const WebSocketContext = createContext(null);
-export const useWebSocket = () => useContext(WebSocketContext);
-
+// --- Helper function to get or create a guest ID ---
 const getOrCreateGuestIdentifier = () => {
     const GUEST_ID_KEY = 'chatGuestIdentifier';
     let guestId = localStorage.getItem(GUEST_ID_KEY);
@@ -19,128 +17,77 @@ const getOrCreateGuestIdentifier = () => {
     return guestId;
 };
 
+/**
+ * This context is now only responsible for providing the functions
+ * that interact with the WebSocket. State is handled by Zustand.
+ */
+const WebSocketContext = createContext(null);
+export const useWebSocketActions = () => useContext(WebSocketContext);
+
 export const WebSocketProvider = ({ children }) => {
     const queryClient = useQueryClient();
     const socketRef = useRef(null);
-    const [isConnected, setIsConnected] = useState(false);
     const { user } = useAuth();
 
-    const [customerChat, setCustomerChat] = useState({ sessionId: null, messages: [] });
-    const [activeAdminChat, setActiveAdminChat] = useState({ sessionId: null, messages: [] });
-    const [typingPeers, setTypingPeers] = useState({});
+    // Get actions directly from the Zustand store.
+    // We use .getState() because these functions are stable and don't need to trigger re-renders here.
+    const {
+        setConnected,
+        initializeCustomerSession,
+        addMessage,
+        setPeerTyping,
+        clearPeerTyping,
+        addOptimisticMessage,
+        revertOptimisticMessage,
+    } = useChatStore.getState();
 
+    // Effect for managing the socket connection and its event listeners
     useEffect(() => {
-        if (socketRef.current) {
-            socketRef.current.disconnect();
-        }
-
         const guestIdentifier = user ? null : getOrCreateGuestIdentifier();
-
         const socket = io((import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000').replace('/api', ''), {
             withCredentials: true,
             auth: { guestIdentifier }
         });
         socketRef.current = socket;
 
-        const handleConnect = () => setIsConnected(true);
-        const handleDisconnect = () => setIsConnected(false);
-
-        const handleNewCustomerSession = (payload) => {
+        // --- Socket Event Handlers ---
+        // Each handler now calls an action from our Zustand store to update global state.
+        socket.on('connect', () => setConnected(true));
+        socket.on('disconnect', () => setConnected(false));
+        socket.on('customer_session_initialized', (data) => initializeCustomerSession(data));
+        socket.on('new_customer_message', (payload) => addMessage(payload.savedMessage));
+        socket.on('new_admin_message', (payload) => {
+            // The server echoes back the optimisticId, allowing us to find and replace the correct message.
+            const messageWithId = { ...payload.savedMessage, optimisticId: payload.optimisticId };
+            addMessage(messageWithId);
+        });
+        socket.on('new_customer_session', (payload) => {
             toast(`New chat started with ${payload?.data?.participantName || 'a new visitor'}.`, { icon: '💬' });
             queryClient.invalidateQueries({ queryKey: ['chatSessions'] });
-        };
+        });
+        socket.on('peer_is_typing', ({ sessionId, userName }) => setPeerTyping(sessionId, userName));
+        socket.on('peer_stopped_typing', ({ sessionId }) => clearPeerTyping(sessionId));
 
-        const updateSessionInCache = (message) => {
-            if (!message || !message.session_id) return;
-            const sessionId = message.session_id;
-
-            queryClient.setQueryData(['chatSessions'], (oldData) => {
-                if (!oldData) return oldData;
-                const sessionIndex = oldData.findIndex(s => s.sessionId === sessionId);
-                if (sessionIndex === -1) return oldData;
-
-                const newSessions = [...oldData];
-                newSessions[sessionIndex] = {
-                    ...newSessions[sessionIndex],
-                    last_message_text: message.message_text,
-                    updated_at: message.created_at,
-                };
-                return newSessions;
-            });
-        };
-
-        const handleNewCustomerMessage = (payload) => {
-            const message = payload.savedMessage;
-            updateSessionInCache(message);
-            queryClient.setQueryData(['messages', message.session_id], (oldData) => {
-                 if (!oldData) return [message];
-                 return [...oldData, message];
-            });
-            setActiveAdminChat(prev => (prev.sessionId === message.session_id) ? { ...prev, messages: [...prev.messages, message] } : prev);
-        };
-
-        const handleNewAdminMessage = (payload) => {
-            const message = payload.savedMessage;
-            updateSessionInCache(message);
-            // This logic ensures we replace the optimistic message with the real one from the server
-             queryClient.setQueryData(['messages', message.session_id], (oldData) => {
-                if (!oldData) return [message];
-                const newMessages = oldData.filter(m => !String(m.id).startsWith('local-'));
-                return [...newMessages, message];
-            });
-            setCustomerChat(prev => (String(prev.sessionId) === String(message.session_id)) ? { ...prev, messages: [...prev.messages, message] } : prev);
-            setActiveAdminChat(prev => {
-                if (prev.sessionId === message.session_id) {
-                    const newMessages = prev.messages.filter(m => !String(m.id).startsWith('local-'));
-                    return { ...prev, messages: [...newMessages, message] };
-                }
-                return prev;
-            });
-        };
-
-        const handlePeerIsTyping = ({ sessionId, userName }) => setTypingPeers(prev => ({ ...prev, [sessionId]: userName || true }));
-        const handlePeerStoppedTyping = ({ sessionId }) => {
-            setTypingPeers(prev => {
-                const newPeers = { ...prev };
-                delete newPeers[sessionId];
-                return newPeers;
-            });
-        };
-
-        const handleAdminInitialized = (data) => {
-            if (data.customerChatSessions) {
-                queryClient.setQueryData(['chatSessions'], data.customerChatSessions);
+        // Cleanup on unmount
+        return () => {
+            if (socketRef.current) {
+                socketRef.current.disconnect();
             }
         };
+    }, [user, queryClient, setConnected, initializeCustomerSession, addMessage, setPeerTyping, clearPeerTyping]);
 
-        const handleCustomerSessionInitialized = (data) => {
-            if (data.sessionId) {
-                setCustomerChat({ sessionId: data.sessionId, messages: data.history || [] });
-                 queryClient.setQueryData(['messages', data.sessionId], data.history || []);
-            }
-        };
 
-        socket.on('connect', handleConnect);
-        socket.on('disconnect', handleDisconnect);
-        socket.on('admin_initialized', handleAdminInitialized);
-        socket.on('customer_session_initialized', handleCustomerSessionInitialized);
-        socket.on('new_customer_session', handleNewCustomerSession);
-        socket.on('new_customer_message', handleNewCustomerMessage);
-        socket.on('new_admin_message', handleNewAdminMessage);
-        socket.on('peer_is_typing', handlePeerIsTyping);
-        socket.on('peer_stopped_typing', handlePeerStoppedTyping);
-
-        return () => { if (socketRef.current) socketRef.current.disconnect(); };
-    }, [queryClient, user]);
-
-    const useSendMessageMutation = (messageConfig) => {
+    // --- React Query Mutation for sending messages ---
+    const useSendMessageMutation = (event) => {
         return useMutation({
             mutationFn: (variables) => {
                 return new Promise((resolve, reject) => {
                     if (!socketRef.current?.connected) {
                         return reject(new Error("Socket not connected."));
                     }
-                    socketRef.current.emit(messageConfig.event, variables, (response) => {
+                    // We now include the optimisticId in the payload.
+                    // The backend should receive this and include it in the broadcasted `new_admin_message` event.
+                    socketRef.current.emit(event, { ...variables }, (response) => {
                         if (response && response.success) {
                             resolve(response.data);
                         } else {
@@ -150,82 +97,62 @@ export const WebSocketProvider = ({ children }) => {
                 });
             },
             onMutate: async (variables) => {
-                const queryKey = ['messages', messageConfig.getSessionId(variables)];
-                await queryClient.cancelQueries({ queryKey });
-
-                const previousMessages = queryClient.getQueryData(queryKey) || [];
-                const optimisticMessage = messageConfig.createOptimisticMessage(variables, user);
-
-                queryClient.setQueryData(queryKey, [...previousMessages, optimisticMessage]);
-
-                // Also update the local component state for immediate UI feedback
-                messageConfig.updateComponentState([...previousMessages, optimisticMessage]);
-
-                return { previousMessages, queryKey, optimisticMessage };
+                // Use the Zustand action to add an optimistic message and get its temporary ID.
+                const optimisticId = addOptimisticMessage(variables.optimisticMessage);
+                // Pass the ID to the mutation function and error handler.
+                variables.optimisticId = optimisticId;
+                return { optimisticId };
             },
             onError: (err, variables, context) => {
                 toast.error(err.message || "Failed to send message.");
-                if (context?.previousMessages) {
-                    queryClient.setQueryData(context.queryKey, context.previousMessages);
-                    messageConfig.updateComponentState(context.previousMessages);
-                }
+                // If the mutation fails, use the ID to remove the optimistic message from the store.
+                revertOptimisticMessage(context.optimisticId, variables.optimisticMessage.session_id);
             },
-            onSuccess: (data, variables, context) => {
-                // The server will broadcast the message back, so we'll handle the final state update in the `new_..._message` event listener.
-                // We just need to remove the optimistic message and add the real one.
-                 queryClient.setQueryData(context.queryKey, (old) => {
-                    const newMessages = old.filter(m => m.id !== context.optimisticMessage.id);
-                    return [...newMessages, data.savedMessage];
-                 });
-                 messageConfig.updateComponentState((old) => {
-                    const newMessages = old.filter(m => m.id !== context.optimisticMessage.id);
-                    return [...newMessages, data.savedMessage];
-                 });
-            },
-            onSettled: (data, error, variables, context) => {
-                queryClient.invalidateQueries({ queryKey: context.queryKey });
-            },
+            onSettled: (data, error, variables) => {
+                // Invalidate queries to ensure eventual consistency with the database.
+                queryClient.invalidateQueries({ queryKey: ['messages', variables.optimisticMessage.session_id] });
+            }
         });
     };
 
-    const sendAdminReplyMutation = useSendMessageMutation({
-        event: 'admin_to_customer_message',
-        getSessionId: (vars) => vars.sessionId,
-        createOptimisticMessage: (vars) => ({
-            id: `local-${uuidv4()}`,
-            message_text: vars.text,
-            sender_type: 'admin',
-            admin_user_id: user.id,
-            created_at: new Date().toISOString(),
-            session_id: vars.sessionId,
-            read_at: null,
-        }),
-        updateComponentState: (messages) => setActiveAdminChat(prev => ({...prev, messages}))
-    });
+    const sendAdminReplyMutation = useSendMessageMutation('admin_to_customer_message');
+    const sendCustomerMessageMutation = useSendMessageMutation('customer_chat_message');
 
-    const sendCustomerMessageMutation = useSendMessageMutation({
-        event: 'customer_chat_message',
-        getSessionId: () => customerChat.sessionId,
-        createOptimisticMessage: (vars) => ({
-            id: `local-${uuidv4()}`,
-            message_text: vars.text,
-            sender_type: 'guest',
-            created_at: new Date().toISOString(),
-            session_id: customerChat.sessionId,
-            read_at: null,
-        }),
-        updateComponentState: (messages) => setCustomerChat(prev => ({...prev, messages}))
-    });
+    // --- Exposed Actions via Context ---
+    // The context now only provides functions. Components will get state from the Zustand store.
+    const actions = useMemo(() => ({
+        sendAdminReply: ({ text, sessionId }) => {
+            const optimisticMessage = {
+                message_text: text,
+                sender_type: 'admin',
+                admin_user_id: user?.id,
+                session_id: sessionId,
+            };
+            sendAdminReplyMutation.mutate({ text, sessionId, optimisticMessage });
+        },
+        sendCustomerMessage: ({ text, sessionId }) => {
+            const optimisticMessage = {
+                message_text: text,
+                sender_type: 'guest',
+                session_id: sessionId,
+            };
+            sendCustomerMessageMutation.mutate({ text, sessionId, optimisticMessage });
+        },
+        emitStartTyping: (sessionId) => {
+            if (socketRef.current?.connected) {
+                socketRef.current.emit('start_typing', { sessionId });
+            }
+        },
+        emitStopTyping: (sessionId) => {
+            if (socketRef.current?.connected) {
+                socketRef.current.emit('stop_typing', { sessionId });
+            }
+        },
+    }), [user, sendAdminReplyMutation, sendCustomerMessageMutation]);
 
-    const emitStartTyping = useCallback((sessionId) => { if (socketRef.current?.connected) { socketRef.current.emit('start_typing', { sessionId }); } }, []);
-    const emitStopTyping = useCallback((sessionId) => { if (socketRef.current?.connected) { socketRef.current.emit('stop_typing', { sessionId }); } }, []);
-
-    const value = useMemo(() => ({
-        isConnected, user, customerChat, activeAdminChat, setActiveAdminChat, typingPeers,
-        sendAdminReply: sendAdminReplyMutation.mutate,
-        sendCustomerMessage: sendCustomerMessageMutation.mutate,
-        emitStartTyping, emitStopTyping
-    }), [isConnected, user, customerChat, activeAdminChat, typingPeers, sendAdminReplyMutation.mutate, sendCustomerMessageMutation.mutate, emitStartTyping, emitStopTyping]);
-
-    return (<WebSocketContext.Provider value={value}> {children} </WebSocketContext.Provider>);
+    return (
+        <WebSocketContext.Provider value={actions}>
+            {children}
+        </WebSocketContext.Provider>
+    );
 };

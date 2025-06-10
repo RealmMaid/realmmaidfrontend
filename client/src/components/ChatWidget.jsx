@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useWebSocket } from '../contexts/WebSocketProvider.jsx';
+import { useWebSocketActions } from '../contexts/WebSocketProvider.jsx';
+import { useChatStore } from '../hooks/useChatStore.js'; // Import the Zustand store
 import { useAuth } from '../hooks/useAuth.jsx';
 import { useReadReceipts } from '../hooks/useReadReceipts.js';
 
@@ -184,7 +185,6 @@ const ChatWidgetStyles = () => (
             color: var(--accent-blue);
             font-weight: bold;
         }
-        /* New status for sending messages */
         .read-receipt.sending {
             color: var(--text-secondary);
             font-style: italic;
@@ -195,20 +195,22 @@ const ChatWidgetStyles = () => (
 const ChatWidget = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [newMessage, setNewMessage] = useState('');
-    const {
-        isConnected,
-        customerChat,
-        sendCustomerMessage,
-        typingPeers,
-        emitStartTyping,
-        emitStopTyping
-    } = useWebSocket();
     const { user: currentUser } = useAuth();
 
-    const [isResumedSession, setIsResumedSession] = useState(false);
+    // Get ACTIONS from the context provider
+    const { sendCustomerMessage, emitStartTyping, emitStopTyping } = useWebSocketActions();
+    
+    // Get STATE from the Zustand store.
+    // The component will automatically re-render when these specific values change.
+    const { isConnected, customerChat, typingPeers } = useChatStore(state => ({
+        isConnected: state.isConnected,
+        customerChat: state.customerChat,
+        typingPeers: state.typingPeers,
+    }));
 
     const { sessionId, messages } = customerChat;
-
+    
+    const [isResumedSession, setIsResumedSession] = useState(false);
     const messageRef = useReadReceipts(messages, sessionId);
     const messagesEndRef = useRef(null);
     const typingTimeoutRef = useRef(null);
@@ -230,13 +232,9 @@ const ChatWidget = () => {
     }, []);
 
     const handleTyping = (e) => {
-        const newText = e.target.value;
-        setNewMessage(newText);
-
+        setNewMessage(e.target.value);
         if (sessionId) {
-            if (!typingTimeoutRef.current) {
-                emitStartTyping(sessionId);
-            }
+            if (!typingTimeoutRef.current) emitStartTyping(sessionId);
             clearTimeout(typingTimeoutRef.current);
             typingTimeoutRef.current = setTimeout(() => {
                 emitStopTyping(sessionId);
@@ -247,26 +245,20 @@ const ChatWidget = () => {
 
     const handleSend = (e) => {
         e.preventDefault();
-        if (newMessage.trim() && isConnected) {
-            if (sessionId) {
-                clearTimeout(typingTimeoutRef.current);
-                emitStopTyping(sessionId);
-                typingTimeoutRef.current = null;
-            }
-            // Calling the mutation
-            sendCustomerMessage({ text: newMessage.trim() });
+        if (newMessage.trim() && isConnected && sessionId) {
+            emitStopTyping(sessionId);
+            clearTimeout(typingTimeoutRef.current);
+            typingTimeoutRef.current = null;
+            
+            // Call the action from our context, providing the necessary data.
+            sendCustomerMessage({ text: newMessage.trim(), sessionId });
             setNewMessage('');
         }
     };
     
-    // A small helper to add a visual cue for optimistic messages
     const getMessageStatus = (msg) => {
-        if (String(msg.id).startsWith('local-')) {
-            return 'sending';
-        }
-        if (msg.read_at) {
-            return 'read';
-        }
+        if (String(msg.id).startsWith('local-')) return 'sending';
+        if (msg.read_at) return 'read';
         return 'sent';
     }
 
@@ -303,14 +295,7 @@ const ChatWidget = () => {
                     {messages.map((msg) => {
                         if (!msg || !msg.id) return null;
                         const isAdminMessage = msg.sender_type === 'admin';
-                        let isMyMessage = false;
-                        if (currentUser) {
-                            // This case is for when an admin is viewing as a customer, which is unlikely but good to handle
-                            isMyMessage = !isAdminMessage && msg.user_id === currentUser.id;
-                        } else {
-                            // This is the standard guest/customer case
-                            isMyMessage = msg.sender_type === 'guest';
-                        }
+                        let isMyMessage = !isAdminMessage; // Simplified for the customer widget
                         let senderName = isMyMessage ? 'You' : 'Admin';
                         const messageStatus = isMyMessage ? getMessageStatus(msg) : null;
 
