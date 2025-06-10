@@ -13,21 +13,22 @@ export const AuthProvider = ({ children }) => {
         const controller = new AbortController();
         const signal = controller.signal;
 
+        console.log("AuthProvider: Starting session check...");
+
         const checkSession = async () => {
             try {
                 const { data } = await API.get('/auth/session', { signal });
+                console.log("AuthProvider: Session check API call returned.", data);
                 if (data.success && data.user) {
                     setUser(data.user);
                 }
             } catch (error) {
-                // An AbortError is expected on component unmount, so we don't log it.
                 if (error.name !== 'AbortError') {
-                    console.error("AuthProvider: The API call to /api/auth/session failed.", error);
+                    console.error("AuthProvider: The session check API call failed.", error);
                 }
             } finally {
-                // This block will run regardless of success or failure.
-                // We only set loading to false if the component is still mounted.
                 if (!signal.aborted) {
+                    console.log("AuthProvider: Finalizing auth check, setting loading to false.");
                     setAuthLoading(false);
                 }
             }
@@ -35,8 +36,8 @@ export const AuthProvider = ({ children }) => {
         
         checkSession();
 
-        // The cleanup function will run if the component unmounts before the API call finishes.
         return () => {
+            console.log("AuthProvider: Cleanup function running.");
             controller.abort();
         };
     }, []);
@@ -91,7 +92,6 @@ export const AuthProvider = ({ children }) => {
 
     return (
         <AuthContext.Provider value={value}>
-            {/* This ensures the rest of the app doesn't render until the initial session check is complete */}
             {!isAuthLoading && children}
         </AuthContext.Provider>
     );
