@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useWebSocket } from '../contexts/WebSocketProvider.jsx';
+import API from '../api/axios'; // Import the API instance
 
 // Modal for viewing and replying to a chat session
 const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnected }) => {
@@ -56,13 +57,14 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
 
 
 function ChatManagement() {
-  const { adminCustomerSessions, sendCustomerMessage, isConnected, loadSessionHistory } = useWebSocket();
+  const { adminCustomerSessions, setAdminCustomerSessions, sendCustomerMessage, isConnected, loadSessionHistory } = useWebSocket();
   const [activeModal, setActiveModal] = useState({ show: false, sessionId: null });
 
-  // Convert sessions to an array and sort by most recently updated
+  // Convert sessions to an array, filter out archived ones, and sort by most recently updated
   const sessionsArray = Object.values(adminCustomerSessions)
     .map(s => s.sessionDetails)
     .filter(Boolean)
+    .filter(session => session.status !== 'archived')
     .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
   
   const handleViewChat = async (session) => {
@@ -82,6 +84,30 @@ function ChatManagement() {
   
   const closeModal = () => {
     setActiveModal({ show: false, sessionId: null });
+  };
+
+  // Handlers for resolving and archiving chats
+  const handleSessionStatusChange = async (sessionId, action) => {
+    const endpoint = `/admin/chat/sessions/${sessionId}/${action}`;
+    try {
+        const response = await API.post(endpoint);
+        if (response.data.success) {
+            // Optimistically update the UI to reflect the change immediately
+            if(setAdminCustomerSessions) {
+                setAdminCustomerSessions(prev => {
+                    const newSessions = { ...prev };
+                    if (newSessions[sessionId]) {
+                        newSessions[sessionId].sessionDetails.status = action === 'archive' ? 'archived' : 'resolved';
+                    }
+                    return newSessions;
+                });
+            }
+            console.log(`Session ${sessionId} successfully marked as ${action}.`);
+        }
+    } catch (error) {
+        console.error(`Failed to ${action} session ${sessionId}:`, error);
+        // Here you might want to show an error toast to the user
+    }
   };
   
   const modalSessionData = activeModal.sessionId ? adminCustomerSessions[activeModal.sessionId] : null;
@@ -107,10 +133,8 @@ function ChatManagement() {
             {sessionsArray.length > 0 ? sessionsArray.map((session) => {
                 if (!session || !session.sessionId) return null;
                 
-                // Logic to format the participant's display name and IP
                 let participantDisplay;
                 if (session.user_id) {
-                    // It's a logged-in user
                     participantDisplay = (
                         <>
                             {session.userFirstName || session.participantName}
@@ -118,7 +142,6 @@ function ChatManagement() {
                         </>
                     );
                 } else {
-                    // It's a guest
                     participantDisplay = session.lastIpAddress || session.participantName;
                 }
                 
@@ -133,6 +156,10 @@ function ChatManagement() {
                         </div>
                         <div className="chat-actions">
                             <button onClick={() => handleViewChat(session)} className="btn btn-sm btn-secondary-action">View Chat</button>
+                            {session.status !== 'resolved' && (
+                                <button onClick={() => handleSessionStatusChange(session.sessionId, 'resolve')} className="btn btn-sm btn-success-action">Resolve</button>
+                            )}
+                            <button onClick={() => handleSessionStatusChange(session.sessionId, 'archive')} className="btn btn-sm btn-danger-action">Archive</button>
                         </div>
                     </div>
                 );
