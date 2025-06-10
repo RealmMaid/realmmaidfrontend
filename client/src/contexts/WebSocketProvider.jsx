@@ -30,7 +30,7 @@ export const WebSocketProvider = ({ children }) => {
         const handleNewCustomerMessage = (payload) => {
             invalidateChatSessions();
             setActiveAdminChat(prev => {
-                if (prev.sessionId === payload.savedMessage?.session_id) {
+                if (prev.sessionId === payload.savedMessage?.session_id && !prev.messages.some(m => m.id === payload.savedMessage.id)) {
                     return { ...prev, messages: [...prev.messages, payload.savedMessage] };
                 }
                 return prev;
@@ -41,7 +41,8 @@ export const WebSocketProvider = ({ children }) => {
             invalidateChatSessions();
             setCustomerChat(prev => {
                 if (String(prev.sessionId) === String(payload.savedMessage?.session_id) && !prev.messages.some(m => m.id === payload.savedMessage.id)) {
-                    return { ...prev, messages: [...prev.messages, payload.savedMessage] };
+                    const newMessages = prev.messages.filter(m => !m.id.startsWith('local-'));
+                    return { ...prev, messages: [...newMessages, payload.savedMessage] };
                 }
                 return prev;
             });
@@ -74,6 +75,16 @@ export const WebSocketProvider = ({ children }) => {
         return () => { if (socketRef.current) socketRef.current.disconnect(); };
     }, [queryClient]);
 
+    // --- THIS FUNCTION IS NOW RESTORED ---
+    const sendCustomerMessage = useCallback((messageText) => {
+        if (socketRef.current?.connected) {
+            const optimisticMessage = { id: `local-${Date.now()}`, message_text: messageText, sender_type: 'guest', created_at: new Date().toISOString(), session_id: customerChat.sessionId };
+            setCustomerChat(prev => ({ ...prev, messages: [...prev.messages, optimisticMessage]}));
+            socketRef.current.emit('customer_chat_message', { text: messageText });
+        }
+    }, [customerChat.sessionId]);
+    // ------------------------------------
+
     const sendAdminReply = useCallback((messageText, targetSessionId) => {
         if (socketRef.current?.connected && targetSessionId && user) {
             const optimisticMessage = { id: `local-${Date.now()}`, message_text: messageText, sender_type: 'admin', created_at: new Date().toISOString(), session_id: targetSessionId, admin_user_id: user.id };
@@ -82,7 +93,6 @@ export const WebSocketProvider = ({ children }) => {
         }
     }, [user]);
 
-    // --- THESE FUNCTIONS ARE NOW CORRECTLY CREATED AND MEMOIZED ---
     const emitStartTyping = useCallback((sessionId) => {
         if (socketRef.current?.connected) { socketRef.current.emit('start_typing', { sessionId }); }
     }, []);
@@ -90,7 +100,6 @@ export const WebSocketProvider = ({ children }) => {
     const emitStopTyping = useCallback((sessionId) => {
         if (socketRef.current?.connected) { socketRef.current.emit('stop_typing', { sessionId }); }
     }, []);
-    // -----------------------------------------------------------
 
     const value = useMemo(() => ({
         isConnected,
@@ -99,10 +108,11 @@ export const WebSocketProvider = ({ children }) => {
         setActiveAdminChat,
         typingPeers,
         sendAdminReply,
-        // --- THEY ARE NOW ADDED BACK TO THE CONTEXT VALUE ---
         emitStartTyping,
         emitStopTyping,
-    }), [isConnected, customerChat, activeAdminChat, typingPeers, sendAdminReply, emitStartTyping, emitStopTyping]);
+        // --- IT IS NOW ADDED BACK TO THE CONTEXT VALUE ---
+        sendCustomerMessage,
+    }), [isConnected, customerChat, activeAdminChat, typingPeers, sendAdminReply, emitStartTyping, emitStopTyping, sendCustomerMessage]);
 
     return (<WebSocketContext.Provider value={value}> {children} </WebSocketContext.Provider>);
 };
