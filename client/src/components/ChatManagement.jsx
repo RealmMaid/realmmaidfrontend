@@ -4,8 +4,6 @@ import { useAuth } from '../hooks/useAuth.jsx';
 import { useReadReceipts } from '../hooks/useReadReceipts.js';
 import API from '../api/axios';
 
-// Modal for viewing and replying to a chat session
-// NOTE: This sub-component has NO changes, but is included so the file is complete.
 const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnected, currentUser, emitStartTyping, emitStopTyping }) => {
   const [messageText, setMessageText] = useState('');
   const messagesEndRef = useRef(null);
@@ -59,13 +57,20 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
           <button type="button" className="modal-close" onClick={onClose}>&times;</button>
         </div>
         <div className="modal-body chat-messages-container">
-          {messages.map((msg) => {
+          {/* We add a check here to make sure messages is an array before we try to map it! */}
+          {Array.isArray(messages) && messages.map((msg) => {
+            // === THIS IS THE BULLETPROOF FIX! ===
+            // If a message object is ever broken or undefined, we just skip it! No more crashing!
+            if (!msg || typeof msg !== 'object') {
+                return null;
+            }
+
             const isAdminMessage = msg.sender_type === 'admin';
             const isMyMessage = currentUser && isAdminMessage && msg.admin_user_id === currentUser.id;
             let senderName = isMyMessage ? 'You' : (session.participantName || 'Guest');
             
             return (
-              <div ref={messageRef} data-message-id={msg.id} key={msg.id} className={`chat-message-item-wrapper ${isMyMessage ? 'admin-message' : 'user-message'}`}>
+              <div ref={messageRef} data-message-id={msg.id} key={msg.id || `msg-${Math.random()}`} className={`chat-message-item-wrapper ${isMyMessage ? 'admin-message' : 'user-message'}`}>
                 <span className="msg-sender-name">{senderName}</span>
                 <div className="chat-message-item">
                   <p className="msg-text">{msg.message_text}</p>
@@ -80,7 +85,7 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
           <div ref={messagesEndRef} />
         </div>
         <div className="typing-indicator-container">
-          {/* Typing indicator logic will be added here if you want it inside the modal */}
+          {/* Typing indicator logic here */}
         </div>
         <div className="modal-footer">
             <form onSubmit={handleSend}>
@@ -102,7 +107,6 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
 
 
 function ChatManagement() {
-  // === STEP 1: Get our new `sendAdminReply` function from the context ===
   const { 
     adminCustomerSessions, setAdminCustomerSessions, isConnected, 
     loadSessionHistory, typingPeers, emitStartTyping, emitStopTyping, sendAdminReply 
@@ -111,10 +115,10 @@ function ChatManagement() {
   const { user: currentUser } = useAuth();
   const [activeModal, setActiveModal] = useState({ show: false, sessionId: null });
 
+  // Added extra filtering here just to be super safe!
   const sessionsArray = Object.values(adminCustomerSessions)
+    .filter(s => s && s.sessionDetails)
     .map(s => s.sessionDetails)
-    .filter(Boolean)
-    .filter(session => session.status !== 'archived')
     .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
   
   const handleViewChat = async (session) => {
@@ -124,13 +128,11 @@ function ChatManagement() {
     }
   };
   
-  // === STEP 2: This function now calls our new `sendAdminReply`! ===
   const handleAdminSendMessage = (messageText, sessionId) => {
     if (!isConnected) {
         console.error("Cannot send message: WebSocket is disconnected.");
         return;
     }
-    // It now calls the correct, dedicated function! No more confusion!
     sendAdminReply(messageText, sessionId);
   };
   
@@ -183,7 +185,7 @@ function ChatManagement() {
 
         <div className="card-list-container">
             {sessionsArray.length > 0 ? sessionsArray.map((session) => {
-                if (!session || !session.sessionId) return null;
+                if (!session || !session.sessionId) return null; // Safety check
                 
                 let participantDisplay;
                 if (session.user_id) {
