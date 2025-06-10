@@ -146,19 +146,19 @@ const ChatWidgetStyles = () => (
             border-bottom-left-radius: 3px; 
         }
         .typing-indicator-container {
-          height: 20px;
-          padding: 0 1rem;
-          box-sizing: border-box;
+            height: 20px;
+            padding: 0 1rem;
+            box-sizing: border-box;
         }
         .typing-indicator {
-          font-style: italic;
-          font-size: 0.8rem;
-          color: var(--text-secondary);
-          animation: fadeIn 0.3s ease-in-out;
+            font-style: italic;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            animation: fadeIn 0.3s ease-in-out;
         }
         @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
         .read-receipt { 
             margin-left: 5px; 
@@ -185,9 +185,13 @@ const ChatWidget = () => {
     } = useWebSocket();
     const { user: currentUser } = useAuth();
     
-    // We get sessionId and messages from customerChat state
     const { sessionId, messages } = customerChat;
     
+    // --- ADD THIS DEBUG LOG ---
+    // This will tell us if the ChatWidget component re-renders and how many messages it has.
+    console.log(`[DEBUG] ChatWidget is rendering. It has ${messages.length} messages.`);
+    // -------------------------
+
     const messageRef = useReadReceipts(messages, sessionId);
     const messagesEndRef = useRef(null);
     const typingTimeoutRef = useRef(null);
@@ -199,14 +203,13 @@ const ChatWidget = () => {
     }, [messages, isOpen]);
 
     useEffect(() => {
-      return () => clearTimeout(typingTimeoutRef.current);
+        return () => clearTimeout(typingTimeoutRef.current);
     }, []);
     
     const handleTyping = (e) => {
         const newText = e.target.value;
         setNewMessage(newText);
         
-        // Only emit typing events if we have a session
         if (sessionId) {
             if (!typingTimeoutRef.current) {
                 emitStartTyping(sessionId);
@@ -227,22 +230,19 @@ const ChatWidget = () => {
                 emitStopTyping(sessionId);
                 typingTimeoutRef.current = null;
             }
-            // This function now just sends the text! The server does the rest.
             sendCustomerMessage(newMessage.trim());
             setNewMessage('');
         }
     };
     
-    // The chat is ready to send a message as long as we are connected.
     const isChatReady = isConnected;
     const peerIsTyping = sessionId && typingPeers[sessionId];
 
-    // The ChatWidget is no longer hidden! It will always be available!
     return (
         <>
             <ChatWidgetStyles />
             <button className="chat-fab" onClick={() => setIsOpen(p => !p)} aria-label="Toggle Chat">
-                 {isOpen ? '✕' : '💬'}
+                {isOpen ? '✕' : '💬'}
             </button>
             <div className={`chat-panel ${isOpen ? 'visible' : ''}`}>
                 <div className="chat-panel-header">
@@ -259,7 +259,7 @@ const ChatWidget = () => {
                         </div>
                     )}
                     {messages.map((msg) => {
-                        if (!msg || !msg.id) return null; // Defensive check
+                        if (!msg || !msg.id) return null;
                         const isAdminMessage = msg.sender_type === 'admin';
                         let isMyMessage = false;
                         if (currentUser) {
