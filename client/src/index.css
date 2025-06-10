@@ -540,6 +540,10 @@ input:focus, textarea:focus {
   text-shadow: 1px 1px 2px black;
   white-space: nowrap;
 }
+.floating-number.heal {
+  color: #2ecc71; /* A cute green color! */
+  text-shadow: 1px 1px 2px black;
+}
 .badge.verified { background-color: #2ecc71; }
 .badge.not-verified { background-color: #e74c3c; }
 .badge.admin { background-color: #9b59b6; }

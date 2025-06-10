@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 // ====================================================================
@@ -89,6 +89,8 @@ function PixelClickerGame() {
     const [gameWon, setGameWon] = useState(false);
     const [floatingNumbers, setFloatingNumbers] = useState([]);
     const [isShaking, setIsShaking] = useState(false);
+    const [floatingHeals, setFloatingHeals] = useState([]);
+    const gemButtonRef = useRef(null);
 
     useEffect(() => {
         localStorage.setItem(SAVE_GAME_KEY, JSON.stringify(gameState));
@@ -153,11 +155,16 @@ function PixelClickerGame() {
         new Audio(currentBoss.clickSound).play();
         const { minDamage, maxDamage } = calculateDamageRange();
         const damageDealt = Math.floor(Math.random() * (maxDamage - minDamage + 1)) + minDamage;
+
+        const rect = event.currentTarget.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const topY = rect.top;
+
         setFloatingNumbers(current => [...current, {
             id: uuidv4(),
             value: damageDealt,
-            x: event.clientX,
-            y: event.clientY,
+            x: centerX + (Math.random() * 80 - 40),
+            y: topY + (Math.random() * 20 - 10),
         }]);
         setIsShaking(true);
         setTimeout(() => setIsShaking(false), 150);
@@ -185,6 +192,20 @@ function PixelClickerGame() {
     const handleBuyUpgrade = (upgrade) => {
         const currentCost = calculateUpgradeCost(upgrade);
         if (gameState.score >= currentCost) {
+            const healAmount = Math.floor(currentCost * (Math.random() * 0.25 + 0.25)); // Heal for 25% to 50% of cost
+
+            if (gemButtonRef.current) {
+                const rect = gemButtonRef.current.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const topY = rect.top;
+                setFloatingHeals(current => [...current, {
+                    id: uuidv4(),
+                    value: healAmount,
+                    x: centerX + (Math.random() * 80 - 40),
+                    y: topY + (Math.random() * 20 - 10),
+                }]);
+            }
+
             setGameState(prev => {
                 const newOwned = { ...prev.upgradesOwned, [upgrade.id]: (prev.upgradesOwned[upgrade.id] || 0) + 1 };
                 let newPps = prev.pointsPerSecond;
@@ -196,6 +217,7 @@ function PixelClickerGame() {
                     score: prev.score - currentCost,
                     pointsPerSecond: newPps,
                     upgradesOwned: newOwned,
+                    clicksOnCurrentBoss: Math.max(0, prev.clicksOnCurrentBoss - healAmount),
                 };
             });
         } else {
@@ -257,12 +279,22 @@ function PixelClickerGame() {
                     -{num.value}
                 </span>
             ))}
+            {floatingHeals.map(num => (
+                <span
+                    key={num.id}
+                    className="floating-number heal"
+                    style={{ left: num.x, top: num.y }}
+                    onAnimationEnd={() => setFloatingHeals(current => current.filter(n => n.id !== num.id))}
+                >
+                    +{num.value}
+                </span>
+            ))}
             <h3>{gameWon ? 'You Did It!' : currentBoss.name}</h3>
             
             {(gamePhase === 'clicking' || gamePhase === 'transitioning') && (
                 <div className="health-bar-container">
                     <div className="health-bar-inner" style={{ width: `${getHealthPercent()}%` }}></div>
-                    <span className="health-bar-text">{Math.max(0, currentBoss.clickThreshold - gameState.clicksOnCurrentBoss)} / {currentBoss.clickThreshold}</span>
+                    <span className="health-bar-text">{Math.max(0, Math.floor(currentBoss.clickThreshold - gameState.clicksOnCurrentBoss))} / {currentBoss.clickThreshold}</span>
                 </div>
             )}
             
@@ -272,7 +304,7 @@ function PixelClickerGame() {
                     <p>{gameState.pointsPerSecond} sparkles per second / {calculateDamageRange().minDamage}-{calculateDamageRange().maxDamage} per click</p>
                 )}
 
-                <div className="gem-button" onClick={handleGemClick}>
+                <div className="gem-button" ref={gemButtonRef} onClick={handleGemClick}>
                     <img
                         src={getCurrentImage()}
                         alt={currentBoss.name}
