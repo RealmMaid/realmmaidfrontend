@@ -10,11 +10,17 @@ const API = axios.create({
     withCredentials: true,
 });
 
-// This is our new, simpler interceptor!
+// This is our final, super-smart interceptor!
 API.interceptors.request.use(
     async (config) => {
-        // We are REMOVING the check for 'get' requests.
-        // Now, we will try to add the token to EVERY request.
+        // === THIS IS THE FIX! ===
+        // If the request is to get the CSRF token itself, don't intercept it!
+        // Just let it go on its way immediately. This breaks the infinite loop.
+        if (config.url === '/auth/csrf-token') {
+            return config;
+        }
+
+        // For every OTHER request, we'll pause and add the token.
         try {
             const token = await getCsrfToken();
             if (token) {
@@ -22,8 +28,6 @@ API.interceptors.request.use(
             }
         } catch (error) {
             console.error("CSRF token could not be attached. The request might fail.", error);
-            // We will let the request proceed and let the server decide.
-            // This can help debug if the issue is with token fetching vs. the request itself.
         }
     
         return config;
