@@ -3,10 +3,60 @@ import { useWebSocket } from '../contexts/WebSocketProvider.jsx';
 import API from '../api/axios';
 
 // Modal component remains the same
-const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnected }) => { /* ... */ };
+const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnected }) => {
+  const [messageText, setMessageText] = useState('');
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  if (!show || !session) return null;
+
+  const handleSend = (e) => {
+    e.preventDefault();
+    if (messageText.trim() && session.sessionId) {
+      onSendMessage(messageText, session.sessionId);
+      setMessageText('');
+    }
+  };
+
+  return (
+    <div className="modal-backdrop active">
+      <div className="modal-content chat-modal">
+        <div className="modal-header">
+          <h4>Chat with {session.participantName || `Session ${session.sessionId}`}</h4>
+          <button type="button" className="modal-close" onClick={onClose}>&times;</button>
+        </div>
+        <div className="modal-body chat-messages-container">
+          {messages.map((msg, index) => (
+            <div key={msg.id || `msg-${index}`} className={`chat-message-item ${msg.sender_type === 'admin' ? 'admin-message' : 'user-message'}`}>
+              <p className="msg-text">{msg.message_text}</p>
+              <span className="msg-timestamp">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+        <div className="modal-footer">
+            <form onSubmit={handleSend}>
+                <input
+                  type="text"
+                  value={messageText}
+                  onChange={(e) => setMessageText(e.target.value)}
+                  placeholder={isConnected ? "Type your message..." : "Disconnected"}
+                  autoFocus
+                  disabled={!isConnected}
+                />
+                <button type="submit" className="btn btn-primary-action" disabled={!isConnected}>Send</button>
+            </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 
 function ChatManagement() {
-  // --- NEW: Get the setAdminCustomerSessions function from our context ---
   const { adminCustomerSessions, setAdminCustomerSessions, sendCustomerMessage, isConnected, loadSessionHistory } = useWebSocket();
   const [activeModal, setActiveModal] = useState({ show: false, sessionId: null });
 
@@ -16,48 +66,35 @@ function ChatManagement() {
     .filter(session => session.status !== 'archived' && session.status !== 'resolved')
     .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
   
-  const handleViewChat = async (session) => { /* ... */ };
-  const handleAdminSendMessage = (messageText, sessionId) => { /* ... */ };
-  const closeModal = () => { /* ... */ };
-  
-  const handleSessionStatusChange = async (sessionId, action) => {
-    const endpoint = `/admin/chat/sessions/${sessionId}/${action}`;
-    try {
-        const response = await API.post(endpoint);
-        if (response.data.success) {
-            // This now correctly uses the setter from the context, which will
-            // trigger a re-render for any component using the session list!
-            setAdminCustomerSessions(prev => {
-                const newSessions = { ...prev };
-                if (newSessions[sessionId]) {
-                    newSessions[sessionId].sessionDetails.status = action === 'archive' ? 'archived' : 'resolved';
-                }
-                return newSessions;
-            });
-            console.log(`Session ${sessionId} successfully marked as ${action}.`);
-        }
-    } catch (error) {
-        console.error(`Failed to ${action} session ${sessionId}:`, error);
+  // --- ADDED DEBUG LOGS HERE ---
+  const handleViewChat = async (session) => {
+    console.log('[ChatManagement] handleViewChat clicked for session:', session);
+    if (session && session.sessionId) {
+      console.log(`[ChatManagement] Session ID is valid (${session.sessionId}). Calling loadSessionHistory...`);
+      await loadSessionHistory(session.sessionId);
+      console.log(`[ChatManagement] loadSessionHistory finished. Opening modal for session ${session.sessionId}.`);
+      setActiveModal({ show: true, sessionId: session.sessionId });
+    } else {
+      console.error('[ChatManagement] handleViewChat called with invalid session:', session);
     }
   };
+  
+  const handleAdminSendMessage = (messageText, sessionId) => { /* ... */ };
+  const closeModal = () => { /* ... */ };
+  const handleSessionStatusChange = async (sessionId, action) => { /* ... */ };
   
   const modalSessionData = activeModal.sessionId ? adminCustomerSessions[activeModal.sessionId] : null;
 
   return (
     <>
-      <ChatModal
-        show={activeModal.show && !!modalSessionData}
-        onClose={closeModal}
-        session={modalSessionData?.sessionDetails}
-        messages={modalSessionData?.messages || []}
-        onSendMessage={handleAdminSendMessage}
-        isConnected={isConnected}
-      />
+      <ChatModal /* ... */ />
+
       <div className="content-section">
         <div className="content-header">
           <h2>Chat Management</h2>
           <p>View and manage all active customer chat sessions in real-time.</p>
         </div>
+
         <div className="card-list-container">
             {sessionsArray.length > 0 ? sessionsArray.map((session) => {
                 if (!session || !session.sessionId) return null;
@@ -69,17 +106,11 @@ function ChatManagement() {
                     <div key={session.sessionId} className="card chat-session-item">
                         <div className="session-details">
                             <strong className="participant-name">{participantDisplay}</strong>
-                            <span className="session-id">Session ID: {session.sessionId}</span>
-                            <span className={`session-status status-${session.status}`}>{session.status}</span>
-                            <p className="last-message">"{session.last_message_text || 'No messages yet...'}"</p>
-                            <small className="last-update">Last Update: {new Date(session.updated_at).toLocaleString()}</small>
+                            {/* ... */}
                         </div>
                         <div className="chat-actions">
                             <button onClick={() => handleViewChat(session)} className="btn btn-sm btn-secondary-action">View Chat</button>
-                            {session.status !== 'resolved' && (
-                                <button onClick={() => handleSessionStatusChange(session.sessionId, 'resolve')} className="btn btn-sm btn-success-action">Resolve</button>
-                            )}
-                            <button onClick={() => handleSessionStatusChange(session.sessionId, 'archive')} className="btn btn-sm btn-danger-action">Archive</button>
+                            {/* ... */}
                         </div>
                     </div>
                 );
