@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useWebSocket } from '../contexts/WebSocketProvider.jsx';
+import { useAuth } from '../hooks/useAuth.jsx'; // --- NEW: Import useAuth to know who the current user is
 import API from '../api/axios';
 
 // Modal for viewing and replying to a chat session
-const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnected }) => {
+const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnected, currentUser }) => {
   const [messageText, setMessageText] = useState('');
   const messagesEndRef = useRef(null);
 
@@ -29,12 +30,30 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
           <button type="button" className="modal-close" onClick={onClose}>&times;</button>
         </div>
         <div className="modal-body chat-messages-container">
-          {messages.map((msg, index) => (
-            <div key={msg.id || `msg-${index}`} className={`chat-message-item ${msg.sender_type === 'admin' ? 'admin-message' : 'user-message'}`}>
-              <p className="msg-text">{msg.message_text}</p>
-              <span className="msg-timestamp">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-            </div>
-          ))}
+          {messages.map((msg, index) => {
+            // --- NEW: Determine the sender's name for display ---
+            let senderName = '';
+            const isAdminMessage = msg.sender_type === 'admin';
+
+            if (isAdminMessage) {
+              // If the current user is an admin, show "You". Otherwise, show "Admin".
+              senderName = currentUser?.isAdmin ? 'You' : 'Admin';
+            } else {
+              // If the current user is an admin, show the participant's name. Otherwise, show "You".
+              senderName = currentUser?.isAdmin ? (session.participantName || 'Guest') : 'You';
+            }
+            
+            return (
+              <div key={msg.id || `msg-${index}`} className={`chat-message-item-wrapper ${isAdminMessage ? 'admin-message' : 'user-message'}`}>
+                {/* Display the sender's name above the message bubble */}
+                <span className="msg-sender-name">{senderName}</span>
+                <div className="chat-message-item">
+                  <p className="msg-text">{msg.message_text}</p>
+                  <span className="msg-timestamp">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+              </div>
+            );
+          })}
           <div ref={messagesEndRef} />
         </div>
         <div className="modal-footer">
@@ -58,6 +77,7 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
 
 function ChatManagement() {
   const { adminCustomerSessions, setAdminCustomerSessions, sendCustomerMessage, isConnected, loadSessionHistory } = useWebSocket();
+  const { user: currentUser } = useAuth(); // Get the current user to pass to the modal
   const [activeModal, setActiveModal] = useState({ show: false, sessionId: null });
 
   const sessionsArray = Object.values(adminCustomerSessions)
@@ -67,14 +87,9 @@ function ChatManagement() {
     .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
   
   const handleViewChat = async (session) => {
-    console.log('[ChatManagement] handleViewChat clicked for session:', session);
     if (session && session.sessionId) {
-      console.log(`[ChatManagement] Session ID is valid (${session.sessionId}). Calling loadSessionHistory...`);
       await loadSessionHistory(session.sessionId);
-      console.log(`[ChatManagement] loadSessionHistory finished. Opening modal for session ${session.sessionId}.`);
       setActiveModal({ show: true, sessionId: session.sessionId });
-    } else {
-      console.error('[ChatManagement] handleViewChat called with invalid session:', session);
     }
   };
   
@@ -104,7 +119,6 @@ function ChatManagement() {
                     return newSessions;
                 });
             }
-            console.log(`Session ${sessionId} successfully marked as ${action}.`);
         }
     } catch (error) {
         console.error(`Failed to ${action} session ${sessionId}:`, error);
@@ -122,6 +136,7 @@ function ChatManagement() {
         messages={modalSessionData?.messages || []}
         onSendMessage={handleAdminSendMessage}
         isConnected={isConnected}
+        currentUser={currentUser}
       />
 
       <div className="content-section">
@@ -134,8 +149,10 @@ function ChatManagement() {
             {sessionsArray.length > 0 ? sessionsArray.map((session) => {
                 if (!session || !session.sessionId) return null;
                 
+                // --- FIX: This logic now correctly displays the name and IP ---
                 let participantDisplay;
                 if (session.user_id) {
+                    // It's a logged-in user
                     participantDisplay = (
                         <>
                             {session.userFirstName || session.participantName}
@@ -143,7 +160,8 @@ function ChatManagement() {
                         </>
                     );
                 } else {
-                    participantDisplay = session.lastIpAddress || session.participantName;
+                    // It's a guest
+                    participantDisplay = session.lastIpAddress || session.participantName || `Guest Session`;
                 }
                 
                 return (
