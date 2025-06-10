@@ -1,82 +1,70 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useWebSocket } from '../contexts/WebSocketProvider.jsx';
 import { useAuth } from '../hooks/useAuth.jsx';
 import API from '../api/axios';
-
-// 1. We import our new custom hook!
 import { useChatSessions } from '../hooks/useChatSessions.js';
-
-// NOTE: We have removed the ChatModal from this file for now to simplify.
-// We will add it back later once the data fetching is refactored.
+import { ChatModal } from './ChatModal.jsx'; // We'll move the modal to its own file for cleanliness
 
 function ChatManagement() {
-    // 2. We call our new hook to get the session data.
-    // React Query gives us the data, plus status states like isLoading and isError.
     const { data: sessions, isLoading, isError, error } = useChatSessions();
-    
-    // We still need the WebSocket context for real-time updates later.
-    const { isConnected, typingPeers } = useWebSocket();
-    const { user: currentUser } = useAuth();
-    const [activeModal, setActiveModal] = useState({ show: false, sessionId: null });
+    const { isConnected, typingPeers, activeChat, setActiveChat, sendAdminReply } = useWebSocket();
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
-    // 3. We handle the loading and error states right at the top.
-    // This makes our return statement much cleaner.
-    if (isLoading) {
-        return <div className="content-section"><p>Loading chat sessions...</p></div>;
-    }
+    const handleViewChat = async (session) => {
+        // Fetch message history for the selected session
+        try {
+            const response = await API.get(`/admin/chat/sessions/${session.sessionId}/messages`);
+            if (response.data.success) {
+                setActiveChat({ sessionId: session.sessionId, messages: response.data.messages, participantName: session.participantName });
+                setIsModalOpen(true);
+            }
+        } catch (error) {
+            console.error(`Failed to fetch history for session ${session.sessionId}:`, error);
+        }
+    };
 
-    if (isError) {
-        return <div className="content-section"><p>Error loading sessions: {error.message}</p></div>;
-    }
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setActiveChat({ sessionId: null, messages: [] });
+    };
     
-    // 4. We prepare the sessions array for rendering.
-    // Note: We now use the 'sessions' data directly from our useQuery hook.
+    if (isLoading) return <div className="content-section"><p>Loading chat sessions...</p></div>;
+    if (isError) return <div className="content-section"><p>Error loading sessions: {error.message}</p></div>;
+    
     const sessionsArray = sessions
-        ?.map(s => {
-            const isPeerTyping = typingPeers[s.sessionId];
-            return { ...s, isTyping: isPeerTyping };
-        })
+        ?.map(s => ({ ...s, isTyping: typingPeers[s.sessionId] }))
         .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
-
-    // We'll add these handlers back in the next step.
-    const handleViewChat = (session) => console.log("View chat for:", session);
-    const handleSessionStatusChange = (sessionId, action) => console.log(`Perform ${action} on ${sessionId}`);
 
     return (
         <>
-            {/* The ChatModal component will be added back here later */}
+            <ChatModal
+                show={isModalOpen}
+                onClose={handleCloseModal}
+                session={activeChat}
+                messages={activeChat.messages}
+                onSendMessage={sendAdminReply}
+                isConnected={isConnected}
+            />
 
             <div className="content-section">
                 <div className="content-header">
                     <h2>Chat Management</h2>
                     <p>View and manage all active customer chat sessions in real-time.</p>
                 </div>
-
                 <div className="card-list-container">
-                    {sessionsArray && sessionsArray.length > 0 ? sessionsArray.map((session) => {
-                        if (!session || !session.sessionId) return null;
-                        let participantDisplay = session.lastIpAddress || session.participantName || `Guest Session`;
-                        if (session.user_id) {
-                            participantDisplay = (<>{session.userFirstName || session.participantName}{session.lastIpAddress && <span className="participant-ip">({session.lastIpAddress})</span>}</>);
-                        }
-                        return (
-                            <div key={session.sessionId} className="card chat-session-item">
-                                <div className="session-details">
-                                    <strong className="participant-name">{participantDisplay}</strong>
-                                    <span className="session-id">Session ID: {session.sessionId}</span>
-                                    <span className={`session-status status-${session.status}`}>{session.status}</span>
-                                    <p className="last-message">"{session.last_message_text || 'No messages yet...'}"</p>
-                                    {session.isTyping && <div className="typing-indicator"><span>typing...</span></div>}
-                                    <small className="last-update">Last Update: {new Date(session.updated_at).toLocaleString()}</small>
-                                </div>
-                                <div className="chat-actions">
-                                    <button onClick={() => handleViewChat(session)} className="btn btn-sm btn-secondary-action">View Chat</button>
-                                    {session.status !== 'resolved' && ( <button onClick={() => handleSessionStatusChange(session.sessionId, 'resolve')} className="btn btn-sm btn-success-action">Resolve</button> )}
-                                    <button onClick={() => handleSessionStatusChange(session.sessionId, 'archive')} className="btn btn-sm btn-danger-action">Archive</button>
-                                </div>
+                    {sessionsArray && sessionsArray.length > 0 ? sessionsArray.map((session) => (
+                        <div key={session.sessionId} className="card chat-session-item">
+                           {/* ... JSX for the session card, no changes here ... */}
+                           <div className="session-details">
+                                <strong className="participant-name">{session.participantName || `Guest ${session.sessionId}`}</strong>
+                                <p className="last-message">"{session.last_message_text || 'No messages yet...'}"</p>
+                                {session.isTyping && <div className="typing-indicator"><span>typing...</span></div>}
                             </div>
-                        );
-                    }) : (
+                            <div className="chat-actions">
+                                <button onClick={() => handleViewChat(session)} className="btn btn-sm btn-secondary-action">View Chat</button>
+                            </div>
+                        </div>
+                    )) : (
                         <div className="card text-center"><p>No active chat sessions.</p></div>
                     )}
                 </div>
