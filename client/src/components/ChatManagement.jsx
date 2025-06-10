@@ -57,10 +57,7 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
           <button type="button" className="modal-close" onClick={onClose}>&times;</button>
         </div>
         <div className="modal-body chat-messages-container">
-          {/* We add a check here to make sure messages is an array before we try to map it! */}
           {Array.isArray(messages) && messages.map((msg) => {
-            // === THIS IS THE BULLETPROOF FIX! ===
-            // If a message object is ever broken or undefined, we just skip it! No more crashing!
             if (!msg || typeof msg !== 'object') {
                 return null;
             }
@@ -115,7 +112,6 @@ function ChatManagement() {
   const { user: currentUser } = useAuth();
   const [activeModal, setActiveModal] = useState({ show: false, sessionId: null });
 
-  // Added extra filtering here just to be super safe!
   const sessionsArray = Object.values(adminCustomerSessions)
     .filter(s => s && s.sessionDetails)
     .map(s => s.sessionDetails)
@@ -185,7 +181,7 @@ function ChatManagement() {
 
         <div className="card-list-container">
             {sessionsArray.length > 0 ? sessionsArray.map((session) => {
-                if (!session || !session.sessionId) return null; // Safety check
+                if (!session || !session.sessionId) return null;
                 
                 let participantDisplay;
                 if (session.user_id) {
