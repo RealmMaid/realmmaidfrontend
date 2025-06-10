@@ -5,7 +5,7 @@ import { useReadReceipts } from '../hooks/useReadReceipts.js';
 import API from '../api/axios';
 
 // Modal for viewing and replying to a chat session
-const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnected, currentUser }) => {
+const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnected, currentUser, emitStartTyping, emitStopTyping }) => {
   const [messageText, setMessageText] = useState('');
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -31,12 +31,18 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
   const handleTyping = (e) => {
     const newText = e.target.value;
     setMessageText(newText);
+
+    // If the typing timer isn't already running, start it and emit the event
     if (!typingTimeoutRef.current) {
-      onSendMessage('start_typing', session.sessionId);
+      // CORRECTED: Use the specific function for the "start typing" event
+      emitStartTyping(session.sessionId);
     }
+
+    // Reset the timer
     clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
-      onSendMessage('stop_typing', session.sessionId);
+      // CORRECTED: When the timer runs out, emit the "stop typing" event
+      emitStopTyping(session.sessionId);
       typingTimeoutRef.current = null;
     }, 1500);
   };
@@ -44,9 +50,12 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
   const handleSend = (e) => {
     e.preventDefault();
     if (messageText.trim() && session.sessionId) {
+      // When a message is sent, clear the "typing" timeout and immediately emit "stop typing"
       clearTimeout(typingTimeoutRef.current);
-      onSendMessage('stop_typing', session.sessionId);
+      // CORRECTED: Ensure stop typing is emitted on send
+      emitStopTyping(session.sessionId);
       typingTimeoutRef.current = null;
+      
       onSendMessage(messageText, session.sessionId);
       setMessageText('');
     }
