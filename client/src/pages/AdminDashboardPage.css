@@ -89,7 +89,27 @@ body.dashboard {
         transform: translateY(0);
     }
 }
+.chat-message-item-wrapper {
+  display: flex;
+  flex-direction: column;
+}
 
+.msg-sender-name {
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+
+.chat-message-item-wrapper.user-message {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.chat-message-item-wrapper.admin-message {
+  align-self: flex-start;
+  align-items: flex-start;
+}
 /* --- NEW: Floating Action Button for Chat --- */
 .chat-fab {
     position: fixed;
