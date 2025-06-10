@@ -113,7 +113,12 @@ body.dashboard {
 .chat-fab:hover {
     transform: scale(1.1);
 }
-
+.participant-ip {
+  font-weight: normal;
+  color: var(--text-secondary);
+  font-size: 0.9em;
+  margin-left: 0.5rem;
+}
 /* --- UPDATED: Admin Chat Panel Styles --- */
 .admin-chat-panel {
     position: fixed;
