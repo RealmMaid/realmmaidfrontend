@@ -53,10 +53,15 @@ export const WebSocketProvider = ({ children }) => {
                         [message.data.id]: { sessionDetails: message.data, messages: [] }
                     }));
                     break;
-                case 'new_customer_message':
+                case 'new_customer_message': { // Brackets add block scope
                     const msgData = message.data;
                     const sessionId = msgData.session_id;
-                    
+
+                    // --- FIX: This logic now correctly separates the two UI updates ---
+
+                    // 1. Update the customer's own chat window ONLY if the session IDs match.
+                    // This prevents an admin's UI from trying to update their personal chat widget
+                    // with a message from a different customer's session.
                     setCustomerChat(prev => {
                         if (String(prev.sessionId) === String(sessionId)) {
                            return { ...prev, messages: [...prev.messages, msgData] };
@@ -64,8 +69,12 @@ export const WebSocketProvider = ({ children }) => {
                         return prev;
                     });
 
+                    // 2. Separately, update the admin dashboard view with the new message.
                     setAdminCustomerSessions(prev => {
+                        // If the session isn't on the admin's dashboard, do nothing.
                         if (!prev[sessionId]) return prev;
+
+                        // Otherwise, update the session with the new message data.
                         const updatedSession = {
                             ...prev[sessionId],
                             messages: [...prev[sessionId].messages, msgData],
@@ -78,17 +87,21 @@ export const WebSocketProvider = ({ children }) => {
                         return { ...prev, [sessionId]: updatedSession };
                     });
                     break;
+                }
                 case 'new_admin_message':
                     setAdminMessages(prev => [...prev, message.data]);
                     break;
             }
         };
+
         ws.onerror = (error) => console.error('[WebSocketProvider] WebSocket Error:', error);
+
         ws.onclose = () => {
             console.log('[WebSocketProvider] WebSocket Disconnected.');
             setIsConnected(false);
             socketRef.current = null; 
         };
+
         return () => {
             if (socketRef.current) {
                 socketRef.current.onclose = null;
@@ -123,23 +136,54 @@ export const WebSocketProvider = ({ children }) => {
             const payload = { type: 'customer_chat_message', text: messageText, sessionId: targetSessionId };
             socketRef.current.send(JSON.stringify(payload));
             
-            const optimisticMessage = { /* ... */ };
+            const optimisticMessage = {
+                id: `local-${Date.now()}`,
+                message_text: messageText,
+                sender_type: user?.isAdmin ? 'admin' : (user ? 'user' : 'guest'),
+                created_at: new Date().toISOString(),
+                session_id: targetSessionId
+            };
             
-            setAdminCustomerSessions(prev => { /* ... */ });
+            setAdminCustomerSessions(prev => {
+                if (!prev[targetSessionId]) return prev;
+                const updatedSession = {
+                    ...prev[targetSessionId],
+                    messages: [...prev[targetSessionId].messages, optimisticMessage],
+                    sessionDetails: {
+                        ...prev[targetSessionId].sessionDetails,
+                        last_message_text: optimisticMessage.message_text,
+                        updated_at: optimisticMessage.created_at,
+                    }
+                };
+                return { ...prev, [targetSessionId]: updatedSession };
+            });
+
             if (String(customerChat.sessionId) === String(targetSessionId)) {
                 setCustomerChat(prev => ({ ...prev, messages: [...prev.messages, optimisticMessage]}));
             }
         }
     }, [customerChat.sessionId, user]);
     
-    const sendAdminMessage = useCallback((messageText) => { /* ... */ }, [user]);
+    const sendAdminMessage = useCallback((messageText) => {
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+             socketRef.current.send(JSON.stringify({ type: 'admin_chat_message', text: messageText }));
+             const optimisticMessage = {
+                id: `local-${Date.now()}`,
+                message_text: messageText,
+                sender_name: user?.firstName || 'Admin',
+                sender_type: 'admin',
+                created_at: new Date().toISOString(),
+             };
+             setAdminMessages(prev => [...prev, optimisticMessage]);
+        }
+    }, [user]);
 
     const value = {
         isConnected,
         user,
         customerChat,
         adminCustomerSessions,
-        setAdminCustomerSessions, // --- NEW: Expose the setter function ---
+        setAdminCustomerSessions,
         adminMessages,
         sendCustomerMessage,
         sendAdminMessage,
