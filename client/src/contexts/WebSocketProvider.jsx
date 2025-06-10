@@ -1,11 +1,24 @@
 import React, { createContext, useState, useEffect, useContext, useCallback, useRef, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth.jsx';
 import API from '../api/axios';
 import { io } from 'socket.io-client';
+import { v4 as uuidv4 } from 'uuid'; // Import the uuid library
 
 const WebSocketContext = createContext(null);
 export const useWebSocket = () => useContext(WebSocketContext);
+
+// This helper function gets the unique guest ID from localStorage or creates a new one.
+const getOrCreateGuestIdentifier = () => {
+    const GUEST_ID_KEY = 'chatGuestIdentifier';
+    let guestId = localStorage.getItem(GUEST_ID_KEY);
+    if (!guestId) {
+        guestId = uuidv4();
+        localStorage.setItem(GUEST_ID_KEY, guestId);
+    }
+    return guestId;
+};
 
 export const WebSocketProvider = ({ children }) => {
     const queryClient = useQueryClient();
@@ -18,14 +31,32 @@ export const WebSocketProvider = ({ children }) => {
     const [typingPeers, setTypingPeers] = useState({});
 
     useEffect(() => {
-        if (socketRef.current) return;
-        const socket = io((import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000').replace('/api', ''), { withCredentials: true });
+        // Disconnect any existing socket before creating a new one
+        if (socketRef.current) {
+            socketRef.current.disconnect();
+        }
+
+        // For guests, get or create their persistent identifier.
+        // For logged-in users, this will be null.
+        const guestIdentifier = user ? null : getOrCreateGuestIdentifier();
+
+        // Create the socket instance with the auth payload
+        const socket = io((import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000').replace('/api', ''), {
+            withCredentials: true,
+            auth: {
+                guestIdentifier: guestIdentifier
+            }
+        });
         socketRef.current = socket;
 
         const handleConnect = () => setIsConnected(true);
         const handleDisconnect = () => setIsConnected(false);
 
-        const invalidateChatSessions = () => queryClient.invalidateQueries({ queryKey: ['chatSessions'] });
+        const handleNewCustomerSession = (payload) => {
+            const participantName = payload?.data?.participantName || 'a new visitor';
+            toast(`New chat started with ${participantName}.`, { icon: '💬' });
+            queryClient.invalidateQueries({ queryKey: ['chatSessions'] });
+        };
         
         const updateSessionInCache = (message) => {
             const sessionId = message.session_id;
@@ -38,23 +69,20 @@ export const WebSocketProvider = ({ children }) => {
                 return newSessions;
             });
         };
-
+        
         const handleNewCustomerMessage = (payload) => {
             const message = payload.savedMessage;
             if (!message) return;
             updateSessionInCache(message);
             setActiveAdminChat(prev => {
                 if (prev.sessionId === message.session_id && !prev.messages.some(m => m.id === message.id)) {
-                    const newMessages = prev.messages.filter(m => !String(m.id).startsWith('local-'));
-                    return { ...prev, messages: [...newMessages, message] };
+                    return { ...prev, messages: [...prev.messages, message] };
                 }
                 return prev;
             });
         };
 
         const handleNewAdminMessage = (payload) => {
-            // --- LOG FOR GUEST CLIENT ---
-            console.log("[GUEST BROWSER] Received 'new_admin_message' event from server.", payload);
             const message = payload.savedMessage;
             if (!message) return;
             updateSessionInCache(message);
@@ -82,20 +110,34 @@ export const WebSocketProvider = ({ children }) => {
                 return newPeers;
             });
         };
-        
+
+        const handleAdminInitialized = (data) => {
+            if(data.customerChatSessions) {
+                queryClient.setQueryData(['chatSessions'], data.customerChatSessions);
+            }
+        };
+
+        const handleCustomerSessionInitialized = (data) => {
+            if(data.sessionId) {
+                setCustomerChat({ sessionId: data.sessionId, messages: data.history || [] });
+            }
+        };
+
         socket.on('connect', handleConnect);
         socket.on('disconnect', handleDisconnect);
-        socket.on('new_customer_session', invalidateChatSessions);
+        socket.on('admin_initialized', handleAdminInitialized);
+        socket.on('customer_session_initialized', handleCustomerSessionInitialized);
+        socket.on('new_customer_session', handleNewCustomerSession);
         socket.on('new_customer_message', handleNewCustomerMessage);
         socket.on('new_admin_message', handleNewAdminMessage);
         socket.on('peer_is_typing', handlePeerIsTyping);
         socket.on('peer_stopped_typing', handlePeerStoppedTyping);
 
         return () => { if (socketRef.current) socketRef.current.disconnect(); };
-    }, [queryClient]);
+    }, [queryClient, user]); // Re-run this effect if the user logs in/out
 
     const sendCustomerMessage = useCallback((messageText) => {
-        if (socketRef.current?.connected) {
+        if (socketRef.current?.connected && customerChat.sessionId) {
             const optimisticMessage = { id: `local-${Date.now()}`, message_text: messageText, sender_type: 'guest', created_at: new Date().toISOString(), session_id: customerChat.sessionId };
             setCustomerChat(prev => ({ ...prev, messages: [...prev.messages, optimisticMessage]}));
             socketRef.current.emit('customer_chat_message', { text: messageText });
@@ -104,8 +146,6 @@ export const WebSocketProvider = ({ children }) => {
 
     const sendAdminReply = useCallback((messageText, targetSessionId) => {
         if (socketRef.current?.connected && targetSessionId && user) {
-            // --- LOG FOR ADMIN CLIENT ---
-            console.log(`[ADMIN BROWSER] Emitting 'admin_to_customer_message' to server for session ${targetSessionId}.`);
             const optimisticMessage = { id: `local-${Date.now()}`, message_text: messageText, sender_type: 'admin', created_at: new Date().toISOString(), session_id: targetSessionId, admin_user_id: user.id };
             setActiveAdminChat(prev => ({...prev, messages: [...prev.messages, optimisticMessage]}));
             socketRef.current.emit('admin_to_customer_message', { text: messageText, sessionId: targetSessionId });
