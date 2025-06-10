@@ -468,6 +468,47 @@ input:focus, textarea:focus {
   color: #999;
   cursor: not-allowed;
 }
+/* For the class selection buttons */
+.btn-class-select {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  cursor: pointer;
+}
+.btn-class-select img {
+  width: 80px; /* Adjust as needed! */
+  height: 80px;
+}
+
+/* For the upgrades shop */
+.upgrades-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 1rem;
+}
+
+.btn-upgrade {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  height: 100%; /* Makes the buttons in a row the same height */
+}
+
+.upgrade-image {
+  width: 48px; /* Adjust as needed! */
+  height: 48px;
+  margin-bottom: 0.5rem;
+}
+
+.upgrade-name {
+  font-weight: bold;
+}
 .badge.verified { background-color: #2ecc71; }
 .badge.not-verified { background-color: #e74c3c; }
 .badge.admin { background-color: #9b59b6; }
