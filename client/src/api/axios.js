@@ -1,7 +1,7 @@
 // client/src/api/axios.js
 
 import axios from 'axios';
-import { getCsrfToken } from './csrf'; // We still need our patient promise function
+import { getCsrfToken } from './csrf';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -10,24 +10,22 @@ const API = axios.create({
     withCredentials: true,
 });
 
-// This is our final, super-smart interceptor!
+// The interceptor with the special rule for the csrf-token URL
 API.interceptors.request.use(
     async (config) => {
-        // === THIS IS THE FIX! ===
-        // If the request is to get the CSRF token itself, don't intercept it!
-        // Just let it go on its way immediately. This breaks the infinite loop.
+        // This is the most important rule!
+        // It lets the request for the token itself pass through without waiting.
         if (config.url === '/auth/csrf-token') {
             return config;
         }
 
-        // For every OTHER request, we'll pause and add the token.
         try {
             const token = await getCsrfToken();
             if (token) {
                 config.headers['X-CSRF-Token'] = token;
             }
         } catch (error) {
-            console.error("CSRF token could not be attached. The request might fail.", error);
+            console.error("CSRF token could not be attached.", error);
         }
     
         return config;
