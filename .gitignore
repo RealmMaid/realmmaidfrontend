@@ -1,0 +1,29 @@
+# .gitignore
+
+# Ignore compiled Python bytecode files
+*.pyc 
+
+# Ignore Python cache directories
+__pycache__/ 
+
+# Ignore environment-specific settings
+.env 
+
+# Ignore log files
+*.log 
+
+# Ignore build directories
+build/
+dist/
+
+# Ignore IDE/editor specific files
+.vscode/ 
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Ignore node_modules directory
+node_modules/ 
+
+# Ignore .DS_Store files (macOS specific)
+.DS_Store
