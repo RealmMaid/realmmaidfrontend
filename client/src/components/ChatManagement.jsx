@@ -67,8 +67,8 @@ function ChatManagement() {
   
   const handleViewChat = async (session) => {
     if (session && session.sessionId) {
-      await loadSessionHistory(session.sessionId); // 1. Fetch the history
-      setActiveModal({ show: true, sessionId: session.sessionId }); // 2. Then open the modal
+      await loadSessionHistory(session.sessionId);
+      setActiveModal({ show: true, sessionId: session.sessionId });
     }
   };
   
@@ -107,11 +107,25 @@ function ChatManagement() {
             {sessionsArray.length > 0 ? sessionsArray.map((session) => {
                 if (!session || !session.sessionId) return null;
                 
-                const messageCount = adminCustomerSessions[session.sessionId]?.messages?.length || 0;
+                // Logic to format the participant's display name and IP
+                let participantDisplay;
+                if (session.user_id) {
+                    // It's a logged-in user
+                    participantDisplay = (
+                        <>
+                            {session.userFirstName || session.participantName}
+                            {session.lastIpAddress && <span className="participant-ip">({session.lastIpAddress})</span>}
+                        </>
+                    );
+                } else {
+                    // It's a guest
+                    participantDisplay = session.lastIpAddress || session.participantName;
+                }
+                
                 return (
                     <div key={session.sessionId} className="card chat-session-item">
                         <div className="session-details">
-                            <strong className="participant-name">{session.participantName}</strong>
+                            <strong className="participant-name">{participantDisplay}</strong>
                             <span className="session-id">Session ID: {session.sessionId}</span>
                             <span className={`session-status status-${session.status}`}>{session.status}</span>
                             <p className="last-message">"{session.last_message_text || 'No messages yet...'}"</p>
