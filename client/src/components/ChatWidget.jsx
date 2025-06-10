@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useWebSocketActions } from '../contexts/WebSocketProvider.jsx';
-import { useChatStore } from '../hooks/useChatStore.js'; // Import the Zustand store
+import { useChatStore } from '../hooks/useChatStore.js';
 import { useAuth } from '../hooks/useAuth.jsx';
-import { useReadReceipts } from '../hooks/useReadReceipts.js';
+// We are removing this import because we're moving its logic inside the component
+// import { useReadReceipts } from '../hooks/useReadReceipts.js';
 
 const ChatWidgetStyles = () => (
     <style>{`
@@ -197,23 +198,41 @@ const ChatWidget = () => {
     const [newMessage, setNewMessage] = useState('');
     const { user: currentUser } = useAuth();
 
-    // Get ACTIONS from the context provider
     const { sendCustomerMessage, emitStartTyping, emitStopTyping } = useWebSocketActions();
     
-    // Get STATE from the Zustand store.
-    // The component will automatically re-render when these specific values change.
-    const { isConnected, customerChat, typingPeers } = useChatStore(state => ({
+    // ✨ We need to get the 'markMessageAsRead' action from our store! ✨
+    const { isConnected, customerChat, typingPeers, markMessageAsRead } = useChatStore(state => ({
         isConnected: state.isConnected,
         customerChat: state.customerChat,
         typingPeers: state.typingPeers,
+        markMessageAsRead: state.markMessageAsRead,
     }));
 
     const { sessionId, messages } = customerChat;
     
     const [isResumedSession, setIsResumedSession] = useState(false);
-    const messageRef = useReadReceipts(messages, sessionId);
+    // ✨ This is where the old, buggy ref was. We are replacing it! ✨
+    // const messageRef = useReadReceipts(messages, sessionId); 
     const messagesEndRef = useRef(null);
     const typingTimeoutRef = useRef(null);
+
+    // ✨ NEW READ RECEIPT LOGIC TO FIX THE BUG! ✨
+    const observer = useRef();
+    const lastAdminMessageRef = useCallback(node => {
+        if (observer.current) observer.current.disconnect();
+        
+        observer.current = new IntersectionObserver(entries => {
+            if (entries[0].isIntersecting) {
+                const messageId = entries[0].target.dataset.messageId;
+                const message = messages.find(m => m.id === messageId);
+                if (message && message.sender_type === 'admin' && !message.read_at && sessionId) {
+                    markMessageAsRead(sessionId, messageId);
+                }
+            }
+        });
+        
+        if (node) observer.current.observe(node);
+    }, [messages, sessionId, markMessageAsRead]);
 
     useEffect(() => {
         if (messages && messages.length > 0 && !isResumedSession) {
@@ -249,8 +268,6 @@ const ChatWidget = () => {
             emitStopTyping(sessionId);
             clearTimeout(typingTimeoutRef.current);
             typingTimeoutRef.current = null;
-            
-            // Call the action from our context, providing the necessary data.
             sendCustomerMessage({ text: newMessage.trim(), sessionId });
             setNewMessage('');
         }
@@ -292,16 +309,20 @@ const ChatWidget = () => {
                         </div>
                     )}
 
-                    {messages.map((msg) => {
+                    {messages.map((msg, index) => {
                         if (!msg || !msg.id) return null;
                         const isAdminMessage = msg.sender_type === 'admin';
-                        let isMyMessage = !isAdminMessage; // Simplified for the customer widget
+                        let isMyMessage = !isAdminMessage;
                         let senderName = isMyMessage ? 'You' : 'Admin';
                         const messageStatus = isMyMessage ? getMessageStatus(msg) : null;
 
+                        // We find the VERY LAST admin message to watch for reads
+                        const lastAdminMessageIndex = messages.findLastIndex(m => m.sender_type === 'admin');
+
                         return (
                             <div 
-                                ref={messageRef} 
+                                // ✨ UPDATED: The ref is now ONLY attached to the last admin message! ✨
+                                ref={index === lastAdminMessageIndex ? lastAdminMessageRef : null} 
                                 data-message-id={msg.id} 
                                 key={msg.id} 
                                 className={`chat-message-item-wrapper ${isMyMessage ? 'user-message' : 'admin-message'}`}
