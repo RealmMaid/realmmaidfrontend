@@ -57,21 +57,27 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
           <button type="button" className="modal-close" onClick={onClose}>&times;</button>
         </div>
         <div className="modal-body chat-messages-container">
-          {Array.isArray(messages) && messages.map((msg) => {
+          {Array.isArray(messages) && messages.map((msg, index) => {
+            // --- SPECIAL DEBUGGING LOGS ---
+            // We are logging the message object to see its exact structure.
+            console.log(`[DEBUG] Rendering message index ${index}:`, msg);
+
             if (!msg || typeof msg !== 'object') {
                 return null;
             }
 
             const isAdminMessage = msg.sender_type === 'admin';
-            
-            // This is the updated, more robust check!
-            // It looks for both `admin_user_id` (from the DB) and `adminUserId` (from the optimistic message).
             const isMyMessage = currentUser && isAdminMessage && (msg.admin_user_id === currentUser.id || msg.adminUserId === currentUser.id);
+            
+            // This will tell us what the check is evaluating to
+            if(isAdminMessage) {
+                 console.log(`[DEBUG] Message from admin: ${isAdminMessage}. Is it from me? ${isMyMessage}. My ID: ${currentUser?.id}, Message's Admin ID: ${msg.admin_user_id || msg.adminUserId}`);
+            }
 
             let senderName = isMyMessage ? 'You' : (session.participantName || 'Guest');
             
             return (
-              <div ref={messageRef} data-message-id={msg.id} key={msg.id || `msg-${Math.random()}`} className={`chat-message-item-wrapper ${isMyMessage ? 'admin-message' : 'user-message'}`}>
+              <div ref={messageRef} data-message-id={msg.id} key={msg.id || `msg-${index}`} className={`chat-message-item-wrapper ${isMyMessage ? 'admin-message' : 'user-message'}`}>
                 <span className="msg-sender-name">{senderName}</span>
                 <div className="chat-message-item">
                   <p className="msg-text">{msg.message_text}</p>
@@ -84,9 +90,6 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
             );
           })}
           <div ref={messagesEndRef} />
-        </div>
-        <div className="typing-indicator-container">
-          {session.isTyping && <div className="typing-indicator"><span>typing...</span></div>}
         </div>
         <div className="modal-footer">
             <form onSubmit={handleSend}>
@@ -120,10 +123,7 @@ function ChatManagement() {
     .filter(s => s && s.sessionDetails)
     .map(s => {
         const isPeerTyping = typingPeers[s.sessionDetails.sessionId];
-        return {
-            ...s.sessionDetails,
-            isTyping: isPeerTyping
-        }
+        return { ...s.sessionDetails, isTyping: isPeerTyping }
     })
     .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
   
@@ -191,19 +191,12 @@ function ChatManagement() {
         <div className="card-list-container">
             {sessionsArray.length > 0 ? sessionsArray.map((session) => {
                 if (!session || !session.sessionId) return null;
-                
                 let participantDisplay;
                 if (session.user_id) {
-                    participantDisplay = (
-                        <>
-                            {session.userFirstName || session.participantName}
-                            {session.lastIpAddress && <span className="participant-ip">({session.lastIpAddress})</span>}
-                        </>
-                    );
+                    participantDisplay = (<>{session.userFirstName || session.participantName}{session.lastIpAddress && <span className="participant-ip">({session.lastIpAddress})</span>}</>);
                 } else {
                     participantDisplay = session.lastIpAddress || session.participantName || `Guest Session`;
                 }
-
                 return (
                     <div key={session.sessionId} className="card chat-session-item">
                         <div className="session-details">
@@ -216,9 +209,7 @@ function ChatManagement() {
                         </div>
                         <div className="chat-actions">
                             <button onClick={() => handleViewChat(session)} className="btn btn-sm btn-secondary-action">View Chat</button>
-                            {session.status !== 'resolved' && (
-                                <button onClick={() => handleSessionStatusChange(session.sessionId, 'resolve')} className="btn btn-sm btn-success-action">Resolve</button>
-                            )}
+                            {session.status !== 'resolved' && ( <button onClick={() => handleSessionStatusChange(session.sessionId, 'resolve')} className="btn btn-sm btn-success-action">Resolve</button> )}
                             <button onClick={() => handleSessionStatusChange(session.sessionId, 'archive')} className="btn btn-sm btn-danger-action">Archive</button>
                         </div>
                     </div>
