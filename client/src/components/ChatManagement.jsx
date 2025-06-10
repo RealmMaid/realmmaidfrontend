@@ -79,7 +79,6 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
             );
           })}
 
-          {/* FINAL INDICATOR: Using simple, robust text to ensure it's visible */}
           {isPeerTyping && (
             <div className="chat-message-item-wrapper user-message">
                 <div className="chat-message-item">
@@ -111,18 +110,35 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
 
 function ChatManagement() {
   const { 
-    adminCustomerSessions, setAdminCustomerSessions, isConnected, 
-    loadSessionHistory, typingPeers, emitStartTyping, emitStopTyping, sendAdminReply 
+    adminCustomerSessions,
+    setAdminCustomerSessions,
+    isConnected, 
+    loadSessionHistory,
+    typingPeers,
+    emitStartTyping,
+    emitStopTyping,
+    sendAdminReply 
   } = useWebSocket();
   
   const { user: currentUser } = useAuth();
   const [activeModal, setActiveModal] = useState({ show: false, sessionId: null });
 
+  // --- THIS IS THE DEBUGGING HOOK YOU REQUESTED ---
+  useEffect(() => {
+    // This hook will run whenever the adminCustomerSessions object changes.
+    // It will help us see if the state is updating correctly in this component.
+    if (activeModal.sessionId && adminCustomerSessions[activeModal.sessionId]) {
+      const messageCount = adminCustomerSessions[activeModal.sessionId].messages.length;
+      console.log(`[DEBUG] ChatManagement saw an update for session ${activeModal.sessionId}. It now has ${messageCount} messages.`);
+    }
+  }, [adminCustomerSessions, activeModal.sessionId]);
+  // --------------------------------------------------
+
   const sessionsArray = Object.values(adminCustomerSessions)
     .filter(s => s && s.sessionDetails)
     .map(s => {
         const isPeerTyping = typingPeers[s.sessionDetails.sessionId];
-        return { ...s.sessionDetails, isTyping: !!isPeerTyping } // Use boolean for robustness
+        return { ...s.sessionDetails, isTyping: !!isPeerTyping }
     })
     .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
   
@@ -137,19 +153,26 @@ function ChatManagement() {
     if (!isConnected) { console.error("WS disconnected."); return; }
     sendAdminReply(messageText, sessionId);
   };
+  
   const closeModal = () => { setActiveModal({ show: false, sessionId: null }); };
+
   const handleSessionStatusChange = async (sessionId, action) => {
     try {
         const response = await API.post(`/admin/chat/sessions/${sessionId}/${action}`);
         if (response.data.success && setAdminCustomerSessions) {
-            setAdminCustomerSessions(prev => ({ ...prev, [sessionId]: { ...prev[sessionId], sessionDetails: { ...prev[sessionId].sessionDetails, status: action === 'archive' ? 'archived' : 'resolved' }}}));
+            setAdminCustomerSessions(prev => {
+                const newSessions = { ...prev };
+                if (newSessions[sessionId]) {
+                    newSessions[sessionId].sessionDetails.status = action === 'archive' ? 'archived' : 'resolved';
+                }
+                return newSessions;
+            });
         }
     } catch (error) { console.error(`Failed to ${action} session ${sessionId}:`, error); }
   };
   
   const modalSessionData = activeModal.sessionId ? adminCustomerSessions[activeModal.sessionId] : null;
   
-  // ROBUST CHECK: Convert the result to a boolean to avoid 'undefined'.
   const isModalPeerTyping = !!(activeModal.sessionId && typingPeers[activeModal.sessionId]);
 
   return (
@@ -166,7 +189,7 @@ function ChatManagement() {
         emitStopTyping={emitStopTyping}
         isPeerTyping={isModalPeerTyping}
       />
-       <div className="content-section">
+      <div className="content-section">
         <div className="content-header">
           <h2>Chat Management</h2>
           <p>View and manage all active customer chat sessions in real-time.</p>
