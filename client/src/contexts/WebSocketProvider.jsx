@@ -18,15 +18,14 @@ export const WebSocketProvider = ({ children }) => {
     const [typingPeers, setTypingPeers] = useState({});
 
     useEffect(() => {
-        // This effect runs only ONCE when the component first mounts.
         if (socketRef.current) return;
 
         const socketIOUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000').replace('/api', '');
         
         const socket = io(socketIOUrl, { withCredentials: true });
         socketRef.current = socket;
-        console.log('%c[WebSocket Provider] Socket connection initialized.', 'color: blue; font-weight: bold;');
 
+        // Define handlers to be used in listeners
         const handleConnect = () => setIsConnected(true);
         const handleDisconnect = () => setIsConnected(false);
         const handleConnectError = (error) => console.error('[Socket.IO Provider] Connection Error:', error);
@@ -44,7 +43,6 @@ export const WebSocketProvider = ({ children }) => {
         };
 
         const handleCustomerSessionInitialized = (data) => {
-            console.log('%c[GUEST EVENT RECEIVED] customer_session_initialized', 'color: green; font-weight: bold;', data);
             if (!data || !data.sessionId) return;
             setCustomerChat({ sessionId: data.sessionId, messages: data.history || [] });
         };
@@ -54,14 +52,19 @@ export const WebSocketProvider = ({ children }) => {
             setAdminCustomerSessions(prev => ({ ...prev, [payload.data.id]: { sessionDetails: payload.data, messages: [] } }));
         };
 
-        const handleNewCustomerMessage = (message) => {
-            console.log('%c[GUEST EVENT RECEIVED] new_customer_message', 'color: green; font-weight: bold;', message);
+        const handleNewCustomerMessage = (payload) => {
+            const message = payload.savedMessage;
             if (!message || !message.session_id) return;
+            
             const sessionId = message.session_id;
             
             setCustomerChat(prev => {
-                if (String(prev.sessionId) === String(sessionId) && !prev.messages.some(m => m.id === message.id)) {
-                    return { ...prev, messages: [...prev.messages, message] };
+                if (String(prev.sessionId) === String(sessionId)) {
+                    const newMessages = prev.messages.filter(m => !String(m.id).startsWith('local-'));
+                    if (!newMessages.some(m => m.id === message.id)) {
+                        newMessages.push(message);
+                    }
+                    return { ...prev, messages: newMessages };
                 }
                 return prev;
             });
@@ -73,21 +76,32 @@ export const WebSocketProvider = ({ children }) => {
             });
         };
 
-        const handleNewAdminMessage = (message) => {
-            console.log('%c[GUEST EVENT RECEIVED] new_admin_message', 'color: green; font-weight: bold;', message);
+        const handleNewAdminMessage = (payload) => {
+            const message = payload.savedMessage;
             if (!message || !message.id) return;
+
             const sessionId = message.session_id;
             
             setCustomerChat(prev => {
-                if (String(prev.sessionId) === String(sessionId) && !prev.messages.some(m => m.id === message.id)) {
-                    return { ...prev, messages: [...prev.messages, message] };
+                if (String(prev.sessionId) === String(sessionId)) {
+                    const newMessages = prev.messages.filter(m => !String(m.id).startsWith('local-'));
+                    if (!newMessages.some(m => m.id === message.id)) {
+                        newMessages.push(message);
+                    }
+                    return { ...prev, messages: newMessages };
                 }
                 return prev;
             });
             
             setAdminCustomerSessions(prev => {
-                if (!sessionId || !prev[sessionId] || prev[sessionId].messages.some(m => m.id === message.id)) return prev;
-                const updatedSession = { ...prev[sessionId], messages: [...prev[sessionId].messages, message], sessionDetails: { ...prev[sessionId].sessionDetails, last_message_text: message.message_text, updated_at: message.created_at }};
+                if (!sessionId || !prev[sessionId]) return prev;
+
+                const newMessages = prev[sessionId].messages.filter(m => !String(m.id).startsWith('local-'));
+                if (!newMessages.some(m => m.id === message.id)) {
+                    newMessages.push(message);
+                }
+
+                const updatedSession = { ...prev[sessionId], messages: newMessages, sessionDetails: { ...prev[sessionId].sessionDetails, last_message_text: message.message_text, updated_at: message.created_at }};
                 return { ...prev, [sessionId]: updatedSession };
             });
         };
@@ -104,7 +118,7 @@ export const WebSocketProvider = ({ children }) => {
             setAdminCustomerSessions(prev => prev[sessionId] ? { ...prev, [sessionId]: { ...prev[sessionId], messages: updateMessages(prev[sessionId].messages) } } : prev);
         };
 
-
+        // Attach listeners
         socket.on('connect', handleConnect);
         socket.on('disconnect', handleDisconnect);
         socket.on('connect_error', handleConnectError);
@@ -116,7 +130,8 @@ export const WebSocketProvider = ({ children }) => {
         socket.on('peer_is_typing', handlePeerIsTyping);
         socket.on('peer_stopped_typing', handlePeerStoppedTyping);
         socket.on('messages_were_read', handleMessagesWereRead);
-        
+
+        // Cleanup function to remove listeners
         return () => {
             if (socketRef.current) {
                 socketRef.current.off('connect', handleConnect);
@@ -182,10 +197,10 @@ export const WebSocketProvider = ({ children }) => {
 
     const sendAdminMessage = useCallback((messageText) => {
         if (socketRef.current?.connected) {
-            socketRef.current.emit('admin_chat_message', { text: messageText });
+             socketRef.current.emit('admin_chat_message', { text: messageText });
         }
     }, []);
-
+    
     const emitStartTyping = useCallback((sessionId) => {
         if (socketRef.current?.connected) {
             socketRef.current.emit('start_typing', { sessionId });
