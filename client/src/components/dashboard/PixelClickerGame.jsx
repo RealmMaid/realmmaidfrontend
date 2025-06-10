@@ -13,19 +13,19 @@ const classes = [
 
 const classUpgrades = {
   warrior: [
-    { id: 'item1', name: 'Skysplitter Sword', image: '/skysplittersword.png', cost: 50, value: 1, type: 'perClick' },
+    { id: 'item1', name: 'Skysplitter Sword', image: '/skysplittersword.png', cost: 50, minBonus: 2, maxBonus: 5, type: 'perClick' },
     { id: 'item2', name: 'Golden Helm', image: '/goldenhelm.png', cost: 250, value: 2, type: 'perSecond' },
     { id: 'item3', name: 'Ring of Exalted Dexterity', image: '/ringofexalteddexterity.png', cost: 750, value: 4, type: 'perSecond' },
   ],
   wizard: [
-    { id: 'item1', name: 'Staff of Astral Knowledge', image: '/staffofastralknowledge.png', cost: 50, value: 1, type: 'perClick' },
+    { id: 'item1', name: 'Staff of Astral Knowledge', image: '/staffofastralknowledge.png', cost: 50, minBonus: 1, maxBonus: 7, type: 'perClick' },
     { id: 'item2', name: 'Magic Nova Spell', image: '/magicnovaspell.png', cost: 250, value: 2, type: 'perSecond' },
-    { id: 'item3', name: 'Ring of Exalted Mana', image: '/ringofexaltedmanamana.png', cost: 750, value: 4, type: 'perSecond' },
+    { id: 'item3', name: 'Ring of Exalted Mana', image: '/ringofexaltedattack.png', cost: 750, value: 4, type: 'perSecond' },
   ],
   sorcerer: [
-    { id: 'item1', name: 'Wand of Ancient Power', image: '/wandofancientknowledge.png', cost: 50, value: 1, type: 'perClick' },
+    { id: 'item1', name: 'Wand of Ancient Power', image: '/wandofancientknowledge.png', cost: 50, minBonus: 3, maxBonus: 3, type: 'perClick' },
     { id: 'item2', name: 'Scepter of Skybolts', image: '/scepterofskybolts.png', cost: 250, value: 2, type: 'perSecond' },
-    { id: 'item3', name: 'Ring of Exalted Wisdom', image: '/ringofexaltedwisdom.png', cost: 750, value: 4, type: 'perSecond' },
+    { id: 'item3', name: 'Ring of Exalted Wisdom', image: '/ringofexalteddexterity.png', cost: 750, value: 4, type: 'perSecond' },
   ],
 };
 
@@ -70,7 +70,6 @@ function PixelClickerGame() {
     const [gameState, setGameState] = useState(() => {
         const defaultState = {
             score: 0,
-            pointsPerClick: 1,
             pointsPerSecond: 0,
             currentBossIndex: 0,
             clicksOnCurrentBoss: 0,
@@ -79,7 +78,9 @@ function PixelClickerGame() {
         };
         const savedGame = localStorage.getItem(SAVE_GAME_KEY);
         if (savedGame) {
-            return { ...defaultState, ...JSON.parse(savedGame) };
+            const loadedState = { ...defaultState, ...JSON.parse(savedGame) };
+            delete loadedState.pointsPerClick;
+            return loadedState;
         }
         return defaultState;
     });
@@ -126,12 +127,28 @@ function PixelClickerGame() {
         setGamePhase('clicking');
     };
 
+    const calculateDamageRange = () => {
+        let minDamage = 1;
+        let maxDamage = 1;
+        const currentUpgrades = classUpgrades[gameState.playerClass] || [];
+        currentUpgrades.forEach(upgrade => {
+            if (upgrade.type === 'perClick') {
+                const owned = gameState.upgradesOwned[upgrade.id] || 0;
+                minDamage += upgrade.minBonus * owned;
+                maxDamage += upgrade.maxBonus * owned;
+            }
+        });
+        return { minDamage, maxDamage };
+    };
+
     const handleGemClick = (event) => {
         if (gamePhase !== 'clicking' || !currentBoss) return;
         new Audio(currentBoss.clickSound).play();
+        const { minDamage, maxDamage } = calculateDamageRange();
+        const damageDealt = Math.floor(Math.random() * (maxDamage - minDamage + 1)) + minDamage;
         setFloatingNumbers(current => [...current, {
             id: uuidv4(),
-            value: gameState.pointsPerClick,
+            value: damageDealt,
             x: event.clientX,
             y: event.clientY,
         }]);
@@ -139,7 +156,7 @@ function PixelClickerGame() {
         setTimeout(() => setIsShaking(false), 150);
         setGameState(prev => ({
             ...prev,
-            score: prev.score + prev.pointsPerClick,
+            score: prev.score + damageDealt,
             clicksOnCurrentBoss: prev.clicksOnCurrentBoss + 1,
         }));
     };
@@ -163,14 +180,13 @@ function PixelClickerGame() {
         if (gameState.score >= currentCost) {
             setGameState(prev => {
                 const newOwned = { ...prev.upgradesOwned, [upgrade.id]: (prev.upgradesOwned[upgrade.id] || 0) + 1 };
-                let newPpc = prev.pointsPerClick;
                 let newPps = prev.pointsPerSecond;
-                if (upgrade.type === 'perClick') newPpc += upgrade.value;
-                else if (upgrade.type === 'perSecond') newPps += upgrade.value;
+                if (upgrade.type === 'perSecond') {
+                    newPps += upgrade.value;
+                }
                 return {
                     ...prev,
                     score: prev.score - currentCost,
-                    pointsPerClick: newPpc,
                     pointsPerSecond: newPps,
                     upgradesOwned: newOwned,
                 };
@@ -191,7 +207,7 @@ function PixelClickerGame() {
         const imageIndex = Math.min(Math.floor(progress * stageCount), stageCount - 1);
         return currentBoss.images[imageIndex];
     };
-
+    
     if (gamePhase === 'classSelection') {
         return (
             <div className="card">
@@ -231,6 +247,9 @@ function PixelClickerGame() {
             <h3>{gameWon ? 'You Did It!' : currentBoss.name}</h3>
             <div className="clicker-container">
                 <h2>{Math.floor(gameState.score)} Sparkles ✨</h2>
+                {gamePhase === 'clicking' && (
+                    <p>{gameState.pointsPerSecond} sparkles per second / {calculateDamageRange().minDamage}-{calculateDamageRange().maxDamage} per click</p>
+                )}
 
                 <div className="gem-button" onClick={handleGemClick}>
                     <img
