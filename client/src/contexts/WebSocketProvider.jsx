@@ -50,7 +50,6 @@ export const WebSocketProvider = ({ children }) => {
         });
 
         socket.on('admin_initialized', (data) => {
-            // Safety check for the whole data object
             if (!data) return;
             console.log('[Socket.IO Provider] Event received: admin_initialized');
             setAdminMessages(data.adminChatHistory || []);
@@ -64,14 +63,12 @@ export const WebSocketProvider = ({ children }) => {
         });
 
         socket.on('customer_session_initialized', (data) => {
-            // Safety check for the whole data object
             if (!data) return;
             console.log('[Socket.IO Provider] Event received: customer_session_initialized');
             setCustomerChat({ sessionId: data.sessionId, messages: data.history || [] });
         });
 
         socket.on('new_customer_session', (message) => {
-            // Safety check for the whole message object
             if (!message || !message.data) return;
             console.log('[Socket.IO Provider] Event received: new_customer_session');
             setAdminCustomerSessions(prev => ({
@@ -81,8 +78,6 @@ export const WebSocketProvider = ({ children }) => {
         });
 
         socket.on('new_customer_message', (message) => {
-            // === CUTE LITTLE SAFETY NET! ===
-            // If the message is empty or broken, we just ignore it! No more crashing!
             if (!message || !message.session_id) {
                 console.warn('[Socket.IO Provider] Received a malformed new_customer_message. Ignoring.', message);
                 return;
@@ -113,7 +108,6 @@ export const WebSocketProvider = ({ children }) => {
         });
 
         socket.on('new_admin_message', (message) => {
-            // === ANOTHER CUTE LITTLE SAFETY NET! ===
             if (!message || !message.id) {
                 console.warn('[Socket.IO Provider] Received a malformed new_admin_message. Ignoring.', message);
                 return;
@@ -177,7 +171,8 @@ export const WebSocketProvider = ({ children }) => {
         }
         try {
             const response = await API.get(`/admin/chat/sessions/${sessionId}/messages`);
-            if (response.data..success) {
+            // === THIS IS THE FIXED LINE! ===
+            if (response.data.success) {
                 setAdminCustomerSessions(prev => {
                     if (!prev[sessionId]) return prev;
                     return { ...prev, [sessionId]: { ...prev[sessionId], messages: response.data.messages || [] } };
@@ -207,32 +202,50 @@ export const WebSocketProvider = ({ children }) => {
     }, []);
 
     const sendCustomerMessage = useCallback((messageText, targetSessionId) => {
-        if (socketRef.current?.connected && targetSessionId) {
-            emitStopTyping(targetSessionId);
-            socketRef.current.emit('customer_chat_message', { text: messageText, sessionId: targetSessionId });
+        if (socketRef.current?.connected) {
+            // If the user hasn't sent a message yet, their session ID might be null.
+            // In the new flow, the server will handle creating the session on the first message.
+            const sessionIdToSend = targetSessionId || customerChat.sessionId;
+
+            if (sessionIdToSend) {
+                emitStopTyping(sessionIdToSend);
+            }
+            
+            socketRef.current.emit('customer_chat_message', { text: messageText, sessionId: sessionIdToSend });
             
             const optimisticMessage = {
                 id: `local-${Date.now()}`, message_text: messageText, sender_type: user?.isAdmin ? 'admin' : (user ? 'user' : 'guest'),
-                created_at: new Date().toISOString(), session_id: targetSessionId,
+                created_at: new Date().toISOString(), session_id: sessionIdToSend,
                 admin_user_id: user?.isAdmin ? user.id : null,
                 user_id: user && !user.isAdmin ? user.id : null,
             };
             
-            if (String(customerChat.sessionId) === String(targetSessionId)) {
+            if (String(customerChat.sessionId) === String(sessionIdToSend)) {
                 setCustomerChat(prev => ({ ...prev, messages: [...prev.messages, optimisticMessage]}));
             }
             
-            setAdminCustomerSessions(prev => {
-                if (!prev[targetSessionId]) return prev;
-                const updatedSession = {
-                    ...prev[targetSessionId],
-                    messages: [...prev[targetSessionId].messages, optimisticMessage],
-                    sessionDetails: { ...prev[targetSessionId].sessionDetails, last_message_text: optimisticMessage.message_text, updated_at: optimisticMessage.created_at }
-                };
-                return { ...prev, [targetSessionId]: updatedSession };
-            });
+            if(targetSessionId) { // Only update admin sessions if a target is specified
+                setAdminCustomerSessions(prev => {
+                    if (!prev[targetSessionId]) return prev;
+                    const updatedSession = {
+                        ...prev[targetSessionId],
+                        messages: [...prev[targetSessionId].messages, optimisticMessage],
+                        sessionDetails: { ...prev[targetSessionId].sessionDetails, last_message_text: optimisticMessage.message_text, updated_at: optimisticMessage.created_at }
+                    };
+                    return { ...prev, [targetSessionId]: updatedSession };
+                });
+            }
         }
     }, [customerChat.sessionId, user, emitStopTyping]);
+    
+    // This is the new, dedicated function for admins to reply to customers.
+    const sendAdminReply = useCallback((messageText, targetSessionId) => {
+        if (socketRef.current?.connected && targetSessionId) {
+            emitStopTyping(targetSessionId);
+            // We use the new dedicated event name here!
+            socketRef.current.emit('admin_to_customer_message', { text: messageText, sessionId: targetSessionId });
+        }
+    }, [emitStopTyping]);
     
     const sendAdminMessage = useCallback((messageText) => {
         if (socketRef.current?.connected) {
@@ -245,6 +258,7 @@ export const WebSocketProvider = ({ children }) => {
         adminMessages, sendCustomerMessage, sendAdminMessage, loadSessionHistory,
         typingPeers, emitStartTyping, emitStopTyping,
         emitMessagesRead,
+        sendAdminReply, // Expose the new function!
     };
 
     return (
