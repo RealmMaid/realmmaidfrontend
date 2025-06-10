@@ -35,7 +35,7 @@ export const AuthProvider = ({ children }) => {
                 console.log("AuthProvider: The session check timed out.");
                 controller.abort();
             }
-        }, 15000);
+        }, 30000);
 
         checkSession();
 
