@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useWebSocket } from '../contexts/WebSocketProvider.jsx';
-import API from '../api/axios'; // Import the API instance
+import API from '../api/axios';
 
 // Modal for viewing and replying to a chat session
 const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnected }) => {
@@ -60,11 +60,12 @@ function ChatManagement() {
   const { adminCustomerSessions, setAdminCustomerSessions, sendCustomerMessage, isConnected, loadSessionHistory } = useWebSocket();
   const [activeModal, setActiveModal] = useState({ show: false, sessionId: null });
 
-  // Convert sessions to an array, filter out archived ones, and sort by most recently updated
+  // Convert sessions to an array and sort by most recently updated
   const sessionsArray = Object.values(adminCustomerSessions)
     .map(s => s.sessionDetails)
     .filter(Boolean)
-    .filter(session => session.status !== 'archived')
+    // --- FIX: Updated the filter to also hide 'resolved' chats from the main view ---
+    .filter(session => session.status !== 'archived' && session.status !== 'resolved')
     .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
   
   const handleViewChat = async (session) => {
@@ -97,8 +98,11 @@ function ChatManagement() {
                 setAdminCustomerSessions(prev => {
                     const newSessions = { ...prev };
                     if (newSessions[sessionId]) {
+                        // This updates the status in our state...
                         newSessions[sessionId].sessionDetails.status = action === 'archive' ? 'archived' : 'resolved';
                     }
+                    // ...and because the sessionsArray filter runs on every render,
+                    // the component will automatically refresh and hide the chat!
                     return newSessions;
                 });
             }
@@ -106,7 +110,6 @@ function ChatManagement() {
         }
     } catch (error) {
         console.error(`Failed to ${action} session ${sessionId}:`, error);
-        // Here you might want to show an error toast to the user
     }
   };
   
