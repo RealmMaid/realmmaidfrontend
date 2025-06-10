@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback, useRef, useMemo } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import API from '../api/axios';
 import { io } from 'socket.io-client';
@@ -23,7 +23,6 @@ export const WebSocketProvider = ({ children }) => {
         const socket = io(socketIOUrl, { withCredentials: true });
         socketRef.current = socket;
 
-        // --- Event Handlers ---
         const handleConnect = () => setIsConnected(true);
         const handleDisconnect = () => setIsConnected(false);
         const handleConnectError = (error) => console.error('[Socket.IO Provider] Connection Error:', error);
@@ -44,17 +43,9 @@ export const WebSocketProvider = ({ children }) => {
         };
 
         const handleNewCustomerSession = (payload) => {
-            console.log("[DEBUG ADMIN] Received 'new_customer_session' event:", payload);
-            if (!payload || !payload.data) {
-                console.log("[DEBUG ADMIN] Payload for new session is invalid. Aborting.");
-                return;
-            };
+            if (!payload || !payload.data) return;
             setAdminCustomerSessions(prev => {
-                if(prev[payload.data.id]) {
-                    console.log("[DEBUG ADMIN] Session already exists. Aborting state update.");
-                    return prev;
-                }
-                console.log("[DEBUG ADMIN] Adding new session card to admin dashboard state.");
+                if(prev[payload.data.id]) return prev;
                 return { ...prev, [payload.data.id]: { sessionDetails: payload.data, messages: [] } };
             });
         };
@@ -81,24 +72,10 @@ export const WebSocketProvider = ({ children }) => {
             if (!message || !message.id) return;
             const sessionId = message.session_id;
             
-            // This function now has very detailed logging to trace the guest-side issue.
             setCustomerChat(prev => {
-                console.log(`[DEBUG GUEST] 'new_admin_message' handler called for session ${sessionId}. Current state session ID is ${prev.sessionId}.`);
-                
-                if (String(prev.sessionId) !== String(sessionId)) {
-                    console.log("[DEBUG GUEST] Session ID does not match. Aborting state update.");
-                    return prev;
-                }
-                if (prev.messages.some(m => m.id === message.id)) {
-                    console.log("[DEBUG GUEST] Duplicate message detected. Aborting state update.");
-                    return prev;
-                }
-
+                if (String(prev.sessionId) !== String(sessionId) || prev.messages.some(m => m.id === message.id)) return prev;
                 const newMessages = prev.messages.filter(m => !String(m.id).startsWith('local-'));
-                const newState = { ...prev, messages: [...newMessages, message] };
-                
-                console.log("[DEBUG GUEST] State update successful. New message count:", newState.messages.length, "New state:", newState);
-                return newState;
+                return { ...prev, messages: [...newMessages, message] };
             });
             
             setAdminCustomerSessions(prevSessions => {
@@ -154,7 +131,12 @@ export const WebSocketProvider = ({ children }) => {
     const emitStopTyping = useCallback((sessionId) => { if (socketRef.current?.connected) { socketRef.current.emit('stop_typing', { sessionId }); } }, []);
     const emitMessagesRead = useCallback((sessionId, messageIds) => { if (socketRef.current?.connected && sessionId && messageIds.length > 0) { socketRef.current.emit('messages_read', { sessionId, messageIds }); } }, []);
     
-    const value = { isConnected, user, customerChat, adminCustomerSessions, setAdminCustomerSessions, adminMessages, typingPeers, sendCustomerMessage, sendAdminMessage, sendAdminReply, loadSessionHistory, emitStartTyping, emitStopTyping, emitMessagesRead };
+    // --- FINAL FIX: MEMOIZE THE CONTEXT VALUE ---
+    const value = useMemo(() => ({
+        isConnected, user, customerChat, adminCustomerSessions, setAdminCustomerSessions, adminMessages,
+        typingPeers, sendCustomerMessage, sendAdminMessage, sendAdminReply, loadSessionHistory,
+        emitStartTyping, emitStopTyping, emitMessagesRead,
+    }), [isConnected, user, customerChat, adminCustomerSessions, adminMessages, typingPeers]);
 
     return ( <WebSocketContext.Provider value={value}> {children} </WebSocketContext.Provider> );
 };
