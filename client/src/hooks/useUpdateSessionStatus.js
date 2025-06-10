@@ -1,29 +1,33 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+// 1. Import the toast object
+import { toast } from 'react-hot-toast';
 import API from '../api/axios';
 
-// This async function will send the request to the server.
-// It accepts an object with the sessionId and the action ('resolve' or 'archive').
 const updateSessionStatus = async ({ sessionId, action }) => {
     const { data } = await API.post(`/admin/chat/sessions/${sessionId}/${action}`);
     return data;
 };
 
-// This is our custom hook that uses React Query's useMutation.
 export const useUpdateSessionStatus = () => {
-    // Get an instance of the Query Client
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: updateSessionStatus, // The function to call when we want to mutate data
+        mutationFn: updateSessionStatus,
         
-        // This is the magic part! After the mutation is successful...
-        onSuccess: () => {
-            // ...we tell React Query to invalidate the 'chatSessions' query.
-            // This will cause the list on the dashboard to automatically refetch and update.
+        // This function runs after the mutation is successful
+        onSuccess: (data, variables) => {
+            // First, invalidate the cache so the list updates
             queryClient.invalidateQueries({ queryKey: ['chatSessions'] });
+
+            // 2. Show a friendly success notification!
+            const successMessage = variables.action === 'archive' ? 'Session archived!' : 'Session resolved!';
+            toast.success(successMessage);
         },
+
+        // This function runs if the mutation fails
         onError: (error) => {
-            // We can add user-friendly error handling here in the future!
+            // 3. Show a helpful error notification!
+            toast.error(error.message || "An error occurred.");
             console.error("Failed to update session status:", error);
         }
     });
