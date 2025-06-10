@@ -58,8 +58,8 @@ export const WebSocketProvider = ({ children }) => {
                     const sessionId = msgData.session_id;
 
                     // --- FIX: This logic now correctly separates the two UI updates ---
-
-                    // 1. Update the customer's own chat window ONLY if the session IDs match.
+                    
+                    // 1. Update the customer's own chat window ONLY if their session ID matches.
                     // This prevents an admin's UI from trying to update their personal chat widget
                     // with a message from a different customer's session.
                     setCustomerChat(prev => {
