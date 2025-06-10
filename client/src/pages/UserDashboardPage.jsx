@@ -1,6 +1,7 @@
 import React from 'react';
 // 1. Import NavLink and Outlet from react-router-dom
 import { NavLink, Outlet } from 'react-router-dom';
+import './UserDashboardPage.css';
 
 function UserDashboardPage() {
   return (
