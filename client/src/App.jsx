@@ -14,6 +14,7 @@ import UserDashboardPage from './pages/UserDashboardPage.jsx';
 import AdminDashboardPage from './pages/AdminDashboardPage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
 import CheckoutPage from './pages/CheckoutPage.jsx';
+import ProductsPage from './pages/ProductsPage.jsx';
 
 // --- Dashboard Component Imports ---
 import MyOrders from './components/dashboard/MyOrders.jsx';
@@ -33,6 +34,7 @@ function App() {
       <Routes>
         <Route element={<MainLayout />}>
             <Route path="/" element={<HomePage />} />
+            <Route path="/products" element={<ProductsPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/please-verify" element={<PleaseVerifyPage />} />
