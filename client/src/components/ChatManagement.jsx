@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useWebSocket } from '../contexts/WebSocketProvider.jsx';
-import { useAuth } from '../hooks/useAuth.jsx'; // --- NEW: Import useAuth to know who the current user is
+import { useAuth } from '../hooks/useAuth.jsx';
 import API from '../api/axios';
 
 // Modal for viewing and replying to a chat session
@@ -9,8 +9,10 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    if (show) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, show]);
 
   if (!show || !session) return null;
 
@@ -31,21 +33,24 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
         </div>
         <div className="modal-body chat-messages-container">
           {messages.map((msg, index) => {
-            // --- NEW: Determine the sender's name for display ---
-            let senderName = '';
             const isAdminMessage = msg.sender_type === 'admin';
+            let isMyMessage = false;
 
-            if (isAdminMessage) {
-              // If the current user is an admin, show "You". Otherwise, show "Admin".
-              senderName = currentUser?.isAdmin ? 'You' : 'Admin';
+            if (currentUser?.isAdmin) {
+                isMyMessage = isAdminMessage && msg.admin_user_id === currentUser.id;
             } else {
-              // If the current user is an admin, show the participant's name. Otherwise, show "You".
-              senderName = currentUser?.isAdmin ? (session.participantName || 'Guest') : 'You';
+                isMyMessage = !isAdminMessage && msg.user_id === currentUser?.id;
+            }
+            
+            let senderName = 'Guest';
+            if (isAdminMessage) {
+              senderName = isMyMessage ? 'You (Admin)' : msg.sender_name || 'Admin';
+            } else {
+              senderName = isMyMessage ? 'You' : (session.participantName || 'Guest');
             }
             
             return (
-              <div key={msg.id || `msg-${index}`} className={`chat-message-item-wrapper ${isAdminMessage ? 'admin-message' : 'user-message'}`}>
-                {/* Display the sender's name above the message bubble */}
+              <div key={msg.id || `msg-${index}`} className={`chat-message-item-wrapper ${isMyMessage ? 'user-message' : 'admin-message'}`}>
                 <span className="msg-sender-name">{senderName}</span>
                 <div className="chat-message-item">
                   <p className="msg-text">{msg.message_text}</p>
@@ -77,13 +82,13 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
 
 function ChatManagement() {
   const { adminCustomerSessions, setAdminCustomerSessions, sendCustomerMessage, isConnected, loadSessionHistory } = useWebSocket();
-  const { user: currentUser } = useAuth(); // Get the current user to pass to the modal
+  const { user: currentUser } = useAuth();
   const [activeModal, setActiveModal] = useState({ show: false, sessionId: null });
 
   const sessionsArray = Object.values(adminCustomerSessions)
     .map(s => s.sessionDetails)
     .filter(Boolean)
-    .filter(session => session.status !== 'archived' && session.status !== 'resolved')
+    .filter(session => session.status !== 'archived')
     .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
   
   const handleViewChat = async (session) => {
@@ -149,10 +154,8 @@ function ChatManagement() {
             {sessionsArray.length > 0 ? sessionsArray.map((session) => {
                 if (!session || !session.sessionId) return null;
                 
-                // --- FIX: This logic now correctly displays the name and IP ---
                 let participantDisplay;
                 if (session.user_id) {
-                    // It's a logged-in user
                     participantDisplay = (
                         <>
                             {session.userFirstName || session.participantName}
@@ -160,7 +163,6 @@ function ChatManagement() {
                         </>
                     );
                 } else {
-                    // It's a guest
                     participantDisplay = session.lastIpAddress || session.participantName || `Guest Session`;
                 }
                 
