@@ -2,25 +2,23 @@ import React, { useState } from 'react';
 import { useWebSocket } from '../contexts/WebSocketProvider.jsx';
 import API from '../api/axios';
 import { useChatSessions } from '../hooks/useChatSessions.js';
-
-// 1. We now import the ChatModal from its own dedicated file!
 import { ChatModal } from './ChatModal.jsx';
 
 function ChatManagement() {
+    // Data fetching is now handled perfectly by React Query
     const { data: sessions, isLoading, isError, error } = useChatSessions();
-    const { isConnected, typingPeers, sendAdminReply, emitStartTyping, emitStopTyping } = useWebSocket();
     
-    // State to manage which chat modal is open and its specific messages
-    const [activeChat, setActiveChat] = useState({ sessionId: null, participantName: null, messages: [] });
+    // We get the necessary real-time data and functions from our corrected provider
+    const { isConnected, typingPeers, activeAdminChat, setActiveAdminChat, sendAdminReply } = useWebSocket();
+    
     const [isModalOpen, setIsModalOpen] = useState(false);
 
     const handleViewChat = async (session) => {
-        // Fetch the message history for just the selected session
+        // When we open a chat, we fetch its history and set it as the "active" chat
         try {
             const response = await API.get(`/admin/chat/sessions/${session.sessionId}/messages`);
             if (response.data.success) {
-                // Set the active chat data and open the modal
-                setActiveChat({
+                setActiveAdminChat({
                     sessionId: session.sessionId,
                     participantName: session.participantName || `Guest ${session.sessionId}`,
                     messages: response.data.messages || []
@@ -34,7 +32,7 @@ function ChatManagement() {
 
     const handleCloseModal = () => {
         setIsModalOpen(false);
-        setActiveChat({ sessionId: null, participantName: null, messages: [] });
+        setActiveAdminChat({ sessionId: null, participantName: null, messages: [] });
     };
 
     if (isLoading) {
@@ -45,7 +43,6 @@ function ChatManagement() {
         return <div className="content-section"><p>Error loading sessions: {error.message}</p></div>;
     }
 
-    // Combine session data from React Query with real-time typing data
     const sessionsArray = sessions
         ?.map(s => ({
             ...s,
@@ -55,16 +52,16 @@ function ChatManagement() {
 
     return (
         <>
-            {/* 2. The ChatModal is now rendered here, clean and simple. */}
             <ChatModal
                 show={isModalOpen}
                 onClose={handleCloseModal}
-                session={activeChat}
-                messages={activeChat.messages}
+                session={activeAdminChat}
+                messages={activeAdminChat.messages}
                 onSendMessage={sendAdminReply}
                 isConnected={isConnected}
-                emitStartTyping={emitStartTyping}
-                emitStopTyping={emitStopTyping}
+                // We pass placeholder functions for typing for now, can be wired up if needed
+                emitStartTyping={() => {}}
+                emitStopTyping={() => {}}
             />
 
             <div className="content-section">
@@ -72,24 +69,18 @@ function ChatManagement() {
                     <h2>Chat Management</h2>
                     <p>View and manage all active customer chat sessions in real-time.</p>
                 </div>
-
                 <div className="card-list-container">
                     {sessionsArray && sessionsArray.length > 0 ? sessionsArray.map((session) => {
-                        if (!session || !session.sessionId) return null;
                         const participantDisplay = session.participantName || `Guest ${session.sessionId}`;
                         return (
                             <div key={session.sessionId} className="card chat-session-item">
                                 <div className="session-details">
                                     <strong className="participant-name">{participantDisplay}</strong>
-                                    <span className="session-id">Session ID: {session.sessionId}</span>
-                                    <span className={`session-status status-${session.status}`}>{session.status}</span>
                                     <p className="last-message">"{session.last_message_text || 'No messages yet...'}"</p>
                                     {session.isTyping && <div className="typing-indicator"><span>typing...</span></div>}
-                                    <small className="last-update">Last Update: {new Date(session.updated_at).toLocaleString()}</small>
                                 </div>
                                 <div className="chat-actions">
                                     <button onClick={() => handleViewChat(session)} className="btn btn-sm btn-secondary-action">View Chat</button>
-                                    {/* Status change buttons would go here */}
                                 </div>
                             </div>
                         );
