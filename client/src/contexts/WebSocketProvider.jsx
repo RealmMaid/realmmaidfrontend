@@ -44,11 +44,17 @@ export const WebSocketProvider = ({ children }) => {
         };
 
         const handleNewCustomerSession = (payload) => {
-            console.log("[DEBUG] Received 'new_customer_session' event:", payload);
-            if (!payload || !payload.data) return;
+            console.log("[DEBUG ADMIN] Received 'new_customer_session' event:", payload);
+            if (!payload || !payload.data) {
+                console.log("[DEBUG ADMIN] Payload for new session is invalid. Aborting.");
+                return;
+            };
             setAdminCustomerSessions(prev => {
-                if(prev[payload.data.id]) return prev;
-                console.log("[DEBUG] Adding new session card to admin dashboard.");
+                if(prev[payload.data.id]) {
+                    console.log("[DEBUG ADMIN] Session already exists. Aborting state update.");
+                    return prev;
+                }
+                console.log("[DEBUG ADMIN] Adding new session card to admin dashboard state.");
                 return { ...prev, [payload.data.id]: { sessionDetails: payload.data, messages: [] } };
             });
         };
@@ -61,7 +67,6 @@ export const WebSocketProvider = ({ children }) => {
             setAdminCustomerSessions(prevSessions => {
                 const targetSession = prevSessions[sessionId];
                 if (!targetSession) {
-                    // This logic was added in the previous step and remains.
                     const newSessionDetails = { sessionId: sessionId, participantName: 'Guest', status: 'active', updated_at: message.created_at, last_message_text: message.message_text };
                     return { ...prevSessions, [sessionId]: { sessionDetails: newSessionDetails, messages: [message] } };
                 }
@@ -76,8 +81,10 @@ export const WebSocketProvider = ({ children }) => {
             if (!message || !message.id) return;
             const sessionId = message.session_id;
             
+            // This function now has very detailed logging to trace the guest-side issue.
             setCustomerChat(prev => {
-                console.log(`[DEBUG GUEST] handleNewAdminMessage called for session ${sessionId}. Current state session ID is ${prev.sessionId}.`);
+                console.log(`[DEBUG GUEST] 'new_admin_message' handler called for session ${sessionId}. Current state session ID is ${prev.sessionId}.`);
+                
                 if (String(prev.sessionId) !== String(sessionId)) {
                     console.log("[DEBUG GUEST] Session ID does not match. Aborting state update.");
                     return prev;
@@ -86,9 +93,11 @@ export const WebSocketProvider = ({ children }) => {
                     console.log("[DEBUG GUEST] Duplicate message detected. Aborting state update.");
                     return prev;
                 }
+
                 const newMessages = prev.messages.filter(m => !String(m.id).startsWith('local-'));
                 const newState = { ...prev, messages: [...newMessages, message] };
-                console.log("[DEBUG GUEST] State update successful. New message count:", newState.messages.length);
+                
+                console.log("[DEBUG GUEST] State update successful. New message count:", newState.messages.length, "New state:", newState);
                 return newState;
             });
             
@@ -137,7 +146,6 @@ export const WebSocketProvider = ({ children }) => {
         };
     }, []);
 
-    // Emitter functions are unchanged...
     const sendCustomerMessage = useCallback((messageText) => { if (socketRef.current?.connected) { const optimisticMessage = { id: `local-${Date.now()}`, message_text: messageText, sender_type: 'guest', created_at: new Date().toISOString(), session_id: customerChat.sessionId }; setCustomerChat(prev => ({ ...prev, messages: [...prev.messages, optimisticMessage]})); socketRef.current.emit('customer_chat_message', { text: messageText }); } }, [customerChat.sessionId]);
     const sendAdminReply = useCallback((messageText, targetSessionId) => { if (socketRef.current?.connected && targetSessionId && user) { const optimisticMessage = { id: `local-${Date.now()}`, message_text: messageText, sender_type: 'admin', created_at: new Date().toISOString(), session_id: targetSessionId, admin_user_id: user.id }; setAdminCustomerSessions(prev => { if (!prev[targetSessionId]) return prev; return { ...prev, [targetSessionId]: { ...prev[targetSessionId], messages: [...prev[targetSessionId].messages, optimisticMessage] }}; }); socketRef.current.emit('admin_to_customer_message', { text: messageText, sessionId: targetSessionId }); } }, [user]);
     const loadSessionHistory = useCallback(async (sessionId) => { if (!adminCustomerSessions[sessionId] || adminCustomerSessions[sessionId].messages.length > 0) return; try { const response = await API.get(`/admin/chat/sessions/${sessionId}/messages`); if (response.data.success) { setAdminCustomerSessions(prev => (prev[sessionId] ? { ...prev, [sessionId]: { ...prev[sessionId], messages: response.data.messages || [] } } : prev)); } } catch (error) { console.error(`[Socket.IO Provider] Failed to fetch history for session ${sessionId}:`, error); } }, [adminCustomerSessions]);
