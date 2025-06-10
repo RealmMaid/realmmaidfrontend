@@ -14,18 +14,18 @@ const classes = [
 const classUpgrades = {
   warrior: [
     { id: 'item1', name: 'Skysplitter Sword', image: '/skysplittersword.png', cost: 50, minBonus: 2, maxBonus: 5, type: 'perClick' },
-    { id: 'item2', name: 'Golden Helm', image: '/goldenhelm.png', cost: 250, value: 2, type: 'perSecond' },
-    { id: 'item3', name: 'Ring of Exalted Dexterity', image: '/ringofexalteddexterity.png', cost: 750, value: 4, type: 'perSecond' },
+    { id: 'item2', name: 'Golden Helm', image: '/goldenhelm.png', cost: 250, value: 2, type: 'perSecond', clickBonus: 1 },
+    { id: 'item3', name: 'Ring of Exalted Dexterity', image: '/ringofexalteddexterity.png', cost: 750, value: 4, type: 'perSecond', clickBonus: 3 },
   ],
   wizard: [
     { id: 'item1', name: 'Staff of Astral Knowledge', image: '/staffofastralknowledge.png', cost: 50, minBonus: 1, maxBonus: 7, type: 'perClick' },
-    { id: 'item2', name: 'Magic Nova Spell', image: '/magicnovaspell.png', cost: 250, value: 2, type: 'perSecond' },
-    { id: 'item3', name: 'Ring of Exalted Mana', image: '/ringofexaltedattack.png', cost: 750, value: 4, type: 'perSecond' },
+    { id: 'item2', name: 'Magic Nova Spell', image: '/magicnovaspell.png', cost: 250, value: 2, type: 'perSecond', clickBonus: 1 },
+    { id: 'item3', name: 'Ring of Exalted Mana', image: '/ringofexaltedattack.png', cost: 750, value: 4, type: 'perSecond', clickBonus: 3 },
   ],
   sorcerer: [
-    { id: 'item1', name: 'Wand of Ancient Power', image: '/wandofancientknowledge.png', cost: 50, minBonus: 3, maxBonus: 3, type: 'perClick' },
-    { id: 'item2', name: 'Scepter of Skybolts', image: '/scepterofskybolts.png', cost: 250, value: 2, type: 'perSecond' },
-    { id: 'item3', name: 'Ring of Exalted Wisdom', image: '/ringofexalteddexterity.png', cost: 750, value: 4, type: 'perSecond' },
+    { id: 'item1', name: 'Wand of Ancient Power', image: '/wandofancientknowledge.png', cost: 50, minBonus: 1, maxBonus: 4, type: 'perClick' },
+    { id: 'item2', name: 'Scepter of Skybolts', image: '/scepterofskybolts.png', cost: 250, value: 2, type: 'perSecond', clickBonus: 1 },
+    { id: 'item3', name: 'Ring of Exalted Wisdom', image: '/ringofexalteddexterity.png', cost: 750, value: 4, type: 'perSecond', clickBonus: 3 },
   ],
 };
 
@@ -132,10 +132,13 @@ function PixelClickerGame() {
         let maxDamage = 1;
         const currentUpgrades = classUpgrades[gameState.playerClass] || [];
         currentUpgrades.forEach(upgrade => {
+            const owned = gameState.upgradesOwned[upgrade.id] || 0;
             if (upgrade.type === 'perClick') {
-                const owned = gameState.upgradesOwned[upgrade.id] || 0;
                 minDamage += upgrade.minBonus * owned;
                 maxDamage += upgrade.maxBonus * owned;
+            } else if (upgrade.type === 'perSecond' && upgrade.clickBonus) {
+                minDamage += upgrade.clickBonus * owned;
+                maxDamage += upgrade.clickBonus * owned;
             }
         });
         return { minDamage, maxDamage };
@@ -207,6 +210,12 @@ function PixelClickerGame() {
         const imageIndex = Math.min(Math.floor(progress * stageCount), stageCount - 1);
         return currentBoss.images[imageIndex];
     };
+
+    const getHealthPercent = () => {
+        if (!currentBoss || gameWon) return gameWon ? 0 : 100;
+        const percent = (gameState.clicksOnCurrentBoss / currentBoss.clickThreshold) * 100;
+        return 100 - percent;
+    };
     
     if (gamePhase === 'classSelection') {
         return (
@@ -245,6 +254,14 @@ function PixelClickerGame() {
                 </span>
             ))}
             <h3>{gameWon ? 'You Did It!' : currentBoss.name}</h3>
+            
+            {(gamePhase === 'clicking' || gamePhase === 'transitioning') && (
+                <div className="health-bar-container">
+                    <div className="health-bar-inner" style={{ width: `${getHealthPercent()}%` }}></div>
+                    <span className="health-bar-text">{currentBoss.clickThreshold - gameState.clicksOnCurrentBoss} / {currentBoss.clickThreshold}</span>
+                </div>
+            )}
+            
             <div className="clicker-container">
                 <h2>{Math.floor(gameState.score)} Sparkles ✨</h2>
                 {gamePhase === 'clicking' && (

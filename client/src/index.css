@@ -509,6 +509,37 @@ input:focus, textarea:focus {
 .upgrade-name {
   font-weight: bold;
 }
+/* In your index.css or a dedicated game css file */
+
+.health-bar-container {
+  width: 90%;
+  height: 25px;
+  background-color: #555; /* The empty part of the bar */
+  border: 2px solid var(--card-border);
+  border-radius: 15px;
+  margin: 1rem auto;
+  position: relative;
+  overflow: hidden;
+}
+
+.health-bar-inner {
+  height: 100%;
+  background-color: #ff4757; /* The health part of the bar! So red! */
+  border-radius: 12px;
+  transition: width 0.2s ease-in-out;
+}
+
+.health-bar-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-weight: bold;
+  font-size: 0.9rem;
+  text-shadow: 1px 1px 2px black;
+  white-space: nowrap;
+}
 .badge.verified { background-color: #2ecc71; }
 .badge.not-verified { background-color: #e74c3c; }
 .badge.admin { background-color: #9b59b6; }
