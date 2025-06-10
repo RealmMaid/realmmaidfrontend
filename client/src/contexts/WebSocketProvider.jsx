@@ -18,21 +18,13 @@ export const WebSocketProvider = ({ children }) => {
     const [typingPeers, setTypingPeers] = useState({});
 
     useEffect(() => {
-        if (isAuthLoading) {
-            return;
-        }
-
-        if (socketRef.current) {
-            return;
-        }
+        if (isAuthLoading) return;
+        if (socketRef.current) return;
 
         const socketIOUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000').replace('/api', '');
-        
         console.log(`[Socket.IO Provider] Initializing connection to ${socketIOUrl}...`);
 
-        const socket = io(socketIOUrl, {
-            withCredentials: true,
-        });
+        const socket = io(socketIOUrl, { withCredentials: true });
         socketRef.current = socket;
 
         socket.on('connect', () => {
@@ -68,30 +60,26 @@ export const WebSocketProvider = ({ children }) => {
             setCustomerChat({ sessionId: data.sessionId, messages: data.history || [] });
         });
 
-        socket.on('new_customer_session', (message) => {
-            if (!message || !message.data) return;
+        socket.on('new_customer_session', (payload) => {
+            if (!payload || !payload.data) return;
             console.log('[Socket.IO Provider] Event received: new_customer_session');
             setAdminCustomerSessions(prev => ({
                 ...prev,
-                [message.data.id]: { sessionDetails: message.data, messages: [] }
+                [payload.data.id]: { sessionDetails: payload.data, messages: [] }
             }));
         });
 
-        socket.on('new_customer_message', (message) => {
+        socket.on('new_customer_message', (payload) => {
+            // === Here we open the box! ===
+            const message = payload.savedMessage;
             if (!message || !message.session_id) {
-                console.warn('[Socket.IO Provider] Received a malformed new_customer_message. Ignoring.', message);
+                console.warn('[Socket.IO Provider] Received a malformed new_customer_message. Ignoring.', payload);
                 return;
             }
             console.log('[Socket.IO Provider] Event received: new_customer_message');
             const sessionId = message.session_id;
             
-            setCustomerChat(prev => {
-                if (String(prev.sessionId) === String(sessionId)) {
-                   return { ...prev, messages: [...prev.messages, message] };
-                }
-                return prev;
-            });
-
+            // This logic is for the admin panel, to add the customer's message to the correct session
             setAdminCustomerSessions(prev => {
                 if (!prev[sessionId]) return prev;
                 const updatedSession = {
@@ -107,22 +95,53 @@ export const WebSocketProvider = ({ children }) => {
             });
         });
 
-        socket.on('new_admin_message', (message) => {
+        socket.on('new_admin_message', (payload) => {
+            // === Here we open the box too! ===
+            const message = payload.savedMessage;
             if (!message || !message.id) {
-                console.warn('[Socket.IO Provider] Received a malformed new_admin_message. Ignoring.', message);
+                console.warn('[Socket.IO Provider] Received a malformed new_admin_message. Ignoring.', payload);
                 return;
             }
             console.log('[Socket.IO Provider] Event received: new_admin_message');
-            setAdminMessages(prev => [...prev, message]);
+            
+            // This is for the admin-to-admin chat
+            if (!message.session_id) {
+                setAdminMessages(prev => [...prev, message]);
+                return;
+            }
+
+            // This is for the admin-to-customer chat
+            const sessionId = message.session_id;
+
+            // Update the customer's chat widget
+            setCustomerChat(prev => {
+                if (String(prev.sessionId) === String(sessionId)) {
+                   return { ...prev, messages: [...prev.messages, message] };
+                }
+                return prev;
+            });
+
+            // Update the admin's view of the customer session
+            setAdminCustomerSessions(prev => {
+                if (!prev[sessionId]) return prev;
+                const updatedSession = {
+                    ...prev[sessionId],
+                    messages: [...prev[sessionId].messages, message],
+                     sessionDetails: {
+                        ...prev[sessionId].sessionDetails,
+                        last_message_text: message.message_text,
+                        updated_at: message.created_at,
+                    }
+                };
+                return { ...prev, [sessionId]: updatedSession };
+            });
         });
 
         socket.on('peer_is_typing', ({ sessionId, userName }) => {
-            console.log(`[Socket.IO Provider] Event received: peer_is_typing for session ${sessionId}`);
             setTypingPeers(prev => ({ ...prev, [sessionId]: userName || true }));
         });
 
         socket.on('peer_stopped_typing', ({ sessionId }) => {
-            console.log(`[Socket.IO Provider] Event received: peer_stopped_typing for session ${sessionId}`);
             setTypingPeers(prev => {
                 const newPeers = { ...prev };
                 delete newPeers[sessionId];
@@ -131,47 +150,33 @@ export const WebSocketProvider = ({ children }) => {
         });
 
         socket.on('messages_were_read', ({ sessionId, messageIds, readAt }) => {
-            console.log(`[Socket.IO Provider] Event received: messages_were_read for session ${sessionId}`);
-            
             const updateMessages = (messages) => messages.map(msg => 
                 messageIds.includes(msg.id) ? { ...msg, read_at: readAt } : msg
             );
-
             setCustomerChat(prev => {
                 if (String(prev.sessionId) === String(sessionId)) {
                     return { ...prev, messages: updateMessages(prev.messages) };
                 }
                 return prev;
             });
-
             setAdminCustomerSessions(prev => {
                 if (!prev[sessionId]) return prev;
-                return {
-                    ...prev,
-                    [sessionId]: {
-                        ...prev[sessionId],
-                        messages: updateMessages(prev[sessionId].messages),
-                    },
-                };
+                return { ...prev, [sessionId]: { ...prev[sessionId], messages: updateMessages(prev[sessionId].messages) } };
             });
         });
 
         return () => {
             if (socketRef.current) {
-                console.log('[Socket.IO Provider] Disconnecting socket...');
                 socketRef.current.disconnect();
+                socketRef.current = null;
             }
-            socketRef.current = null;
         };
     }, [isAuthLoading]);
 
     const loadSessionHistory = useCallback(async (sessionId) => {
-        if (adminCustomerSessions[sessionId]?.messages?.length > 0) {
-            return;
-        }
+        if (adminCustomerSessions[sessionId]?.messages?.length > 0) return;
         try {
             const response = await API.get(`/admin/chat/sessions/${sessionId}/messages`);
-            // === THIS IS THE FIXED LINE! ===
             if (response.data.success) {
                 setAdminCustomerSessions(prev => {
                     if (!prev[sessionId]) return prev;
@@ -183,16 +188,30 @@ export const WebSocketProvider = ({ children }) => {
         }
     }, [adminCustomerSessions]);
 
-    const emitStartTyping = useCallback((sessionId) => {
+    const sendCustomerMessage = useCallback((messageText) => {
         if (socketRef.current?.connected) {
-            socketRef.current.emit('start_typing', { sessionId });
+            socketRef.current.emit('customer_chat_message', { text: messageText });
         }
     }, []);
 
-    const emitStopTyping = useCallback((sessionId) => {
-        if (socketRef.current?.connected) {
-            socketRef.current.emit('stop_typing', { sessionId });
+    const sendAdminReply = useCallback((messageText, targetSessionId) => {
+        if (socketRef.current?.connected && targetSessionId) {
+            socketRef.current.emit('admin_to_customer_message', { text: messageText, sessionId: targetSessionId });
         }
+    }, []);
+    
+    const sendAdminMessage = useCallback((messageText) => {
+        if (socketRef.current?.connected) {
+             socketRef.current.emit('admin_chat_message', { text: messageText });
+        }
+    }, []);
+    
+    const emitStartTyping = useCallback((sessionId) => {
+        if (socketRef.current?.connected) socketRef.current.emit('start_typing', { sessionId });
+    }, []);
+
+    const emitStopTyping = useCallback((sessionId) => {
+        if (socketRef.current?.connected) socketRef.current.emit('stop_typing', { sessionId });
     }, []);
 
     const emitMessagesRead = useCallback((sessionId, messageIds) => {
@@ -201,64 +220,10 @@ export const WebSocketProvider = ({ children }) => {
         }
     }, []);
 
-    const sendCustomerMessage = useCallback((messageText, targetSessionId) => {
-        if (socketRef.current?.connected) {
-            // If the user hasn't sent a message yet, their session ID might be null.
-            // In the new flow, the server will handle creating the session on the first message.
-            const sessionIdToSend = targetSessionId || customerChat.sessionId;
-
-            if (sessionIdToSend) {
-                emitStopTyping(sessionIdToSend);
-            }
-            
-            socketRef.current.emit('customer_chat_message', { text: messageText, sessionId: sessionIdToSend });
-            
-            const optimisticMessage = {
-                id: `local-${Date.now()}`, message_text: messageText, sender_type: user?.isAdmin ? 'admin' : (user ? 'user' : 'guest'),
-                created_at: new Date().toISOString(), session_id: sessionIdToSend,
-                admin_user_id: user?.isAdmin ? user.id : null,
-                user_id: user && !user.isAdmin ? user.id : null,
-            };
-            
-            if (String(customerChat.sessionId) === String(sessionIdToSend)) {
-                setCustomerChat(prev => ({ ...prev, messages: [...prev.messages, optimisticMessage]}));
-            }
-            
-            if(targetSessionId) { // Only update admin sessions if a target is specified
-                setAdminCustomerSessions(prev => {
-                    if (!prev[targetSessionId]) return prev;
-                    const updatedSession = {
-                        ...prev[targetSessionId],
-                        messages: [...prev[targetSessionId].messages, optimisticMessage],
-                        sessionDetails: { ...prev[targetSessionId].sessionDetails, last_message_text: optimisticMessage.message_text, updated_at: optimisticMessage.created_at }
-                    };
-                    return { ...prev, [targetSessionId]: updatedSession };
-                });
-            }
-        }
-    }, [customerChat.sessionId, user, emitStopTyping]);
-    
-    // This is the new, dedicated function for admins to reply to customers.
-    const sendAdminReply = useCallback((messageText, targetSessionId) => {
-        if (socketRef.current?.connected && targetSessionId) {
-            emitStopTyping(targetSessionId);
-            // We use the new dedicated event name here!
-            socketRef.current.emit('admin_to_customer_message', { text: messageText, sessionId: targetSessionId });
-        }
-    }, [emitStopTyping]);
-    
-    const sendAdminMessage = useCallback((messageText) => {
-        if (socketRef.current?.connected) {
-             socketRef.current.emit('admin_chat_message', { text: messageText });
-        }
-    }, []);
-
     const value = {
         isConnected, user, customerChat, adminCustomerSessions, setAdminCustomerSessions,
         adminMessages, sendCustomerMessage, sendAdminMessage, loadSessionHistory,
-        typingPeers, emitStartTyping, emitStopTyping,
-        emitMessagesRead,
-        sendAdminReply, // Expose the new function!
+        typingPeers, emitStartTyping, emitStopTyping, emitMessagesRead, sendAdminReply,
     };
 
     return (
