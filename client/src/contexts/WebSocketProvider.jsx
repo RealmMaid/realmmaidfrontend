@@ -18,13 +18,14 @@ export const WebSocketProvider = ({ children }) => {
     const [typingPeers, setTypingPeers] = useState({});
 
     useEffect(() => {
-        // This effect runs only ONCE when the component first mounts, creating a stable connection.
+        // This effect runs only ONCE when the component first mounts.
         if (socketRef.current) return;
 
         const socketIOUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000').replace('/api', '');
         
         const socket = io(socketIOUrl, { withCredentials: true });
         socketRef.current = socket;
+        console.log('%c[WebSocket Provider] Socket connection initialized.', 'color: blue; font-weight: bold;');
 
         const handleConnect = () => setIsConnected(true);
         const handleDisconnect = () => setIsConnected(false);
@@ -43,6 +44,7 @@ export const WebSocketProvider = ({ children }) => {
         };
 
         const handleCustomerSessionInitialized = (data) => {
+            console.log('%c[GUEST EVENT RECEIVED] customer_session_initialized', 'color: green; font-weight: bold;', data);
             if (!data || !data.sessionId) return;
             setCustomerChat({ sessionId: data.sessionId, messages: data.history || [] });
         };
@@ -53,6 +55,7 @@ export const WebSocketProvider = ({ children }) => {
         };
 
         const handleNewCustomerMessage = (message) => {
+            console.log('%c[GUEST EVENT RECEIVED] new_customer_message', 'color: green; font-weight: bold;', message);
             if (!message || !message.session_id) return;
             const sessionId = message.session_id;
             
@@ -71,10 +74,16 @@ export const WebSocketProvider = ({ children }) => {
         };
 
         const handleNewAdminMessage = (message) => {
+            console.log('%c[GUEST EVENT RECEIVED] new_admin_message', 'color: green; font-weight: bold;', message);
             if (!message || !message.id) return;
             const sessionId = message.session_id;
-
-            setCustomerChat(prev => (String(prev.sessionId) === String(sessionId) && !prev.messages.some(m => m.id === message.id)) ? { ...prev, messages: [...prev.messages, message] } : prev);
+            
+            setCustomerChat(prev => {
+                if (String(prev.sessionId) === String(sessionId) && !prev.messages.some(m => m.id === message.id)) {
+                    return { ...prev, messages: [...prev.messages, message] };
+                }
+                return prev;
+            });
             
             setAdminCustomerSessions(prev => {
                 if (!sessionId || !prev[sessionId] || prev[sessionId].messages.some(m => m.id === message.id)) return prev;
@@ -82,7 +91,7 @@ export const WebSocketProvider = ({ children }) => {
                 return { ...prev, [sessionId]: updatedSession };
             });
         };
-        
+
         const handlePeerIsTyping = ({ sessionId, userName }) => setTypingPeers(prev => ({ ...prev, [sessionId]: userName || true }));
         const handlePeerStoppedTyping = ({ sessionId }) => setTypingPeers(prev => {
             const newPeers = { ...prev };
@@ -95,6 +104,7 @@ export const WebSocketProvider = ({ children }) => {
             setAdminCustomerSessions(prev => prev[sessionId] ? { ...prev, [sessionId]: { ...prev[sessionId], messages: updateMessages(prev[sessionId].messages) } } : prev);
         };
 
+
         socket.on('connect', handleConnect);
         socket.on('disconnect', handleDisconnect);
         socket.on('connect_error', handleConnectError);
@@ -106,7 +116,7 @@ export const WebSocketProvider = ({ children }) => {
         socket.on('peer_is_typing', handlePeerIsTyping);
         socket.on('peer_stopped_typing', handlePeerStoppedTyping);
         socket.on('messages_were_read', handleMessagesWereRead);
-
+        
         return () => {
             if (socketRef.current) {
                 socketRef.current.off('connect', handleConnect);
@@ -152,13 +162,12 @@ export const WebSocketProvider = ({ children }) => {
             };
             setAdminCustomerSessions(prev => {
                 if (!prev[targetSessionId]) return prev;
-                const updatedSession = { ...prev[targetSessionId], messages: [...prev[targetSessionId].messages, optimisticMessage] };
-                return { ...prev, [targetSessionId]: updatedSession };
+                return { ...prev, [targetSessionId]: { ...prev[targetSessionId], messages: [...prev[targetSessionId].messages, optimisticMessage] }};
             });
             socketRef.current.emit('admin_to_customer_message', { text: messageText, sessionId: targetSessionId });
         }
     }, [user]);
-    
+
     const loadSessionHistory = useCallback(async (sessionId) => {
         if (adminCustomerSessions[sessionId]?.messages?.length > 0) return;
         try {
@@ -173,10 +182,10 @@ export const WebSocketProvider = ({ children }) => {
 
     const sendAdminMessage = useCallback((messageText) => {
         if (socketRef.current?.connected) {
-             socketRef.current.emit('admin_chat_message', { text: messageText });
+            socketRef.current.emit('admin_chat_message', { text: messageText });
         }
     }, []);
-    
+
     const emitStartTyping = useCallback((sessionId) => {
         if (socketRef.current?.connected) {
             socketRef.current.emit('start_typing', { sessionId });
@@ -194,7 +203,7 @@ export const WebSocketProvider = ({ children }) => {
             socketRef.current.emit('messages_read', { sessionId, messageIds });
         }
     }, []);
-
+    
     const value = {
         isConnected,
         user,
