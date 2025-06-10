@@ -1,8 +1,9 @@
-// client/src/App.jsx
-
-import React, { useEffect } from 'react'; // I added useEffect!
+import React, { useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
-import { getCsrfToken } from './api/csrf'; // Importing our new helper! <3
+import { getCsrfToken } from './api/csrf';
+
+// 1. Ensure this import is present
+import { Toaster } from 'react-hot-toast';
 
 // --- Page Imports ---
 import MainLayout from './components/MainLayout.jsx';
@@ -18,36 +19,44 @@ import CheckoutPage from './pages/CheckoutPage.jsx';
 
 
 function App() {
-  // --- NEW: This little hook runs once when the app starts! ---
   useEffect(() => {
-    // We're calling our function to get the token right away!
     getCsrfToken();
-  }, []); // The empty brackets mean it only runs one time!
+  }, []);
 
   return (
-    <Routes>
-      {/* --- Public Layout & Routes --- */}
-      <Route element={<MainLayout />}>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/please-verify" element={<PleaseVerifyPage />} />
-      </Route>
+    // A React component must return a single parent element.
+    // We use a React Fragment (<>...</>) to wrap Routes and Toaster.
+    <>
+      <Routes>
+        {/* All your Route components go here... */}
+        <Route element={<MainLayout />}>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/please-verify" element={<PleaseVerifyPage />} />
+        </Route>
+        <Route element={<ProtectedRoute />}>
+            <Route path="/dashboard" element={<UserDashboardPage />} />
+            <Route path="/checkout" element={<CheckoutPage />} />
+        </Route>
+        <Route element={<ProtectedRoute adminOnly={true} />}>
+            <Route path="/admin" element={<AdminDashboardPage />} />
+        </Route>
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
 
-      {/* --- Protected User Routes --- */}
-      <Route element={<ProtectedRoute />}>
-        <Route path="/dashboard" element={<UserDashboardPage />} />
-        <Route path="/checkout" element={<CheckoutPage />} />
-      </Route>
-
-      {/* --- Protected Admin Routes --- */}
-      <Route element={<ProtectedRoute adminOnly={true} />}>
-        <Route path="/admin" element={<AdminDashboardPage />} />
-      </Route>
-      
-      {/* Catch-all 404 Route */}
-      <Route path="*" element={<NotFoundPage />} />
-    </Routes>
+      {/* 2. Ensure this Toaster component is present */}
+      <Toaster 
+        position="bottom-right"
+        toastOptions={{
+          style: {
+            background: '#320d42',
+            color: '#ffffff',
+            border: '1px solid #4a1566'
+          },
+        }}
+      />
+    </>
   );
 }
 
