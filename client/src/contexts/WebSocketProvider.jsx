@@ -19,9 +19,7 @@ export const WebSocketProvider = ({ children }) => {
 
     useEffect(() => {
         if (socketRef.current) return;
-
         const socketIOUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000').replace('/api', '');
-        
         const socket = io(socketIOUrl, { withCredentials: true });
         socketRef.current = socket;
 
@@ -34,9 +32,7 @@ export const WebSocketProvider = ({ children }) => {
             if (!data) return;
             setAdminMessages(data.adminChatHistory || []);
             const sessionsObject = (data.customerChatSessions || []).reduce((acc, session) => {
-                if (session && session.sessionId) {
-                   acc[session.sessionId] = { sessionDetails: session, messages: [] };
-                }
+                if (session && session.sessionId) acc[session.sessionId] = { sessionDetails: session, messages: [] };
                 return acc;
             }, {});
             setAdminCustomerSessions(sessionsObject);
@@ -48,16 +44,15 @@ export const WebSocketProvider = ({ children }) => {
         };
 
         const handleNewCustomerSession = (payload) => {
+            console.log("[DEBUG] Received 'new_customer_session' event:", payload);
             if (!payload || !payload.data) return;
-            // This function correctly creates a new session card when a guest connects.
             setAdminCustomerSessions(prev => {
-                // Avoid overwriting if it already exists
                 if(prev[payload.data.id]) return prev;
+                console.log("[DEBUG] Adding new session card to admin dashboard.");
                 return { ...prev, [payload.data.id]: { sessionDetails: payload.data, messages: [] } };
             });
         };
         
-        // This function handles new messages from the GUEST.
         const handleNewCustomerMessage = (payload) => {
             const message = payload.savedMessage;
             if (!message || !message.session_id) return;
@@ -65,73 +60,44 @@ export const WebSocketProvider = ({ children }) => {
 
             setAdminCustomerSessions(prevSessions => {
                 const targetSession = prevSessions[sessionId];
-
-                // --- THIS IS THE FIX FOR THE ADMIN VIEW ---
-                // If the session doesn't exist, create it on the fly.
                 if (!targetSession) {
-                    console.log(`[WebSocket Provider] Received first message for new session ${sessionId}. Creating session card.`);
-                    const newSessionDetails = {
-                        sessionId: sessionId,
-                        participantName: 'Guest', // We can improve this later if needed
-                        status: 'active',
-                        updated_at: message.created_at,
-                        last_message_text: message.message_text
-                    };
-                    return { 
-                        ...prevSessions, 
-                        [sessionId]: { sessionDetails: newSessionDetails, messages: [message] } 
-                    };
+                    // This logic was added in the previous step and remains.
+                    const newSessionDetails = { sessionId: sessionId, participantName: 'Guest', status: 'active', updated_at: message.created_at, last_message_text: message.message_text };
+                    return { ...prevSessions, [sessionId]: { sessionDetails: newSessionDetails, messages: [message] } };
                 }
-
-                // If session exists, just add the message.
-                if (targetSession.messages.some(m => m.id === message.id)) {
-                    return prevSessions; // Avoid duplicates
-                }
-
-                const updatedSession = { 
-                    ...targetSession, 
-                    messages: [...targetSession.messages, message], 
-                    sessionDetails: { ...targetSession.sessionDetails, last_message_text: message.message_text, updated_at: message.created_at }
-                };
-                
+                if (targetSession.messages.some(m => m.id === message.id)) return prevSessions;
+                const updatedSession = { ...targetSession, messages: [...targetSession.messages, message], sessionDetails: { ...targetSession.sessionDetails, last_message_text: message.message_text, updated_at: message.created_at }};
                 return { ...prevSessions, [sessionId]: updatedSession };
             });
         };
 
-        // This function handles new messages from the ADMIN.
         const handleNewAdminMessage = (payload) => {
             const message = payload.savedMessage;
             if (!message || !message.id) return;
             const sessionId = message.session_id;
             
-            // --- THIS IS THE FIX FOR THE GUEST VIEW ---
-            // Update the GUEST's chat window.
             setCustomerChat(prev => {
+                console.log(`[DEBUG GUEST] handleNewAdminMessage called for session ${sessionId}. Current state session ID is ${prev.sessionId}.`);
                 if (String(prev.sessionId) !== String(sessionId)) {
+                    console.log("[DEBUG GUEST] Session ID does not match. Aborting state update.");
                     return prev;
                 }
                 if (prev.messages.some(m => m.id === message.id)) {
-                    return prev; // Duplicate message, do nothing.
+                    console.log("[DEBUG GUEST] Duplicate message detected. Aborting state update.");
+                    return prev;
                 }
-
-                // Replace optimistic message from admin (if any) and add the new one.
                 const newMessages = prev.messages.filter(m => !String(m.id).startsWith('local-'));
-                return { ...prev, messages: [...newMessages, message] };
+                const newState = { ...prev, messages: [...newMessages, message] };
+                console.log("[DEBUG GUEST] State update successful. New message count:", newState.messages.length);
+                return newState;
             });
             
-            // Update the ADMIN's own view of the customer session.
             setAdminCustomerSessions(prevSessions => {
                 const targetSession = prevSessions[sessionId];
                 if (!targetSession) return prevSessions;
-
                 const newMessages = targetSession.messages.filter(m => !String(m.id).startsWith('local-'));
-                 if (newMessages.some(m => m.id === message.id)) return prevSessions;
-
-                const updatedSession = { 
-                    ...targetSession, 
-                    messages: [...newMessages, message],
-                    sessionDetails: { ...targetSession.sessionDetails, last_message_text: message.message_text, updated_at: message.created_at }
-                };
+                if (newMessages.some(m => m.id === message.id)) return prevSessions;
+                const updatedSession = { ...targetSession, messages: [...newMessages, message], sessionDetails: { ...targetSession.sessionDetails, last_message_text: message.message_text, updated_at: message.created_at }};
                 return { ...prevSessions, [sessionId]: updatedSession };
             });
         };
@@ -150,7 +116,6 @@ export const WebSocketProvider = ({ children }) => {
             setAdminCustomerSessions(prev => prev[sessionId] ? { ...prev, [sessionId]: { ...prev[sessionId], messages: updateMessages(prev[sessionId].messages) } } : prev);
         };
 
-        // Attach listeners
         socket.on('connect', handleConnect);
         socket.on('disconnect', handleDisconnect);
         socket.on('connect_error', handleConnectError);
@@ -163,7 +128,6 @@ export const WebSocketProvider = ({ children }) => {
         socket.on('peer_stopped_typing', handlePeerStoppedTyping);
         socket.on('messages_were_read', handleMessagesWereRead);
 
-        // Cleanup
         return () => {
             if (socketRef.current) {
                 socketRef.current.removeAllListeners();
@@ -173,52 +137,16 @@ export const WebSocketProvider = ({ children }) => {
         };
     }, []);
 
-    // --- Emitter Functions ---
-    const sendCustomerMessage = useCallback((messageText) => {
-        if (socketRef.current?.connected) {
-            const optimisticMessage = { id: `local-${Date.now()}`, message_text: messageText, sender_type: 'guest', created_at: new Date().toISOString(), session_id: customerChat.sessionId };
-            setCustomerChat(prev => ({ ...prev, messages: [...prev.messages, optimisticMessage]}));
-            socketRef.current.emit('customer_chat_message', { text: messageText });
-        }
-    }, [customerChat.sessionId]);
-
-    const sendAdminReply = useCallback((messageText, targetSessionId) => {
-        if (socketRef.current?.connected && targetSessionId && user) {
-            const optimisticMessage = { id: `local-${Date.now()}`, message_text: messageText, sender_type: 'admin', created_at: new Date().toISOString(), session_id: targetSessionId, admin_user_id: user.id };
-            setAdminCustomerSessions(prev => {
-                if (!prev[targetSessionId]) return prev;
-                return { ...prev, [targetSessionId]: { ...prev[targetSessionId], messages: [...prev[targetSessionId].messages, optimisticMessage] }};
-            });
-            socketRef.current.emit('admin_to_customer_message', { text: messageText, sessionId: targetSessionId });
-        }
-    }, [user]);
-
-    const loadSessionHistory = useCallback(async (sessionId) => {
-        if (!adminCustomerSessions[sessionId] || adminCustomerSessions[sessionId].messages.length > 0) return;
-        try {
-            const response = await API.get(`/admin/chat/sessions/${sessionId}/messages`);
-            if (response.data.success) {
-                setAdminCustomerSessions(prev => (prev[sessionId] ? { ...prev, [sessionId]: { ...prev[sessionId], messages: response.data.messages || [] } } : prev));
-            }
-        } catch (error) {
-            console.error(`[Socket.IO Provider] Failed to fetch history for session ${sessionId}:`, error);
-        }
-    }, [adminCustomerSessions]);
-
+    // Emitter functions are unchanged...
+    const sendCustomerMessage = useCallback((messageText) => { if (socketRef.current?.connected) { const optimisticMessage = { id: `local-${Date.now()}`, message_text: messageText, sender_type: 'guest', created_at: new Date().toISOString(), session_id: customerChat.sessionId }; setCustomerChat(prev => ({ ...prev, messages: [...prev.messages, optimisticMessage]})); socketRef.current.emit('customer_chat_message', { text: messageText }); } }, [customerChat.sessionId]);
+    const sendAdminReply = useCallback((messageText, targetSessionId) => { if (socketRef.current?.connected && targetSessionId && user) { const optimisticMessage = { id: `local-${Date.now()}`, message_text: messageText, sender_type: 'admin', created_at: new Date().toISOString(), session_id: targetSessionId, admin_user_id: user.id }; setAdminCustomerSessions(prev => { if (!prev[targetSessionId]) return prev; return { ...prev, [targetSessionId]: { ...prev[targetSessionId], messages: [...prev[targetSessionId].messages, optimisticMessage] }}; }); socketRef.current.emit('admin_to_customer_message', { text: messageText, sessionId: targetSessionId }); } }, [user]);
+    const loadSessionHistory = useCallback(async (sessionId) => { if (!adminCustomerSessions[sessionId] || adminCustomerSessions[sessionId].messages.length > 0) return; try { const response = await API.get(`/admin/chat/sessions/${sessionId}/messages`); if (response.data.success) { setAdminCustomerSessions(prev => (prev[sessionId] ? { ...prev, [sessionId]: { ...prev[sessionId], messages: response.data.messages || [] } } : prev)); } } catch (error) { console.error(`[Socket.IO Provider] Failed to fetch history for session ${sessionId}:`, error); } }, [adminCustomerSessions]);
     const sendAdminMessage = useCallback((messageText) => { if (socketRef.current?.connected) { socketRef.current.emit('admin_chat_message', { text: messageText }); } }, []);
     const emitStartTyping = useCallback((sessionId) => { if (socketRef.current?.connected) { socketRef.current.emit('start_typing', { sessionId }); } }, []);
     const emitStopTyping = useCallback((sessionId) => { if (socketRef.current?.connected) { socketRef.current.emit('stop_typing', { sessionId }); } }, []);
     const emitMessagesRead = useCallback((sessionId, messageIds) => { if (socketRef.current?.connected && sessionId && messageIds.length > 0) { socketRef.current.emit('messages_read', { sessionId, messageIds }); } }, []);
     
-    const value = {
-        isConnected, user, customerChat, adminCustomerSessions, setAdminCustomerSessions, adminMessages,
-        typingPeers, sendCustomerMessage, sendAdminMessage, sendAdminReply, loadSessionHistory,
-        emitStartTyping, emitStopTyping, emitMessagesRead,
-    };
+    const value = { isConnected, user, customerChat, adminCustomerSessions, setAdminCustomerSessions, adminMessages, typingPeers, sendCustomerMessage, sendAdminMessage, sendAdminReply, loadSessionHistory, emitStartTyping, emitStopTyping, emitMessagesRead };
 
-    return (
-        <WebSocketContext.Provider value={value}>
-            {children}
-        </WebSocketContext.Provider>
-    );
+    return ( <WebSocketContext.Provider value={value}> {children} </WebSocketContext.Provider> );
 };
