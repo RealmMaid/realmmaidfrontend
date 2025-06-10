@@ -4,7 +4,6 @@ import { useAuth } from '../hooks/useAuth.jsx';
 import { useReadReceipts } from '../hooks/useReadReceipts.js';
 import API from '../api/axios';
 
-// The ChatModal component remains the same as the last version I sent.
 const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnected, currentUser, emitStartTyping, emitStopTyping, isPeerTyping }) => {
   const [messageText, setMessageText] = useState('');
   const messagesEndRef = useRef(null);
@@ -62,10 +61,8 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
             if (!msg || typeof msg !== 'object') {
                 return null;
             }
-
             const isAdminMessage = msg.sender_type === 'admin';
             const isMyMessage = currentUser && isAdminMessage && (msg.admin_user_id === currentUser.id || msg.adminUserId === currentUser.id);
-
             let senderName = isMyMessage ? 'You' : (isAdminMessage ? 'Admin' : (session.participantName || 'Guest'));
             
             return (
@@ -82,11 +79,12 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
             );
           })}
 
-          {/* --- DEBUGGING CHANGE 1: SIMPLIFIED INDICATOR --- */}
-          {/* We are temporarily displaying simple text to rule out CSS issues. */}
+          {/* FINAL INDICATOR: Using simple, robust text to ensure it's visible */}
           {isPeerTyping && (
-            <div style={{ padding: '5px 10px', color: 'grey' }}>
-              Typing...
+            <div className="chat-message-item-wrapper user-message">
+                <div className="chat-message-item">
+                    <p className="msg-text" style={{color: '#888'}}><i>Typing...</i></p>
+                </div>
             </div>
           )}
 
@@ -120,14 +118,11 @@ function ChatManagement() {
   const { user: currentUser } = useAuth();
   const [activeModal, setActiveModal] = useState({ show: false, sessionId: null });
 
-  // --- DEBUGGING CHANGE 2: ADDED CONSOLE LOG ---
-  console.log('[DEBUG] Current Typing Peers:', typingPeers);
-
   const sessionsArray = Object.values(adminCustomerSessions)
     .filter(s => s && s.sessionDetails)
     .map(s => {
         const isPeerTyping = typingPeers[s.sessionDetails.sessionId];
-        return { ...s.sessionDetails, isTyping: isPeerTyping }
+        return { ...s.sessionDetails, isTyping: !!isPeerTyping } // Use boolean for robustness
     })
     .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
   
@@ -138,7 +133,6 @@ function ChatManagement() {
     }
   };
   
-  // ... other functions are the same ...
   const handleAdminSendMessage = (messageText, sessionId) => {
     if (!isConnected) { console.error("WS disconnected."); return; }
     sendAdminReply(messageText, sessionId);
@@ -155,10 +149,8 @@ function ChatManagement() {
   
   const modalSessionData = activeModal.sessionId ? adminCustomerSessions[activeModal.sessionId] : null;
   
-  const isModalPeerTyping = activeModal.sessionId ? typingPeers[activeModal.sessionId] : false;
-
-  // --- DEBUGGING CHANGE 3: ADDED CONSOLE LOG ---
-  console.log(`[DEBUG] Is modal peer typing for session ${activeModal.sessionId}?`, isModalPeerTyping);
+  // ROBUST CHECK: Convert the result to a boolean to avoid 'undefined'.
+  const isModalPeerTyping = !!(activeModal.sessionId && typingPeers[activeModal.sessionId]);
 
   return (
     <>
@@ -174,21 +166,17 @@ function ChatManagement() {
         emitStopTyping={emitStopTyping}
         isPeerTyping={isModalPeerTyping}
       />
-       {/* ... rest of JSX is the same ... */}
        <div className="content-section">
         <div className="content-header">
           <h2>Chat Management</h2>
           <p>View and manage all active customer chat sessions in real-time.</p>
         </div>
-
         <div className="card-list-container">
             {sessionsArray.length > 0 ? sessionsArray.map((session) => {
                 if (!session || !session.sessionId) return null;
-                let participantDisplay;
+                let participantDisplay = session.lastIpAddress || session.participantName || `Guest Session`;
                 if (session.user_id) {
                     participantDisplay = (<>{session.userFirstName || session.participantName}{session.lastIpAddress && <span className="participant-ip">({session.lastIpAddress})</span>}</>);
-                } else {
-                    participantDisplay = session.lastIpAddress || session.participantName || `Guest Session`;
                 }
                 return (
                     <div key={session.sessionId} className="card chat-session-item">
