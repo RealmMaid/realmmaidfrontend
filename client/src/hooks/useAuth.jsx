@@ -1,8 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-// --- FIX: I've corrected the import path! ---
 import API from '../api/axios.js';
-// We don't need getCsrfToken here anymore because App.jsx handles it for the whole app!
 
 const AuthContext = createContext(null);
 
@@ -22,35 +20,30 @@ export const AuthProvider = ({ children }) => {
                     setUser(data.user);
                 }
             } catch (error) {
+                // An AbortError is expected on component unmount, so we don't log it.
                 if (error.name !== 'AbortError') {
                     console.error("AuthProvider: The API call to /api/auth/session failed.", error);
                 }
             } finally {
-                setAuthLoading(false);
+                // This block will run regardless of success or failure.
+                // We only set loading to false if the component is still mounted.
+                if (!signal.aborted) {
+                    setAuthLoading(false);
+                }
             }
         };
         
-        const timeoutId = setTimeout(() => {
-            if (isAuthLoading) {
-                console.log("AuthProvider: The session check timed out.");
-                controller.abort();
-            }
-        }, 30000);
-
         checkSession();
 
+        // The cleanup function will run if the component unmounts before the API call finishes.
         return () => {
-            clearTimeout(timeoutId);
             controller.abort();
         };
     }, []);
 
     const login = async (email, password) => {
         try {
-            // --- FIX: No need to get the token here! ---
-            // Our API instance now automatically includes the token in its headers.
             const { data } = await API.post('/auth/login', { email, password });
-
             if (data.success && data.user) {
                 setUser(data.user);
                 if (data.user.isAdmin) navigate('/admin');
@@ -65,10 +58,9 @@ export const AuthProvider = ({ children }) => {
 
     const logout = async () => {
         try {
-            // --- FIX: The token is sent automatically! ---
             await API.post('/auth/logout');
         } catch (error) {
-            console.error('Logout failed ;w;', error);
+            console.error('Logout failed', error);
         } finally {
             setUser(null);
             navigate('/');
@@ -77,9 +69,7 @@ export const AuthProvider = ({ children }) => {
     
     const register = async (email, password) => {
         try {
-            // --- FIX: So much cleaner now! ---
             const { data } = await API.post('/auth/register', { email, password });
-            
             if (data.success) {
                 navigate(`/please-verify?email=${encodeURIComponent(email)}`);
             }
@@ -101,6 +91,7 @@ export const AuthProvider = ({ children }) => {
 
     return (
         <AuthContext.Provider value={value}>
+            {/* This ensures the rest of the app doesn't render until the initial session check is complete */}
             {!isAuthLoading && children}
         </AuthContext.Provider>
     );
