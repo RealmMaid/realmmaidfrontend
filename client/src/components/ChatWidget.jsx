@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useWebSocket } from '../contexts/WebSocketProvider.jsx';
 import { useAuth } from '../hooks/useAuth.jsx';
+import { useReadReceipts } from '../hooks/useReadReceipts.js';
 
 const ChatWidgetStyles = () => (
     <style>{`
+        /* Styles for the main widget and chat panel */
         .chat-fab { 
             position: fixed; 
             bottom: 20px; 
@@ -126,6 +128,13 @@ const ChatWidgetStyles = () => (
             border-radius: 15px; 
             line-height: 1.4; 
         }
+        .chat-message .msg-timestamp {
+            font-size: 0.7rem;
+            margin-top: 4px;
+            opacity: 0.7;
+            display: block;
+            text-align: right;
+        }
         .chat-message.user { 
             background-color: var(--accent-pink); 
             color: var(--text-dark); 
@@ -151,18 +160,28 @@ const ChatWidgetStyles = () => (
           from { opacity: 0; }
           to { opacity: 1; }
         }
+        .read-receipt { 
+            margin-left: 5px; 
+            color: var(--text-secondary); 
+            font-size: 0.8rem;
+        }
+        .read-receipt.read { 
+            color: var(--accent-blue);
+            font-weight: bold;
+        }
     `}</style>
 );
 
 const ChatWidget = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [newMessage, setNewMessage] = useState('');
-    const { customerChat, adminMessages, isConnected, sendCustomerMessage, sendAdminMessage, typingPeers, emitStartTyping, emitStopTyping } = useWebSocket();
+    const { customerChat, isConnected, sendCustomerMessage, typingPeers, emitStartTyping, emitStopTyping } = useWebSocket();
     const { user: currentUser } = useAuth();
     
-    const isAdmin = currentUser?.isAdmin;
-    const messages = isAdmin ? adminMessages : customerChat.messages;
-    const currentSessionId = customerChat.sessionId;
+    const { sessionId, messages } = customerChat;
+    
+    // Use our new custom hook to handle read receipts
+    const messageRef = useReadReceipts(messages, sessionId);
     
     const messagesEndRef = useRef(null);
     const typingTimeoutRef = useRef(null);
@@ -182,17 +201,14 @@ const ChatWidget = () => {
         const newText = e.target.value;
         setNewMessage(newText);
         
-        // Use the admin's own session ID for admin-to-admin chat typing indicators
-        const targetId = isAdmin ? currentUser.id : currentSessionId;
-
-        if (!typingTimeoutRef.current && targetId) {
-            emitStartTyping(targetId);
+        if (!typingTimeoutRef.current && sessionId) {
+            emitStartTyping(sessionId);
         }
 
-        if (targetId) {
+        if (sessionId) {
             clearTimeout(typingTimeoutRef.current);
             typingTimeoutRef.current = setTimeout(() => {
-                emitStopTyping(targetId);
+                emitStopTyping(sessionId);
                 typingTimeoutRef.current = null;
             }, 1500);
         }
@@ -200,27 +216,20 @@ const ChatWidget = () => {
 
     const handleSend = (e) => {
         e.preventDefault();
-        const targetId = isAdmin ? currentUser.id : currentSessionId;
-        if (newMessage.trim() && isConnected) {
-            if (targetId) {
-                clearTimeout(typingTimeoutRef.current);
-                emitStopTyping(targetId);
-                typingTimeoutRef.current = null;
-            }
-
-            if (isAdmin) {
-                sendAdminMessage(newMessage.trim());
-            } else if (currentSessionId) {
-                sendCustomerMessage(newMessage.trim(), currentSessionId);
-            }
+        if (newMessage.trim() && isConnected && sessionId) {
+            clearTimeout(typingTimeoutRef.current);
+            emitStopTyping(sessionId);
+            typingTimeoutRef.current = null;
+            sendCustomerMessage(newMessage.trim(), sessionId);
             setNewMessage('');
         }
     };
 
-    const isChatReady = isConnected && (currentSessionId || isAdmin);
-    const peerIsTyping = typingPeers[currentSessionId];
+    const isChatReady = isConnected && sessionId;
+    const peerIsTyping = typingPeers[sessionId];
 
-    if (!currentSessionId && !isAdmin) {
+    // The entire widget should only appear if a customer session has been initialized.
+    if (!sessionId) {
         return null;
     }
 
@@ -232,35 +241,33 @@ const ChatWidget = () => {
             </button>
             <div className={`chat-panel ${isOpen ? 'visible' : ''}`}>
                 <div className="chat-panel-header">
-                    <h3>{isAdmin ? 'Admin Chat' : 'Support Chat'}</h3>
+                    <h3>Support Chat</h3>
                     <button onClick={() => setIsOpen(false)} aria-label="Close Chat">×</button>
                 </div>
                 <div className={`chat-status ${isConnected ? 'connected' : 'disconnected'}`}>
                     {isChatReady ? 'Connected' : 'Initializing...'}
                 </div>
                 <div className="chat-messages-area">
-                    {messages.map((msg, index) => {
+                    {messages.map((msg) => {
                         const isAdminMessage = msg.sender_type === 'admin';
                         let isMyMessage = false;
-
                         if (currentUser) {
-                            isMyMessage = isAdminMessage ? msg.admin_user_id === currentUser.id : msg.user_id === currentUser.id;
+                            isMyMessage = !isAdminMessage && msg.user_id === currentUser.id;
                         } else {
                             isMyMessage = msg.sender_type === 'guest';
                         }
                         
-                        let senderName = 'Guest';
-                        if (isAdminMessage) {
-                          senderName = isMyMessage ? 'You' : (msg.sender_name || 'Admin');
-                        } else {
-                          senderName = isMyMessage ? 'You' : (currentUser?.firstName || 'User');
-                        }
+                        let senderName = isMyMessage ? 'You' : 'Admin';
 
                         return (
-                            <div key={msg.id || `msg-${index}`} className={`chat-message-item-wrapper ${isMyMessage ? 'user-message' : 'admin-message'}`}>
+                            <div ref={messageRef} data-message-id={msg.id} key={msg.id} className={`chat-message-item-wrapper ${isMyMessage ? 'user-message' : 'admin-message'}`}>
                                 <span className="msg-sender-name">{senderName}</span>
                                 <div className={`chat-message ${isMyMessage ? 'user' : 'admin'}`}>
                                    {msg.message_text}
+                                   <span className="msg-timestamp">
+                                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        {isMyMessage && <span className={`read-receipt ${msg.read_at ? 'read' : ''}`}>✓✓</span>}
+                                   </span>
                                 </div>
                             </div>
                         );
