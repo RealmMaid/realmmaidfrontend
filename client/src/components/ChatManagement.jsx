@@ -9,13 +9,12 @@ function ChatManagement() {
     const { data: sessions, isLoading, isError, error } = useChatSessions();
     const { isConnected, typingPeers, activeAdminChat, setActiveAdminChat, sendAdminReply, emitStartTyping, emitStopTyping } = useWebSocket();
     const [isModalOpen, setIsModalOpen] = useState(false);
-
-    // Get the query client so we can invalidate the cache after a mutation
     const queryClient = useQueryClient();
 
     const handleViewChat = async (session) => {
         try {
-            const response = await API.get(`/api/chat/sessions/${session.sessionId}/messages`);
+            // NOTE: The URL here is correct because it's inside the /api/chat router on the backend.
+            const response = await API.get(`/chat/sessions/${session.sessionId}/messages`);
             if (response.data.success) {
                 setActiveAdminChat({
                     sessionId: session.sessionId,
@@ -34,11 +33,12 @@ function ChatManagement() {
         setActiveAdminChat({ sessionId: null, participantName: null, messages: [] });
     };
 
-    // --- THIS FUNCTION IS NOW RESTORED ---
     const handleSessionStatusChange = async (sessionId, action) => {
         try {
-            // We call the same API endpoint as before
-            await API.post(`/api/admin/chat/sessions/${sessionId}/${action}`);
+            // --- THIS IS THE CORRECTED LINE ---
+            // The extra '/api' is removed. The axios instance will add it correctly.
+            await API.post(`/admin/chat/sessions/${sessionId}/${action}`);
+            
             // On success, we tell React Query the list is stale
             await queryClient.invalidateQueries({ queryKey: ['chatSessions'] });
         } catch (err) {
@@ -93,13 +93,10 @@ function ChatManagement() {
                                 </div>
                                 <div className="chat-actions">
                                     <button onClick={() => handleViewChat(session)} className="btn btn-sm btn-secondary-action">View Chat</button>
-                                    
-                                    {/* --- THESE BUTTONS ARE NOW RESTORED --- */}
                                     {session.status !== 'resolved' && (
                                         <button onClick={() => handleSessionStatusChange(session.sessionId, 'resolve')} className="btn btn-sm btn-success-action">Resolve</button>
                                     )}
                                     <button onClick={() => handleSessionStatusChange(session.sessionId, 'archive')} className="btn btn-sm btn-danger-action">Archive</button>
-                                    
                                 </div>
                             </div>
                         );
