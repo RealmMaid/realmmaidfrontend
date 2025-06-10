@@ -63,7 +63,11 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
             }
 
             const isAdminMessage = msg.sender_type === 'admin';
-            const isMyMessage = currentUser && isAdminMessage && msg.admin_user_id === currentUser.id;
+            
+            // This is the updated, more robust check!
+            // It looks for both `admin_user_id` (from the DB) and `adminUserId` (from the optimistic message).
+            const isMyMessage = currentUser && isAdminMessage && (msg.admin_user_id === currentUser.id || msg.adminUserId === currentUser.id);
+
             let senderName = isMyMessage ? 'You' : (session.participantName || 'Guest');
             
             return (
@@ -82,7 +86,7 @@ const ChatModal = ({ show, onClose, session, messages, onSendMessage, isConnecte
           <div ref={messagesEndRef} />
         </div>
         <div className="typing-indicator-container">
-          {/* Typing indicator logic here */}
+          {session.isTyping && <div className="typing-indicator"><span>typing...</span></div>}
         </div>
         <div className="modal-footer">
             <form onSubmit={handleSend}>
@@ -114,7 +118,13 @@ function ChatManagement() {
 
   const sessionsArray = Object.values(adminCustomerSessions)
     .filter(s => s && s.sessionDetails)
-    .map(s => s.sessionDetails)
+    .map(s => {
+        const isPeerTyping = typingPeers[s.sessionDetails.sessionId];
+        return {
+            ...s.sessionDetails,
+            isTyping: isPeerTyping
+        }
+    })
     .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
   
   const handleViewChat = async (session) => {
@@ -168,7 +178,6 @@ function ChatManagement() {
         onSendMessage={handleAdminSendMessage}
         isConnected={isConnected}
         currentUser={currentUser}
-        typingPeers={typingPeers}
         emitStartTyping={emitStartTyping}
         emitStopTyping={emitStopTyping}
       />
@@ -194,8 +203,6 @@ function ChatManagement() {
                 } else {
                     participantDisplay = session.lastIpAddress || session.participantName || `Guest Session`;
                 }
-                
-                const isPeerTyping = typingPeers[session.sessionId];
 
                 return (
                     <div key={session.sessionId} className="card chat-session-item">
@@ -204,7 +211,7 @@ function ChatManagement() {
                             <span className="session-id">Session ID: {session.sessionId}</span>
                             <span className={`session-status status-${session.status}`}>{session.status}</span>
                             <p className="last-message">"{session.last_message_text || 'No messages yet...'}"</p>
-                            {isPeerTyping && <div className="typing-indicator"><span>typing...</span></div>}
+                            {session.isTyping && <div className="typing-indicator"><span>typing...</span></div>}
                             <small className="last-update">Last Update: {new Date(session.updated_at).toLocaleString()}</small>
                         </div>
                         <div className="chat-actions">
