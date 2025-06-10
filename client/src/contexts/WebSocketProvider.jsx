@@ -1,5 +1,7 @@
 import React, { createContext, useState, useEffect, useContext, useCallback, useRef, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+// 1. Import the toast object
+import { toast } from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth.jsx';
 import API from '../api/axios';
 import { io } from 'socket.io-client';
@@ -24,8 +26,19 @@ export const WebSocketProvider = ({ children }) => {
 
         const handleConnect = () => setIsConnected(true);
         const handleDisconnect = () => setIsConnected(false);
-
-        const invalidateChatSessions = () => queryClient.invalidateQueries({ queryKey: ['chatSessions'] });
+        
+        // --- THIS IS THE UPDATED FUNCTION ---
+        const handleNewCustomerSession = (payload) => {
+            // 2. We create a nice message using data from the event payload
+            const participantName = payload?.data?.participantName || 'A new visitor';
+            const message = `New chat started with ${participantName}.`;
+            
+            // 3. Show the toast notification!
+            toast(message, { icon: '💬' });
+            
+            // 4. Invalidate the query so the list still updates automatically
+            queryClient.invalidateQueries({ queryKey: ['chatSessions'] });
+        };
         
         const updateSessionInCache = (message) => {
             const sessionId = message.session_id;
@@ -45,8 +58,6 @@ export const WebSocketProvider = ({ children }) => {
             updateSessionInCache(message);
             setActiveAdminChat(prev => {
                 if (prev.sessionId === message.session_id && !prev.messages.some(m => m.id === message.id)) {
-                    // --- THIS IS THE FIX ---
-                    // Convert ID to string before checking .startsWith()
                     const newMessages = prev.messages.filter(m => !String(m.id).startsWith('local-'));
                     return { ...prev, messages: [...newMessages, message] };
                 }
@@ -60,7 +71,6 @@ export const WebSocketProvider = ({ children }) => {
             updateSessionInCache(message);
             setCustomerChat(prev => {
                 if (String(prev.sessionId) === String(message.session_id) && !prev.messages.some(m => m.id === message.id)) {
-                    // --- THIS IS THE FIX ---
                     const newMessages = prev.messages.filter(m => !String(m.id).startsWith('local-'));
                     return { ...prev, messages: [...newMessages, message] };
                 }
@@ -68,7 +78,6 @@ export const WebSocketProvider = ({ children }) => {
             });
             setActiveAdminChat(prev => {
                 if (prev.sessionId === message.session_id && !prev.messages.some(m => m.id === message.id)) {
-                    // --- AND THIS IS THE FIX ---
                     const newMessages = prev.messages.filter(m => !String(m.id).startsWith('local-'));
                     return { ...prev, messages: [...newMessages, message] };
                 }
@@ -87,7 +96,7 @@ export const WebSocketProvider = ({ children }) => {
         
         socket.on('connect', handleConnect);
         socket.on('disconnect', handleDisconnect);
-        socket.on('new_customer_session', invalidateChatSessions);
+        socket.on('new_customer_session', handleNewCustomerSession);
         socket.on('new_customer_message', handleNewCustomerMessage);
         socket.on('new_admin_message', handleNewAdminMessage);
         socket.on('peer_is_typing', handlePeerIsTyping);
@@ -96,41 +105,12 @@ export const WebSocketProvider = ({ children }) => {
         return () => { if (socketRef.current) socketRef.current.disconnect(); };
     }, [queryClient]);
 
-    const sendCustomerMessage = useCallback((messageText) => {
-        if (socketRef.current?.connected) {
-            const optimisticMessage = { id: `local-${Date.now()}`, message_text: messageText, sender_type: 'guest', created_at: new Date().toISOString(), session_id: customerChat.sessionId };
-            setCustomerChat(prev => ({ ...prev, messages: [...prev.messages, optimisticMessage]}));
-            socketRef.current.emit('customer_chat_message', { text: messageText });
-        }
-    }, [customerChat.sessionId]);
-
-    const sendAdminReply = useCallback((messageText, targetSessionId) => {
-        if (socketRef.current?.connected && targetSessionId && user) {
-            const optimisticMessage = { id: `local-${Date.now()}`, message_text: messageText, sender_type: 'admin', created_at: new Date().toISOString(), session_id: targetSessionId, admin_user_id: user.id };
-            setActiveAdminChat(prev => ({...prev, messages: [...prev.messages, optimisticMessage]}));
-            socketRef.current.emit('admin_to_customer_message', { text: messageText, sessionId: targetSessionId });
-        }
-    }, [user]);
-
-    const emitStartTyping = useCallback((sessionId) => {
-        if (socketRef.current?.connected) { socketRef.current.emit('start_typing', { sessionId }); }
-    }, []);
-
-    const emitStopTyping = useCallback((sessionId) => {
-        if (socketRef.current?.connected) { socketRef.current.emit('stop_typing', { sessionId }); }
-    }, []);
-
-    const value = useMemo(() => ({
-        isConnected,
-        customerChat,
-        activeAdminChat,
-        setActiveAdminChat,
-        typingPeers,
-        sendAdminReply,
-        sendCustomerMessage,
-        emitStartTyping,
-        emitStopTyping,
-    }), [isConnected, customerChat, activeAdminChat, typingPeers, sendAdminReply, sendCustomerMessage, emitStartTyping, emitStopTyping]);
+    // The rest of the file remains the same...
+    const sendCustomerMessage = useCallback((messageText) => { if (socketRef.current?.connected) { const optimisticMessage = { id: `local-${Date.now()}`, message_text: messageText, sender_type: 'guest', created_at: new Date().toISOString(), session_id: customerChat.sessionId }; setCustomerChat(prev => ({ ...prev, messages: [...prev.messages, optimisticMessage]})); socketRef.current.emit('customer_chat_message', { text: messageText }); } }, [customerChat.sessionId]);
+    const sendAdminReply = useCallback((messageText, targetSessionId) => { if (socketRef.current?.connected && targetSessionId && user) { const optimisticMessage = { id: `local-${Date.now()}`, message_text: messageText, sender_type: 'admin', created_at: new Date().toISOString(), session_id: targetSessionId, admin_user_id: user.id }; setActiveAdminChat(prev => ({...prev, messages: [...prev.messages, optimisticMessage]})); socketRef.current.emit('admin_to_customer_message', { text: messageText, sessionId: targetSessionId }); } }, [user]);
+    const emitStartTyping = useCallback((sessionId) => { if (socketRef.current?.connected) { socketRef.current.emit('start_typing', { sessionId }); } }, []);
+    const emitStopTyping = useCallback((sessionId) => { if (socketRef.current?.connected) { socketRef.current.emit('stop_typing', { sessionId }); } }, []);
+    const value = useMemo(() => ({ isConnected, customerChat, activeAdminChat, setActiveAdminChat, typingPeers, sendAdminReply, sendCustomerMessage, emitStartTyping, emitStopTyping }), [isConnected, customerChat, activeAdminChat, typingPeers, sendAdminReply, sendCustomerMessage, emitStartTyping, emitStopTyping]);
 
     return (<WebSocketContext.Provider value={value}> {children} </WebSocketContext.Provider>);
 };
