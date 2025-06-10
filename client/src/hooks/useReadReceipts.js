@@ -56,13 +56,18 @@ export const useReadReceipts = (messages, sessionId) => {
 
             let isMyMessage = false;
             if (currentUser) {
+                // --- THIS IS THE FIX ---
+                // We now check for both `admin_user_id` and `adminUserId` to correctly
+                // identify if the message was sent by the currently logged-in admin.
                 isMyMessage = message.sender_type === 'admin' 
-                    ? message.admin_user_id === currentUser.id 
+                    ? (message.admin_user_id === currentUser.id || message.adminUserId === currentUser.id)
                     : message.user_id === currentUser.id;
             } else {
+                // This logic correctly identifies messages sent by a guest user.
                 isMyMessage = message.sender_type === 'guest';
             }
 
+            // This condition ensures we only observe unread messages that are NOT our own.
             if (!message.read_at && !isMyMessage && !observedMessageIds.current.has(messageId)) {
                 observer.current.observe(node);
                 observedMessageIds.current.add(messageId);
