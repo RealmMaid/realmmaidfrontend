@@ -23,10 +23,14 @@ export const AuthProvider = ({ children }) => {
                     setUser(data.user);
                 }
             } catch (error) {
-                if (error.name !== 'AbortError') {
-                    console.error("AuthProvider: The session check API call failed.", error);
-                }
+                // --- THIS IS THE FIX! ---
+                // If the session check fails (e.g., the server is asleep),
+                // we'll log the error but we WON'T crash.
+                // We'll just assume the user is logged out for now.
+                console.error("AuthProvider: Session check failed (server might be starting up).", error);
+                setUser(null);
             } finally {
+                // This will now always run, even on an error, making the app load.
                 if (!signal.aborted) {
                     console.log("AuthProvider: Finalizing auth check, setting loading to false.");
                     setAuthLoading(false);
@@ -92,10 +96,6 @@ export const AuthProvider = ({ children }) => {
 
     return (
         <AuthContext.Provider value={value}>
-            {/* --- THIS IS THE FIX! --- */}
-            {/* We now ALWAYS render the children components. */}
-            {/* Other parts of your app (like MainLayout) will use */}
-            {/* the 'isAuthLoading' value to decide what to show! */}
             {children}
         </AuthContext.Provider>
     );
