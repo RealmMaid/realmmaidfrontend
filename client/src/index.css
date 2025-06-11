@@ -796,6 +796,97 @@ input:focus, textarea:focus {
     background-color: #3a2d4a;
     border-color: #8a2be2;
 }
+/* ==================================================================== */
+/* ABILITY BAR STYLES */
+/* ==================================================================== */
+
+.ability-bar {
+  padding: 0.5rem 1rem;
+  margin-top: 1rem;
+}
+
+.ability-button {
+  position: relative;
+  width: 100%;
+  padding: 0.75rem;
+  background-color: #222;
+  border: 2px solid #8a2be2;
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  overflow: hidden; /* Important for the cooldown overlay */
+}
+
+.ability-button:hover:not(:disabled) {
+  border-color: #a14be2;
+  transform: translateY(-2px);
+}
+
+.ability-button:disabled {
+  cursor: not-allowed;
+  filter: grayscale(80%);
+  color: #777;
+}
+
+.ability-info {
+  text-align: left;
+}
+
+.ability-info strong {
+  font-size: 1.1rem;
+}
+
+.ability-info small {
+  display: block;
+  font-size: 0.8rem;
+  color: #ccc;
+}
+
+.cooldown-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  backdrop-filter: blur(2px);
+}
+
+.cooldown-text {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #fff;
+  text-shadow: 0 0 5px black;
+}
+
+
+/* ==================================================================== */
+/* SPECIAL FLOATING NUMBER STYLES */
+/* ==================================================================== */
+
+.floating-number.slam-damage {
+    font-size: 2.5rem;
+    color: #ff4500; /* Bright orange for big damage */
+    font-weight: bold;
+    animation-duration: 1.5s;
+    text-shadow: 0 0 10px white;
+}
+
+.floating-number.fame-gain {
+    color: #ffd700; /* Gold for fame */
+    animation-duration: 1.2s;
+}
+.floating-number.fame-gain::before {
+    content: '+';
+}
+.floating-number.fame-gain::after {
+    content: ' Fame';
+    font-size: 0.8rem;
+}
 .badge.verified { background-color: #2ecc71; }
 .badge.not-verified { background-color: #e74c3c; }
 .badge.admin { background-color: #9b59b6; }
