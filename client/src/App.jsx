@@ -23,7 +23,7 @@ import PaymentMethods from './components/dashboard/PaymentMethods.jsx';
 import MyWishlist from './components/dashboard/MyWishlist.jsx';
 import PixelClickerGame from './components/dashboard/PixelClickerGame.jsx';
 import SpaceDodgerGame from './components/dashboard/SpaceDodgerGame.jsx';
-import PhaserGame from './PhaserGame';
+import PhaserGame from './components/dashboard/PhaserGame';
 
 
 function App() {
