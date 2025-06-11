@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { v4 as uuidv4 } from 'uuid'; // ✨ NEW: Import our little ID generator! ✨
+import React, { useState, useEffect, useRef } from 'react'; // ✨ Add useRef to our imports! ✨
+import { v4 as uuidv4 } from 'uuid';
 
-// Added constants for our new projectiles!
+// Constants are all the same!
 const GAME_WIDTH = 800;
 const GAME_HEIGHT = 600;
 const PLAYER_WIDTH = 60;
@@ -21,14 +21,22 @@ function SpaceDodgerGame() {
         direction: 'right',
     });
     const [keysPressed, setKeysPressed] = useState({});
-    
-    // ✨ NEW: A state to hold all the active projectiles! ✨
     const [projectiles, setProjectiles] = useState([]);
 
-    // The stable game loop
+    // ✨ NEW: The "Magic Mirror" ref! ✨
+    // This will always hold the latest boss position for our timer.
+    const bossXRef = useRef(bossState.x);
+
+    // This little effect's only job is to keep our ref updated!
+    useEffect(() => {
+        bossXRef.current = bossState.x;
+    }, [bossState.x]);
+
+
+    // The stable game loop (unchanged)
     useEffect(() => {
         const gameTick = setInterval(() => {
-            // --- Player Movement Logic (unchanged) ---
+            // Player, Boss, and Projectile movement logic is all perfect!
             setPlayerX(prevX => {
                 let newX = prevX;
                 if (keysPressed['a'] || keysPressed['ArrowLeft']) { newX = prevX - PLAYER_SPEED; }
@@ -36,7 +44,6 @@ function SpaceDodgerGame() {
                 return Math.max(0, Math.min(newX, GAME_WIDTH - PLAYER_WIDTH));
             });
 
-            // --- Boss Movement Logic (unchanged) ---
             setBossState(prev => {
                 let nextX = prev.x;
                 let nextDirection = prev.direction;
@@ -50,36 +57,29 @@ function SpaceDodgerGame() {
                 return { x: nextX, direction: nextDirection };
             });
 
-            // ✨ NEW: Projectile Movement Logic! ✨
             setProjectiles(prevProjectiles => 
-                // First, move every projectile down
                 prevProjectiles.map(p => ({ ...p, y: p.y + PROJECTILE_SPEED }))
-                // Then, filter out any that have gone off the screen
                 .filter(p => p.y < GAME_HEIGHT)
             );
 
         }, 16);
         return () => clearInterval(gameTick);
-    }, [keysPressed]); // Dependency array is still stable!
+    }, [keysPressed]);
 
-    // ✨ NEW: A separate timer just for shooting! ✨
+    // ✨ UPDATED: A stable timer for shooting! ✨
     useEffect(() => {
         const shootingTick = setInterval(() => {
-            // Create a new projectile!
             const newProjectile = {
-                id: uuidv4(), // A unique ID so React doesn't get confused!
-                // Start it at the center of the boss
-                x: bossState.x + (BOSS_WIDTH / 2) - (PROJECTILE_WIDTH / 2),
-                // Start it at the bottom of the boss
-                y: BOSS_HEIGHT + 30, // The 30 is the 'top' position of the boss
+                id: uuidv4(),
+                // It reads the position from our magic mirror ref!
+                x: bossXRef.current + (BOSS_WIDTH / 2) - (PROJECTILE_WIDTH / 2),
+                y: BOSS_HEIGHT + 30,
             };
-            // Add our new projectile to the list!
             setProjectiles(prev => [...prev, newProjectile]);
-
-        }, 2000); // Shoots every 2 seconds! You can change this!
+        }, 2000);
 
         return () => clearInterval(shootingTick);
-    }, [bossState.x]); // This timer resets when the boss moves, so it always has the correct position!
+    }, []); // The empty array [] means this timer runs once and NEVER restarts! Yay!
 
     // Keyboard event listeners (unchanged)
     useEffect(() => {
@@ -93,7 +93,7 @@ function SpaceDodgerGame() {
         };
     }, []);
 
-    // Styles
+    // All the styles are the same!
     const gameAreaStyle = {
         width: `${GAME_WIDTH}px`,
         height: `${GAME_HEIGHT}px`,
@@ -105,52 +105,22 @@ function SpaceDodgerGame() {
         overflow: 'hidden',
         margin: 'auto',
     };
-    
-    const bossStyle = {
-        width: `${BOSS_WIDTH}px`,
-        height: `${BOSS_HEIGHT}px`,
-        position: 'absolute',
-        top: '30px',
-        transform: `translateX(${bossState.x}px)`,
-    };
-    
-    const playerStyle = {
-        width: `${PLAYER_WIDTH}px`,
-        height: `${PLAYER_HEIGHT}px`,
-        position: 'absolute',
-        bottom: '20px',
-        transform: `translateX(${playerX}px)`,
-    };
-
-    // ✨ NEW: A style for our projectiles! ✨
-    const projectileStyle = {
-        width: `${PROJECTILE_WIDTH}px`,
-        height: `${PROJECTILE_HEIGHT}px`,
-        backgroundColor: 'white', // ✨ Changed from 'hotpink' to 'white'!
-        borderRadius: '4px',
-        boxShadow: '0 0 15px white', // ✨ Let's make the glow white too! So pretty!
-        position: 'absolute',
-    };
-
+    const bossStyle = { width: `${BOSS_WIDTH}px`, height: `${BOSS_HEIGHT}px`, position: 'absolute', top: '30px', transform: `translateX(${bossState.x}px)`};
+    const playerStyle = { width: `${PLAYER_WIDTH}px`, height: `${PLAYER_HEIGHT}px`, position: 'absolute', bottom: '20px', transform: `translateX(${playerX}px)`};
+    const projectileStyle = { width: `${PROJECTILE_WIDTH}px`, height: `${PROJECTILE_HEIGHT}px`, backgroundColor: 'white', borderRadius: '4px', boxShadow: '0 0 15px white', position: 'absolute' };
 
     return (
         <div style={{ fontFamily: 'monospace', color: 'white', textAlign: 'center' }}>
             <h2>Space Dodger! uwu</h2>
             <div style={gameAreaStyle}>
-                {/* ✨ NEW: We draw all the projectiles here! ✨ */}
                 {projectiles.map(p => (
                     <div 
                         key={p.id} 
-                        style={{
-                            ...projectileStyle,
-                            top: `${p.y}px`,
-                            left: `${p.x}px`,
-                        }}
+                        style={{ ...projectileStyle, top: `${p.y}px`, left: `${p.x}px` }}
                     ></div>
                 ))}
-
                 <img className="game-sprite" src="/oryx.png" alt="Oryx the Mad God" style={bossStyle} />
-                <img className="game-sprite" src="/wizard.png" alt="Hero" style={playerStyle} />
+                <img className="game-sprite" src="/Warrior.png" alt="Hero" style={playerStyle} />
             </div>
         </div>
     );
