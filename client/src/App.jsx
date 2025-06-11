@@ -23,6 +23,7 @@ import PaymentMethods from './components/dashboard/PaymentMethods.jsx';
 import MyWishlist from './components/dashboard/MyWishlist.jsx';
 import PixelClickerGame from './components/dashboard/PixelClickerGame.jsx';
 import SpaceDodgerGame from './components/dashboard/SpaceDodgerGame.jsx';
+import PhaserGame from './PhaserGame';
 
 
 function App() {
@@ -50,6 +51,7 @@ function App() {
                 <Route path="payments" element={<PaymentMethods />} />
                 <Route path="wishlist" element={<MyWishlist />} />
                 <Route path="game" element={<PixelClickerGame />} />
+                <Route path="/phasergame" element={<PhaserGame />} />
                 {/* <Route path="spacedodgegame" element={<SpaceDodgerGame />} /> <-- It used to be here! */}
             </Route>
             <Route path="/checkout" element={<CheckoutPage />} />
