@@ -45,13 +45,13 @@ function App() {
         <Route element={<ProtectedRoute />}>
             {/* This is the nested dashboard route structure */}
             <Route path="/dashboard" element={<UserDashboardPage />}>
-              <Route index element={<Navigate to="orders" replace />} />
+              {/*<Route index element={<Navigate to="orders" replace />} />
               <Route path="orders" element={<MyOrders />} />
               <Route path="settings"element={<ProfileSettings />} />
               <Route path="payments" element={<PaymentMethods />} />
               <Route path="wishlist" element={<MyWishlist />} />
-              {/* --- CHANGE: Added the route for your game --- */}
-              <Route path="game" element={<PixelClickerGame />} />
+              {/* --- CHANGE: Added the route for your game --- 
+              <Route path="game" element={<PixelClickerGame />} />*/}
               <Route path="spacedodgegame" element={<SpaceDodgerGame />} />
             </Route>
             <Route path="/checkout" element={<CheckoutPage />} />
