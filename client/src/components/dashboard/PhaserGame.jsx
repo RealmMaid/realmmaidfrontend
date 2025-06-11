@@ -27,7 +27,7 @@ function PhaserGame() {
         // ✨ UPDATED: The preload function! ✨
         function preload() {
             // We tell Phaser to load our image and give it a cute nickname, 'player'!
-            this.load.image('player', '/Warrior.png'); // Make sure this path is correct!
+            this.load.image('player', '/wizard.png'); // Make sure this path is correct!
         }
 
         // ✨ UPDATED: The create function! ✨
