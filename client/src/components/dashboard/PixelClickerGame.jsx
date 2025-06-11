@@ -2,98 +2,782 @@ import React, { useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { achievements } from './achievements';
 
+// ====================================================================
 // CONFIG & DATA
-const OFFLINE_EFFICIENCY_RATE = 0.50; // 50% of normal DPS while offline
+// ====================================================================
+
+const OFFLINE_EFFICIENCY_RATE = 0.25; // 50% of normal DPS while offline
 const MAX_OFFLINE_SECONDS = 2 * 24 * 60 * 60; // Max offline time is 2 days
 
-const classes = [ { id: 'Warrior', name: 'Warrior', image: '/warrior.png', }, { id: 'Wizard', name: 'Wizard', image: '/wizard.png', }, { id: 'Sorcerer', name: 'Sorcerer', image: '/sorcerer.png', }, ];
-const classUpgrades = { stage1: { Warrior: [ { id: 'item1', name: 'Skysplitter Sword', image: '/skysplittersword.png', cost: 40, minBonus: 3, maxBonus: 6, type: 'perClick' }, { id: 'item2', name: 'Golden Helm', image: '/goldenhelm.png', cost: 220, value: 3, type: 'perSecond', clickBonus: 2 }, { id: 'item3', name: 'Ring of Exalted Dexterity', image: '/ringofexalteddexterity.png', cost: 700, value: 8, type: 'perSecond', clickBonus: 4 }, ], Wizard: [ { id: 'item1', name: 'Staff of Astral Knowledge', image: '/staffofastralknowledge.png', cost: 45, minBonus: 1, maxBonus: 9, type: 'perClick' }, { id: 'item2', name: 'Magic Nova Spell', image: '/magicnovaspell.png', cost: 250, value: 4, type: 'perSecond', clickBonus: 1 }, { id: 'item3', name: 'Ring of Exalted Mana', image: '/ringofexaltedattack.png', cost: 750, value: 9, type: 'perSecond', clickBonus: 3 }, ], Sorcerer: [ { id: 'item1', name: 'Wand of Ancient Warning', image: '/woaw.png', cost: 50, minBonus: 4, maxBonus: 4, type: 'perClick' }, { id: 'item2', name: 'Scepter of Skybolts', image: '/sos.png', cost: 200, value: 5, type: 'perSecond', clickBonus: 1 }, { id: 'item3', name: 'Ring of Exalted Attack', image: '/ringofexaltedattack.png', cost: 800, value: 12, type: 'perSecond', clickBonus: 2 }, ], }, stage2: { Warrior: [ { id: 'item4', name: 'Sword of Acclaim', image: '/soa.png', cost: 8000, minBonus: 40, maxBonus: 70, type: 'perClick' }, { id: 'item5', name: 'Helm of the Great General', image: '/hotgg.png', cost: 45000, value: 250, type: 'perSecond', clickBonus: 25 }, { id: 'item6', name: 'Ring of Unbound Attack', image: '/ringofunboundattack.png', cost: 120000, value: 600, type: 'perSecond', clickBonus: 60 }, ], Wizard: [ { id: 'item4', name: 'Staff of the Cosmic Whole', image: '/sotcw.png', cost: 9000, minBonus: 20, maxBonus: 120, type: 'perClick' }, { id: 'item5', name: 'Elemental Detonation Spell', image: '/eds.png', cost: 50000, value: 300, type: 'perSecond', clickBonus: 20 }, { id: 'item6', name: 'Ring of Unbound Dexterity', image: '/ringofunbounddexterity.png', cost: 135000, value: 650, type: 'perSecond', clickBonus: 55 }, ], Sorcerer: [ { id: 'item4', name: 'Wand of Recompense', image: '/wor.png', cost: 10000, minBonus: 55, maxBonus: 55, type: 'perClick' }, { id: 'item5', name: 'Scepter of Storms', image: '/sos.png', cost: 40000, value: 350, type: 'perSecond', clickBonus: 22 }, { id: 'item6', name: 'Ring of Unbound Attack', image: '/ringofunbounddexterity.png', cost: 150000, value: 800, type: 'perSecond', clickBonus: 40 }, ], }, stage3: { Warrior: [ { id: 'item7', name: 'Pirate Kings Cutlass', image: '/pkc.png', cost: 350000, minBonus: 300, maxBonus: 600, type: 'perClick' }, { id: 'item8', name: 'Hivemaster Helm', image: '/hivehelm.png', cost: 800000, value: 2500, type: 'perSecond', clickBonus: 200 }, { id: 'item9', name: 'Battalion Banner', image: '/bb.png', cost: 2000000, value: 7000, type: 'perSecond', clickBonus: 500 }, ], Wizard: [ { id: 'item7', name: 'Superior', image: '/superior.png', cost: 400000, minBonus: 150, maxBonus: 850, type: 'perClick' }, { id: 'item8', name: 'Genesis Spell', image: '/gs.png', cost: 900000, value: 3000, type: 'perSecond', clickBonus: 150 }, { id: 'item9', name: 'Chancellors Cranium', image: '/cc.png', cost: 2200000, value: 7500, type: 'perSecond', clickBonus: 450 }, ], Sorcerer: [ { id: 'item7', name: 'Lumiaire', image: '/lumi.png', cost: 450000, minBonus: 400, maxBonus: 400, type: 'perClick' }, { id: 'item8', name: 'Scepter of Devastation', image: '/sod.png', cost: 750000, value: 3500, type: 'perSecond', clickBonus: 180 }, { id: 'item9', name: 'Divine Coronation', image: '/dc.png', cost: 2500000, value: 10000, type: 'perSecond', clickBonus: 400 }, ], }, };
-const bosses = [ { id: 'oryx1', name: 'Oryx the Mad God', images: ['/oryx.png'], clickThreshold: 45000, clickSound: '/oryxhit.mp3', breakSound: '/oryxdeath.mp3', portalImage: '/winecellar.png', healThresholds: [{ percent: 50, amount: 10000 }], temporaryUpgrades: [ { id: 'temp_sharp_1', name: 'Sharpened Blade', cost: 1500, clickBonus: 5 }, { id: 'temp_power_1', name: 'Power Crystal', cost: 7500, clickBonus: 30 }, ] }, { id: 'oryx2', name: 'Oryx the Mad God 2', images: ['/oryx2.png'], clickThreshold: 100000, clickSound: '/oryxhit.mp3', breakSound: '/oryxdeath.mp3', portalImage: '/oryxchamber.png', healThresholds: [{ percent: 75, amount: 20000 }, { percent: 40, amount: 25000 }], temporaryUpgrades: [ { id: 'temp_ench_2', name: 'Minor Enchantment', cost: 25000, clickBonus: 150 }, { id: 'temp_bless_2', name: 'Godly Blessing', cost: 100000, clickBonus: 650 }, ] }, { id: 'oryx3', name: 'Oryx the Mad God 3', images: ['/oryx3.png'], clickThreshold: 562500, clickSound: '/oryxhit.mp3', breakSound: '/oryxdeath.mp3', portalImage: null, healThresholds: [{ percent: 80, amount: 100000 }, { percent: 60, amount: 125000 }, { percent: 30, amount: 150000 }], temporaryUpgrades: [ { id: 'temp_soul_3', name: 'Soul-Forged Edge', cost: 400000, clickBonus: 3000 }, { id: 'temp_exalt_3', name: 'Exalted Strike', cost: 1500000, clickBonus: 12500 }, ] }, { id: 'oryxexalted', name: 'Oryx the Mad God Exalted', images: ['/oryxexalted.png'], clickThreshold: 1250000, clickSound: '/oryxhit.mp3', breakSound: '/oryxdeath.mp3', portalImage: null, healThresholds: [], temporaryUpgrades: [ { id: 'temp_celestial_4', name: 'Celestial Shard', cost: 5000000, clickBonus: 40000 }, { id: 'temp_divine_4', name: 'Divine Intervention', cost: 25000000, clickBonus: 200000 }, ] }, ];
-const prestigeUpgrades = [ { id: 'permanentDamage', name: 'Exalted Power', description: 'Permanently increase all damage by 10% per level.', cost: 1, type: 'damage_multiplier' }, { id: 'permanentFame', name: 'Exalted Wealth', description: 'Start each new run with 1000 Fame per level.', cost: 2, type: 'starting_score' }, { id: 'permanentPPS', name: 'Exalted Will', description: 'Permanently gain 50 DPS per level.', cost: 3, type: 'starting_pps' } ];
-const GAME_PHASES = { CLASS_SELECTION: 'classSelection', CLICKING: 'clicking', TRANSITIONING: 'transitioning', PORTAL: 'portal', FINISHED: 'finished', EXALTED_TRANSITION: 'exalted_transition', };
-const SAVE_GAME_KEY = 'realmmaid-clicker-game-save';
-const defaultState = { score: 0, pointsPerSecond: 0, currentBossIndex: 0, clicksOnCurrentBoss: 0, upgradesOwned: {}, playerClass: null, triggeredHeals: {}, exaltedShards: 0, prestigeUpgradesOwned: {}, temporaryUpgradesOwned: {}, totalClicks: 0, totalFameEarned: 0, bossesDefeated: {}, unlockedAchievements: {}, hasPrestiged: false, lastSavedTimestamp: null, };
+const classes = [
+  { id: 'Warrior', name: 'Warrior', image: '/warrior.png' },
+  { id: 'Wizard', name: 'Wizard', image: '/wizard.png' },
+  { id: 'Sorcerer', name: 'Sorcerer', image: '/sorcerer.png' },
+];
 
-function formatTime(totalSeconds) { const days = Math.floor(totalSeconds / 86400); totalSeconds %= 86400; const hours = Math.floor(totalSeconds / 3600); totalSeconds %= 3600; const minutes = Math.floor(totalSeconds / 60); const seconds = totalSeconds % 60; let parts = []; if (days > 0) parts.push(`${days} day${days > 1 ? 's' : ''}`); if (hours > 0) parts.push(`${hours} hour${hours > 1 ? 's' : ''}`); if (minutes > 0) parts.push(`${minutes} minute${minutes > 1 ? 's' : ''}`); if (seconds > 0 || parts.length === 0) parts.push(`${seconds} second${seconds !== 1 ? 's' : ''}`); return parts.join(', '); }
+const classUpgrades = {
+  // Stage 1: For Oryx 1 - Costs slightly reduced to speed up the very beginning.
+  stage1: {
+    Warrior: [
+      { id: 'item1', name: 'Skysplitter Sword', image: '/skysplittersword.png', cost: 35, minBonus: 3, maxBonus: 6, type: 'perClick' },
+      { id: 'item2', name: 'Golden Helm', image: '/goldenhelm.png', cost: 200, value: 3, type: 'perSecond', clickBonus: 2 },
+      { id: 'item3', name: 'Ring of Exalted Dexterity', image: '/ringofexalteddexterity.png', cost: 650, value: 8, type: 'perSecond', clickBonus: 4 },
+    ],
+    Wizard: [
+      { id: 'item1', name: 'Staff of Astral Knowledge', image: '/staffofastralknowledge.png', cost: 40, minBonus: 1, maxBonus: 9, type: 'perClick' },
+      { id: 'item2', name: 'Magic Nova Spell', image: '/magicnovaspell.png', cost: 225, value: 4, type: 'perSecond', clickBonus: 1 },
+      { id: 'item3', name: 'Ring of Exalted Mana', image: '/ringofexaltedattack.png', cost: 700, value: 9, type: 'perSecond', clickBonus: 3 },
+    ],
+    Sorcerer: [
+      { id: 'item1', name: 'Wand of Ancient Warning', image: '/woaw.png', cost: 50, minBonus: 4, maxBonus: 4, type: 'perClick' },
+      { id: 'item2', name: 'Scepter of Skybolts', image: '/sos.png', cost: 180, value: 5, type: 'perSecond', clickBonus: 1 },
+      { id: 'item3', name: 'Ring of Exalted Attack', image: '/ringofexaltedattack.png', cost: 750, value: 12, type: 'perSecond', clickBonus: 2 },
+    ],
+  },
+  // Stage 2: For Oryx 2 - Costs increased to create strategic tension with temporary boosts.
+  stage2: {
+    Warrior: [
+      { id: 'item4', name: 'Sword of Acclaim', image: '/soa.png', cost: 12000, minBonus: 40, maxBonus: 70, type: 'perClick' },
+      { id: 'item5', name: 'Helm of the Great General', image: '/hotgg.png', cost: 55000, value: 250, type: 'perSecond', clickBonus: 25 },
+      { id: 'item6', name: 'Ring of Unbound Attack', image: '/ringofunboundattack.png', cost: 160000, value: 600, type: 'perSecond', clickBonus: 60 },
+    ],
+    Wizard: [
+      { id: 'item4', name: 'Staff of the Cosmic Whole', image: '/sotcw.png', cost: 13500, minBonus: 20, maxBonus: 120, type: 'perClick' },
+      { id: 'item5', name: 'Elemental Detonation Spell', image: '/eds.png', cost: 60000, value: 300, type: 'perSecond', clickBonus: 20 },
+      { id: 'item6', name: 'Ring of Unbound Dexterity', image: '/ringofunbounddexterity.png', cost: 175000, value: 650, type: 'perSecond', clickBonus: 55 },
+    ],
+    Sorcerer: [
+      { id: 'item4', name: 'Wand of Recompense', image: '/wor.png', cost: 15000, minBonus: 55, maxBonus: 55, type: 'perClick' },
+      { id: 'item5', name: 'Scepter of Storms', image: '/sos.png', cost: 50000, value: 350, type: 'perSecond', clickBonus: 22 },
+      { id: 'item6', name: 'Ring of Unbound Attack', image: '/ringofunbounddexterity.png', cost: 180000, value: 800, type: 'perSecond', clickBonus: 40 },
+    ],
+  },
+  // Stage 3: For Oryx 3 and Exalted Oryx - Costs adjusted for the end-game grind.
+  stage3: {
+    Warrior: [
+      { id: 'item7', name: 'Pirate Kings Cutlass', image: '/pkc.png', cost: 450000, minBonus: 300, maxBonus: 600, type: 'perClick' },
+      { id: 'item8', name: 'Hivemaster Helm', image: '/hivehelm.png', cost: 950000, value: 2500, type: 'perSecond', clickBonus: 200 },
+      { id: 'item9', name: 'Battalion Banner', image: '/bb.png', cost: 2250000, value: 7000, type: 'perSecond', clickBonus: 500 },
+    ],
+    Wizard: [
+      { id: 'item7', name: 'Superior', image: '/superior.png', cost: 500000, minBonus: 150, maxBonus: 850, type: 'perClick' },
+      { id: 'item8', name: 'Genesis Spell', image: '/gs.png', cost: 1100000, value: 3000, type: 'perSecond', clickBonus: 150 },
+      { id: 'item9', name: 'Chancellors Cranium', image: '/cc.png', cost: 2500000, value: 7500, type: 'perSecond', clickBonus: 450 },
+    ],
+    Sorcerer: [
+      { id: 'item7', name: 'Lumiaire', image: '/lumi.png', cost: 550000, minBonus: 400, maxBonus: 400, type: 'perClick' },
+      { id: 'item8', name: 'Scepter of Devastation', image: '/sod.png', cost: 900000, value: 3500, type: 'perSecond', clickBonus: 180 },
+      { id: 'item9', name: 'Divine Coronation', image: '/dc.png', cost: 2800000, value: 10000, type: 'perSecond', clickBonus: 400 },
+    ],
+  },
+};
+
+const bosses = [
+    {
+        id: 'oryx1',
+        name: 'Oryx the Mad God',
+        images: ['/oryx.png'],
+        clickThreshold: 45000,
+        clickSound: '/oryxhit.mp3',
+        breakSound: '/oryxdeath.mp3',
+        portalImage: '/winecellar.png',
+        healThresholds: [{ percent: 50, amount: 10000 }],
+        temporaryUpgrades: [
+            { id: 'temp_sharp_1', name: 'Sharpened Blade', cost: 1500, clickBonus: 5 },
+            { id: 'temp_power_1', name: 'Power Crystal', cost: 7500, clickBonus: 30 },
+        ]
+    },
+    {
+        id: 'oryx2',
+        name: 'Oryx the Mad God 2',
+        images: ['/oryx2.png'],
+        clickThreshold: 100000,
+        clickSound: '/oryxhit.mp3',
+        breakSound: '/oryxdeath.mp3',
+        portalImage: '/oryxchamber.png',
+        healThresholds: [{ percent: 75, amount: 20000 }, { percent: 40, amount: 25000 }],
+        temporaryUpgrades: [
+            { id: 'temp_ench_2', name: 'Minor Enchantment', cost: 25000, clickBonus: 150 },
+            { id: 'temp_bless_2', name: 'Godly Blessing', cost: 100000, clickBonus: 650 },
+        ]
+    },
+    {
+        id: 'oryx3',
+        name: 'Oryx the Mad God 3',
+        images: ['/oryx3.png'],
+        clickThreshold: 562500,
+        clickSound: '/oryxhit.mp3',
+        breakSound: '/oryxdeath.mp3',
+        portalImage: null,
+        healThresholds: [{ percent: 80, amount: 100000 }, { percent: 60, amount: 125000 }, { percent: 30, amount: 150000 }],
+        temporaryUpgrades: [
+            { id: 'temp_soul_3', name: 'Soul-Forged Edge', cost: 400000, clickBonus: 3000 },
+            { id: 'temp_exalt_3', name: 'Exalted Strike', cost: 1500000, clickBonus: 12500 },
+        ]
+    },
+    {
+        id: 'oryxexalted',
+        name: 'Oryx the Mad God Exalted',
+        images: ['/oryxexalted.png'],
+        clickThreshold: 1250000,
+        clickSound: '/oryxhit.mp3',
+        breakSound: '/oryxdeath.mp3',
+        portalImage: null,
+        healThresholds: [],
+        temporaryUpgrades: [
+            { id: 'temp_celestial_4', name: 'Celestial Shard', cost: 5000000, clickBonus: 40000 },
+            { id: 'temp_divine_4', name: 'Divine Intervention', cost: 25000000, clickBonus: 200000 },
+        ]
+    },
+];
+
+const prestigeUpgrades = [
+    {
+        id: 'permanentDamage',
+        name: 'Exalted Power',
+        description: 'Permanently increase all damage by 10% per level.',
+        cost: 1,
+        type: 'damage_multiplier'
+    },
+    {
+        id: 'permanentFame',
+        name: 'Exalted Wealth',
+        description: 'Start each new run with 1000 Fame per level.',
+        cost: 2,
+        type: 'starting_score'
+    },
+    {
+        id: 'permanentPPS',
+        name: 'Exalted Will',
+        description: 'Permanently gain 50 DPS per level.',
+        cost: 3,
+        type: 'starting_pps'
+    }
+];
+
+const GAME_PHASES = {
+    CLASS_SELECTION: 'classSelection',
+    CLICKING: 'clicking',
+    TRANSITIONING: 'transitioning',
+    PORTAL: 'portal',
+    FINISHED: 'finished',
+    EXALTED_TRANSITION: 'exalted_transition',
+};
+
+const SAVE_GAME_KEY = 'realmmaid-clicker-game-save';
+
+const defaultState = {
+    score: 0,
+    pointsPerSecond: 0,
+    currentBossIndex: 0,
+    clicksOnCurrentBoss: 0,
+    upgradesOwned: {},
+    playerClass: null,
+    triggeredHeals: {},
+    exaltedShards: 0,
+    prestigeUpgradesOwned: {},
+    temporaryUpgradesOwned: {},
+    // -- Achievement & Offline Stats --
+    totalClicks: 0,
+    totalFameEarned: 0,
+    bossesDefeated: {},
+    unlockedAchievements: {},
+    hasPrestiged: false,
+    lastSavedTimestamp: null,
+};
+
+function formatTime(totalSeconds) {
+    const days = Math.floor(totalSeconds / 86400);
+    totalSeconds %= 86400;
+    const hours = Math.floor(totalSeconds / 3600);
+    totalSeconds %= 3600;
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    let parts = [];
+    if (days > 0) parts.push(`${days} day${days > 1 ? 's' : ''}`);
+    if (hours > 0) parts.push(`${hours} hour${hours > 1 ? 's' : ''}`);
+    if (minutes > 0) parts.push(`${minutes} minute${minutes > 1 ? 's' : ''}`);
+    if (seconds > 0 || parts.length === 0) parts.push(`${seconds} second${seconds !== 1 ? 's' : ''}`);
+
+    return parts.join(', ');
+}
 
 function PixelClickerGame() {
     const [offlineProgress, setOfflineProgress] = useState(null);
-    const [gameState, setGameState] = useState(() => { const savedGame = localStorage.getItem(SAVE_GAME_KEY); if (savedGame) { let loadedData = JSON.parse(savedGame); if (loadedData.lastSavedTimestamp && loadedData.pointsPerSecond > 0) { const now = Date.now(); const secondsOffline = Math.min(Math.floor((now - loadedData.lastSavedTimestamp) / 1000), MAX_OFFLINE_SECONDS); if (secondsOffline > 10) { const offlineEarnings = Math.floor(secondsOffline * loadedData.pointsPerSecond * OFFLINE_EFFICIENCY_RATE); loadedData.score += offlineEarnings; loadedData.totalFameEarned += offlineEarnings; setOfflineProgress({ secondsOffline, offlineEarnings }); } } if (loadedData.playerClass && loadedData.playerClass === loadedData.playerClass.toLowerCase()) { loadedData.playerClass = loadedData.playerClass.charAt(0).toUpperCase() + loadedData.playerClass.slice(1); } const loadedState = { ...defaultState, ...loadedData }; delete loadedState.pointsPerClick; return loadedState; } return defaultState; });
+    const [gameState, setGameState] = useState(() => {
+        const savedGame = localStorage.getItem(SAVE_GAME_KEY);
+        if (savedGame) {
+            let loadedData = JSON.parse(savedGame);
+            if (loadedData.lastSavedTimestamp && loadedData.pointsPerSecond > 0) {
+                const now = Date.now();
+                const secondsOffline = Math.min(Math.floor((now - loadedData.lastSavedTimestamp) / 1000), MAX_OFFLINE_SECONDS);
+                if (secondsOffline > 10) {
+                    const offlineEarnings = Math.floor(secondsOffline * loadedData.pointsPerSecond * OFFLINE_EFFICIENCY_RATE);
+                    loadedData.score += offlineEarnings;
+                    loadedData.totalFameEarned += offlineEarnings;
+                    setOfflineProgress({ secondsOffline, offlineEarnings });
+                }
+            }
+            if (loadedData.playerClass && loadedData.playerClass === loadedData.playerClass.toLowerCase()) {
+                loadedData.playerClass = loadedData.playerClass.charAt(0).toUpperCase() + loadedData.playerClass.slice(1);
+            }
+            const loadedState = { ...defaultState, ...loadedData };
+            delete loadedState.pointsPerClick;
+            return loadedState;
+        }
+        return defaultState;
+    });
+
     const [gamePhase, setGamePhase] = useState(gameState.playerClass ? GAME_PHASES.CLICKING : GAME_PHASES.CLASS_SELECTION);
     const [gameWon, setGameWon] = useState(false);
     const [floatingNumbers, setFloatingNumbers] = useState([]);
     const [isShaking, setIsShaking] = useState(false);
     const [floatingHeals, setFloatingHeals] = useState([]);
     const [isHealing, setIsHealing] = useState(false);
-    const [isInvulnerable, setIsInvulnerable] = useState(false); 
+    const [isInvulnerable, setIsInvulnerable] = useState(false);
     const [activeShop, setActiveShop] = useState('upgrades');
     const [achievementAlerts, setAchievementAlerts] = useState([]);
     const gemButtonRef = useRef(null);
+    
     const currentBoss = bosses[gameState.currentBossIndex];
     const bossStage = `stage${Math.min(gameState.currentBossIndex + 1, 3)}`;
     const currentUpgrades = classUpgrades[bossStage]?.[gameState.playerClass] || [];
 
-    useEffect(() => { const stateToSave = { ...gameState, lastSavedTimestamp: Date.now() }; localStorage.setItem(SAVE_GAME_KEY, JSON.stringify(stateToSave)); }, [gameState]);
-    useEffect(() => { const newUnlocks = []; for (const ach of achievements) { if (!gameState.unlockedAchievements[ach.id] && ach.isUnlocked(gameState)) { newUnlocks.push(ach); } } if (newUnlocks.length > 0) { setGameState(prev => ({ ...prev, unlockedAchievements: { ...prev.unlockedAchievements, ...newUnlocks.reduce((obj, ach) => { obj[ach.id] = true; return obj; }, {}) } })); setAchievementAlerts(prev => [...prev, ...newUnlocks]); } }, [gameState.totalClicks, gameState.totalFameEarned, gameState.bossesDefeated, gameState.hasPrestiged]);
-    useEffect(() => { if (gamePhase !== GAME_PHASES.CLICKING || isHealing) return; const interval = setInterval(() => { setGameState(prev => ({ ...prev, score: prev.score + prev.pointsPerSecond, totalFameEarned: prev.totalFameEarned + prev.pointsPerSecond, })); }, 1000); return () => clearInterval(interval); }, [gameState.pointsPerSecond, gamePhase, isHealing]);
-    useEffect(() => { if (!currentBoss || gamePhase !== GAME_PHASES.CLICKING || isHealing) return; if (gameState.clicksOnCurrentBoss >= currentBoss.clickThreshold) { setGameState(prev => ({ ...prev, bossesDefeated: { ...prev.bossesDefeated, [currentBoss.id]: (prev.bossesDefeated[currentBoss.id] || 0) + 1 } })); if (currentBoss.id === 'oryx3') { setGamePhase(GAME_PHASES.EXALTED_TRANSITION); return; } new Audio(currentBoss.breakSound).play(); if (gameState.currentBossIndex === bosses.length - 1) { setGameWon(true); setGamePhase(GAME_PHASES.FINISHED); } else { setGamePhase(GAME_PHASES.TRANSITIONING); } } }, [gameState.clicksOnCurrentBoss, gameState.currentBossIndex, currentBoss, gamePhase, isHealing]);
-    useEffect(() => { if (gamePhase === GAME_PHASES.TRANSITIONING) { const timer = setTimeout(() => { setGamePhase(GAME_PHASES.PORTAL); }, 4000); return () => clearTimeout(timer); } }, [gamePhase]);
-    useEffect(() => { if (gamePhase === GAME_PHASES.EXALTED_TRANSITION) { const transitionTimer = setTimeout(() => { setGameState(prev => ({ ...prev, currentBossIndex: prev.currentBossIndex + 1, clicksOnCurrentBoss: 0, temporaryUpgradesOwned: {}, })); setIsInvulnerable(true); const invulnerabilityTimer = setTimeout(() => { setIsInvulnerable(false); setGamePhase(GAME_PHASES.CLICKING); }, 2000); return () => clearTimeout(invulnerabilityTimer); }, 3000); return () => clearTimeout(transitionTimer); } }, [gamePhase]);
-    useEffect(() => { if (!currentBoss || !currentBoss.healThresholds || gamePhase !== GAME_PHASES.CLICKING || isHealing) { return; } const currentHealthPercent = 100 - (gameState.clicksOnCurrentBoss / currentBoss.clickThreshold) * 100; const triggeredHealsForBoss = gameState.triggeredHeals[currentBoss.id] || []; for (const heal of currentBoss.healThresholds) { if (currentHealthPercent <= heal.percent && !triggeredHealsForBoss.includes(heal.percent)) { setGameState(prev => ({ ...prev, triggeredHeals: { ...prev.triggeredHeals, [currentBoss.id]: [...triggeredHealsForBoss, heal.percent] } })); setIsHealing(true); let amountHealed = 0; const healPerIncrement = 2500; const healInterval = setInterval(() => { const healThisTick = Math.min(healPerIncrement, heal.amount - amountHealed); amountHealed += healThisTick; setGameState(prev => ({ ...prev, clicksOnCurrentBoss: Math.max(0, prev.clicksOnCurrentBoss - healThisTick) })); if (gemButtonRef.current) { const rect = gemButtonRef.current.getBoundingClientRect(); setFloatingHeals(current => [...current, { id: uuidv4(), value: healThisTick, x: rect.left + rect.width / 2 + (Math.random() * 80 - 40), y: rect.top + (Math.random() * 20 - 10), }]); } if (amountHealed >= heal.amount) { clearInterval(healInterval); setIsHealing(false); } }, 200); break; } } }, [gameState.clicksOnCurrentBoss, currentBoss, gamePhase, isHealing, gameState.triggeredHeals]);
+    useEffect(() => {
+        const stateToSave = { ...gameState, lastSavedTimestamp: Date.now() };
+        localStorage.setItem(SAVE_GAME_KEY, JSON.stringify(stateToSave));
+    }, [gameState]);
 
-    const handleClassSelect = (className) => { setGameState(prev => ({ ...prev, playerClass: className })); setGamePhase(GAME_PHASES.CLICKING); };
-    
-    const calculateDamageRange = () => {
-        let minDamage = 1; let maxDamage = 1;
-        currentUpgrades.forEach(upgrade => { const owned = gameState.upgradesOwned[upgrade.id] || 0; if (owned > 0) { const bonus = Math.floor(Math.pow(owned, 0.9)); if (upgrade.type === 'perClick') { minDamage += (upgrade.minBonus || 0) * bonus; maxDamage += (upgrade.maxBonus || 0) * bonus; } else if (upgrade.type === 'perSecond' && upgrade.clickBonus) { minDamage += upgrade.clickBonus * bonus; maxDamage += upgrade.clickBonus * bonus; } } });
-        if (currentBoss.temporaryUpgrades) { currentBoss.temporaryUpgrades.forEach(tempUpgrade => { const owned = gameState.temporaryUpgradesOwned[tempUpgrade.id] || 0; if (owned > 0) { const bonus = tempUpgrade.clickBonus * owned; minDamage += bonus; maxDamage += bonus; } }); }
-        const prestigeDamageBonus = gameState.prestigeUpgradesOwned['permanentDamage'] || 0;
-        const damageMultiplier = 1 + (prestigeDamageBonus * 0.10);
-        return { minDamage: Math.floor(minDamage * damageMultiplier), maxDamage: Math.floor(maxDamage * damageMultiplier) };
+    useEffect(() => {
+        const newUnlocks = [];
+        for (const ach of achievements) {
+            if (!gameState.unlockedAchievements[ach.id] && ach.isUnlocked(gameState)) {
+                newUnlocks.push(ach);
+            }
+        }
+        if (newUnlocks.length > 0) {
+            setGameState(prev => ({
+                ...prev,
+                unlockedAchievements: {
+                    ...prev.unlockedAchievements,
+                    ...newUnlocks.reduce((obj, ach) => {
+                        obj[ach.id] = true;
+                        return obj;
+                    }, {})
+                }
+            }));
+            setAchievementAlerts(prev => [...prev, ...newUnlocks]);
+        }
+    }, [gameState.totalClicks, gameState.totalFameEarned, gameState.bossesDefeated, gameState.hasPrestiged]);
+
+    useEffect(() => {
+        if (gamePhase !== GAME_PHASES.CLICKING || isHealing) return;
+        const interval = setInterval(() => {
+            setGameState(prev => ({
+                ...prev,
+                score: prev.score + prev.pointsPerSecond,
+                totalFameEarned: prev.totalFameEarned + prev.pointsPerSecond,
+            }));
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [gameState.pointsPerSecond, gamePhase, isHealing]);
+
+    useEffect(() => {
+        if (!currentBoss || gamePhase !== GAME_PHASES.CLICKING || isHealing) return;
+        if (gameState.clicksOnCurrentBoss >= currentBoss.clickThreshold) {
+            setGameState(prev => ({
+                ...prev,
+                bossesDefeated: {
+                    ...prev.bossesDefeated,
+                    [currentBoss.id]: (prev.bossesDefeated[currentBoss.id] || 0) + 1
+                }
+            }));
+            if (currentBoss.id === 'oryx3') {
+                setGamePhase(GAME_PHASES.EXALTED_TRANSITION);
+                return;
+            }
+            new Audio(currentBoss.breakSound).play();
+            if (gameState.currentBossIndex === bosses.length - 1) {
+                setGameWon(true);
+                setGamePhase(GAME_PHASES.FINISHED);
+            } else {
+                setGamePhase(GAME_PHASES.TRANSITIONING);
+            }
+        }
+    }, [gameState.clicksOnCurrentBoss, gameState.currentBossIndex, currentBoss, gamePhase, isHealing]);
+
+    useEffect(() => {
+        if (gamePhase === GAME_PHASES.TRANSITIONING) {
+            const timer = setTimeout(() => {
+                setGamePhase(GAME_PHASES.PORTAL);
+            }, 4000);
+            return () => clearTimeout(timer);
+        }
+    }, [gamePhase]);
+
+    useEffect(() => {
+        if (gamePhase === GAME_PHASES.EXALTED_TRANSITION) {
+            const transitionTimer = setTimeout(() => {
+                setGameState(prev => ({
+                    ...prev,
+                    currentBossIndex: prev.currentBossIndex + 1,
+                    clicksOnCurrentBoss: 0,
+                    temporaryUpgradesOwned: {},
+                }));
+                setIsInvulnerable(true);
+                const invulnerabilityTimer = setTimeout(() => {
+                    setIsInvulnerable(false);
+                    setGamePhase(GAME_PHASES.CLICKING);
+                }, 2000);
+                return () => clearTimeout(invulnerabilityTimer);
+            }, 3000);
+            return () => clearTimeout(transitionTimer);
+        }
+    }, [gamePhase]);
+
+    useEffect(() => {
+        if (!currentBoss || !currentBoss.healThresholds || gamePhase !== GAME_PHASES.CLICKING || isHealing) {
+            return;
+        }
+        const currentHealthPercent = 100 - (gameState.clicksOnCurrentBoss / currentBoss.clickThreshold) * 100;
+        const triggeredHealsForBoss = gameState.triggeredHeals[currentBoss.id] || [];
+        for (const heal of currentBoss.healThresholds) {
+            if (currentHealthPercent <= heal.percent && !triggeredHealsForBoss.includes(heal.percent)) {
+                setGameState(prev => ({
+                    ...prev,
+                    triggeredHeals: {
+                        ...prev.triggeredHeals,
+                        [currentBoss.id]: [...triggeredHealsForBoss, heal.percent]
+                    }
+                }));
+                setIsHealing(true);
+                let amountHealed = 0;
+                const healPerIncrement = 2500;
+                const healInterval = setInterval(() => {
+                    const healThisTick = Math.min(healPerIncrement, heal.amount - amountHealed);
+                    amountHealed += healThisTick;
+                    setGameState(prev => ({ ...prev, clicksOnCurrentBoss: Math.max(0, prev.clicksOnCurrentBoss - healThisTick) }));
+                    if (gemButtonRef.current) {
+                        const rect = gemButtonRef.current.getBoundingClientRect();
+                        setFloatingHeals(current => [...current, {
+                            id: uuidv4(),
+                            value: healThisTick,
+                            x: rect.left + rect.width / 2 + (Math.random() * 80 - 40),
+                            y: rect.top + (Math.random() * 20 - 10),
+                        }]);
+                    }
+                    if (amountHealed >= heal.amount) {
+                        clearInterval(healInterval);
+                        setIsHealing(false);
+                    }
+                }, 200);
+                break;
+            }
+        }
+    }, [gameState.clicksOnCurrentBoss, currentBoss, gamePhase, isHealing, gameState.triggeredHeals]);
+
+    const handleClassSelect = (className) => {
+        setGameState(prev => ({ ...prev, playerClass: className }));
+        setGamePhase(GAME_PHASES.CLICKING);
     };
 
-    const handleGemClick = (event) => { if (gamePhase !== GAME_PHASES.CLICKING || !currentBoss || isHealing || isInvulnerable) return; new Audio(currentBoss.clickSound).play(); const { minDamage, maxDamage } = calculateDamageRange(); const damageDealt = Math.floor(Math.random() * (maxDamage - minDamage + 1)) + minDamage; const rect = event.currentTarget.getBoundingClientRect(); setFloatingNumbers(current => [...current, { id: uuidv4(), value: damageDealt, x: rect.left + rect.width / 2 + (Math.random() * 80 - 40), y: rect.top + (Math.random() * 20 - 10), }]); setIsShaking(true); setTimeout(() => setIsShaking(false), 150); setGameState(prev => ({ ...prev, score: prev.score + damageDealt, clicksOnCurrentBoss: prev.clicksOnCurrentBoss + damageDealt, totalClicks: prev.totalClicks + 1, totalFameEarned: prev.totalFameEarned + damageDealt, })); };
-    const handleEnterPortal = () => { setGameState(prev => ({ ...prev, currentBossIndex: prev.currentBossIndex + 1, clicksOnCurrentBoss: 0, temporaryUpgradesOwned: {}, })); setGamePhase(GAME_PHASES.CLICKING); };
-    const calculateUpgradeCost = (upgrade) => { const owned = gameState.upgradesOwned[upgrade.id] || 0; return Math.floor(upgrade.cost * Math.pow(1.15, owned)); };
-    const handleBuyUpgrade = (upgrade) => { const currentCost = calculateUpgradeCost(upgrade); if (gameState.score >= currentCost) { setGameState(prev => { const newOwned = { ...prev.upgradesOwned, [upgrade.id]: (prev.upgradesOwned[upgrade.id] || 0) + 1 }; let newPps = prev.pointsPerSecond; if (upgrade.type === 'perSecond') { newPps += upgrade.value; } return { ...prev, score: prev.score - currentCost, pointsPerSecond: newPps, upgradesOwned: newOwned, }; }); } else { alert("Oopsie! Not enough points, cutie!"); } };
-    const handlePrestige = () => { const shardsToAward = Math.floor(gameState.score / 2500000); if (shardsToAward < 1) { alert("You need a higher score to prestige! Try reaching at least 2,500,000 Fame."); return; } const isConfirmed = window.confirm(`Are you sure you want to prestige? You will earn ${shardsToAward} Exalted Shards, but your Fame, upgrades, and boss progress will reset.`); if (isConfirmed) { setGameState(prev => { const startingFameLevel = prev.prestigeUpgradesOwned['permanentFame'] || 0; const startingPpsLevel = prev.prestigeUpgradesOwned['permanentPPS'] || 0; const startingScore = startingFameLevel * 1000; const startingPps = startingPpsLevel * 50; return { ...defaultState, playerClass: prev.playerClass, exaltedShards: prev.exaltedShards + shardsToAward, prestigeUpgradesOwned: prev.prestigeUpgradesOwned, score: startingScore, pointsPerSecond: startingPps, totalClicks: prev.totalClicks, totalFameEarned: prev.totalFameEarned, unlockedAchievements: prev.unlockedAchievements, bossesDefeated: {}, hasPrestiged: true, }; }); setGameWon(false); setGamePhase(GAME_PHASES.CLICKING); } };
-    const calculatePrestigeUpgradeCost = (upgrade) => { const owned = gameState.prestigeUpgradesOwned[upgrade.id] || 0; return Math.floor(upgrade.cost * Math.pow(1.5, owned)); };
-    const handleBuyPrestigeUpgrade = (upgrade) => { const cost = calculatePrestigeUpgradeCost(upgrade); if (gameState.exaltedShards >= cost) { setGameState(prev => ({ ...prev, exaltedShards: prev.exaltedShards - cost, prestigeUpgradesOwned: { ...prev.prestigeUpgradesOwned, [upgrade.id]: (prev.prestigeUpgradesOwned[upgrade.id] || 0) + 1 } })); } else { alert("Not enough Exalted Shards!"); } };
-    const handleBuyTemporaryUpgrade = (upgrade) => { const cost = Math.floor(upgrade.cost * Math.pow(1.25, gameState.temporaryUpgradesOwned[upgrade.id] || 0)); if (gameState.score >= cost) { setGameState(prev => ({ ...prev, score: prev.score - cost, temporaryUpgradesOwned: { ...prev.temporaryUpgradesOwned, [upgrade.id]: (prev.temporaryUpgradesOwned[upgrade.id] || 0) + 1, } })); } else { alert("Not enough Fame for that boost!"); } };
-    const getCurrentImage = () => { if (!currentBoss) return ''; if (gameWon) { const finalBoss = bosses[bosses.length - 1]; return finalBoss.images[finalBoss.images.length - 1]; } const stageCount = currentBoss.images.length; const progress = Math.min(gameState.clicksOnCurrentBoss / currentBoss.clickThreshold, 1); const imageIndex = Math.min(Math.floor(progress * stageCount), stageCount - 1); return currentBoss.images[imageIndex]; };
-    const getHealthPercent = () => { if (!currentBoss || gameWon) return gameWon ? 0 : 100; const percent = (gameState.clicksOnCurrentBoss / currentBoss.clickThreshold) * 100; return 100 - percent; };
-    const handleResetSave = () => { const isConfirmed = window.confirm("Are you sure you want to reset all your progress? This action cannot be undone."); if (isConfirmed) { localStorage.removeItem(SAVE_GAME_KEY); setGameState(defaultState); setGameWon(false); setGamePhase(GAME_PHASES.CLASS_SELECTION); } };
-    
-    if (gamePhase === GAME_PHASES.CLASS_SELECTION) { return ( <div className="card"> <div className="clicker-container"> <h3>Choose Your Class, Cutie!</h3> <div className="class-selection-container" style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '1rem' }}> {classes.map(pClass => ( <button key={pClass.id} className="btn-class-select" onClick={() => handleClassSelect(pClass.id)}> <img src={pClass.image} alt={pClass.name} /> <span>{pClass.name}</span> </button> ))} </div> </div> </div> ); }
-    if (!currentBoss) { return <div className="card"><p>Loading game...</p></div>; }
-    
+    const calculateDamageRange = () => {
+        let minDamage = 1;
+        let maxDamage = 1;
+
+        currentUpgrades.forEach(upgrade => {
+            const owned = gameState.upgradesOwned[upgrade.id] || 0;
+            if (owned > 0) {
+                const bonus = Math.floor(Math.pow(owned, 0.9));
+                if (upgrade.type === 'perClick') {
+                    minDamage += (upgrade.minBonus || 0) * bonus;
+                    maxDamage += (upgrade.maxBonus || 0) * bonus;
+                } else if (upgrade.type === 'perSecond' && upgrade.clickBonus) {
+                    minDamage += upgrade.clickBonus * bonus;
+                    maxDamage += upgrade.clickBonus * bonus;
+                }
+            }
+        });
+
+        if (currentBoss.temporaryUpgrades) {
+            currentBoss.temporaryUpgrades.forEach(tempUpgrade => {
+                const owned = gameState.temporaryUpgradesOwned[tempUpgrade.id] || 0;
+                if (owned > 0) {
+                    const bonus = tempUpgrade.clickBonus * owned;
+                    minDamage += bonus;
+                    maxDamage += bonus;
+                }
+            });
+        }
+
+        const prestigeDamageBonus = gameState.prestigeUpgradesOwned['permanentDamage'] || 0;
+        const damageMultiplier = 1 + (prestigeDamageBonus * 0.10);
+
+        return {
+            minDamage: Math.floor(minDamage * damageMultiplier),
+            maxDamage: Math.floor(maxDamage * damageMultiplier)
+        };
+    };
+
+    const handleGemClick = (event) => {
+        if (gamePhase !== GAME_PHASES.CLICKING || !currentBoss || isHealing || isInvulnerable) return;
+        new Audio(currentBoss.clickSound).play();
+        const { minDamage, maxDamage } = calculateDamageRange();
+        const damageDealt = Math.floor(Math.random() * (maxDamage - minDamage + 1)) + minDamage;
+        const rect = event.currentTarget.getBoundingClientRect();
+        setFloatingNumbers(current => [...current, {
+            id: uuidv4(),
+            value: damageDealt,
+            x: rect.left + rect.width / 2 + (Math.random() * 80 - 40),
+            y: rect.top + (Math.random() * 20 - 10),
+        }]);
+        setIsShaking(true);
+        setTimeout(() => setIsShaking(false), 150);
+        setGameState(prev => ({
+            ...prev,
+            score: prev.score + damageDealt,
+            clicksOnCurrentBoss: prev.clicksOnCurrentBoss + damageDealt,
+            totalClicks: prev.totalClicks + 1,
+            totalFameEarned: prev.totalFameEarned + damageDealt,
+        }));
+    };
+
+    const handleEnterPortal = () => {
+        setGameState(prev => ({
+            ...prev,
+            currentBossIndex: prev.currentBossIndex + 1,
+            clicksOnCurrentBoss: 0,
+            temporaryUpgradesOwned: {},
+        }));
+        setGamePhase(GAME_PHASES.CLICKING);
+    };
+
+    const calculateUpgradeCost = (upgrade) => {
+        const owned = gameState.upgradesOwned[upgrade.id] || 0;
+        return Math.floor(upgrade.cost * Math.pow(1.15, owned));
+    };
+
+    const handleBuyUpgrade = (upgrade) => {
+        const currentCost = calculateUpgradeCost(upgrade);
+        if (gameState.score >= currentCost) {
+            setGameState(prev => {
+                const newOwned = { ...prev.upgradesOwned, [upgrade.id]: (prev.upgradesOwned[upgrade.id] || 0) + 1 };
+                let newPps = prev.pointsPerSecond;
+                if (upgrade.type === 'perSecond') {
+                    newPps += upgrade.value;
+                }
+                return {
+                    ...prev,
+                    score: prev.score - currentCost,
+                    pointsPerSecond: newPps,
+                    upgradesOwned: newOwned,
+                };
+            });
+        } else {
+            alert("Oopsie! Not enough points, cutie!");
+        }
+    };
+
+    const handlePrestige = () => {
+        const shardsToAward = Math.floor(gameState.score / 2500000);
+        if (shardsToAward < 1) {
+            alert("You need a higher score to prestige! Try reaching at least 2,500,000 Fame.");
+            return;
+        }
+        const isConfirmed = window.confirm(`Are you sure you want to prestige? You will earn ${shardsToAward} Exalted Shards, but your Fame, upgrades, and boss progress will reset.`);
+        if (isConfirmed) {
+            setGameState(prev => {
+                const startingFameLevel = prev.prestigeUpgradesOwned['permanentFame'] || 0;
+                const startingPpsLevel = prev.prestigeUpgradesOwned['permanentPPS'] || 0;
+                const startingScore = startingFameLevel * 1000;
+                const startingPps = startingPpsLevel * 50;
+                return {
+                    ...defaultState,
+                    playerClass: prev.playerClass,
+                    exaltedShards: prev.exaltedShards + shardsToAward,
+                    prestigeUpgradesOwned: prev.prestigeUpgradesOwned,
+                    score: startingScore,
+                    pointsPerSecond: startingPps,
+                    totalClicks: prev.totalClicks,
+                    totalFameEarned: prev.totalFameEarned,
+                    unlockedAchievements: prev.unlockedAchievements,
+                    bossesDefeated: {},
+                    hasPrestiged: true,
+                };
+            });
+            setGameWon(false);
+            setGamePhase(GAME_PHASES.CLICKING);
+        }
+    };
+
+    const calculatePrestigeUpgradeCost = (upgrade) => {
+        const owned = gameState.prestigeUpgradesOwned[upgrade.id] || 0;
+        return Math.floor(upgrade.cost * Math.pow(1.5, owned));
+    };
+
+    const handleBuyPrestigeUpgrade = (upgrade) => {
+        const cost = calculatePrestigeUpgradeCost(upgrade);
+        if (gameState.exaltedShards >= cost) {
+            setGameState(prev => ({
+                ...prev,
+                exaltedShards: prev.exaltedShards - cost,
+                prestigeUpgradesOwned: {
+                    ...prev.prestigeUpgradesOwned,
+                    [upgrade.id]: (prev.prestigeUpgradesOwned[upgrade.id] || 0) + 1
+                }
+            }));
+        } else {
+            alert("Not enough Exalted Shards!");
+        }
+    };
+
+    const handleBuyTemporaryUpgrade = (upgrade) => {
+        const cost = Math.floor(upgrade.cost * Math.pow(1.25, gameState.temporaryUpgradesOwned[upgrade.id] || 0));
+        if (gameState.score >= cost) {
+            setGameState(prev => ({
+                ...prev,
+                score: prev.score - cost,
+                temporaryUpgradesOwned: {
+                    ...prev.temporaryUpgradesOwned,
+                    [upgrade.id]: (prev.temporaryUpgradesOwned[upgrade.id] || 0) + 1,
+                }
+            }));
+        } else {
+            alert("Not enough Fame for that boost!");
+        }
+    };
+
+    const getCurrentImage = () => {
+        if (!currentBoss) return '';
+        if (gameWon) {
+            const finalBoss = bosses[bosses.length - 1];
+            return finalBoss.images[finalBoss.images.length - 1];
+        }
+        const stageCount = currentBoss.images.length;
+        const progress = Math.min(gameState.clicksOnCurrentBoss / currentBoss.clickThreshold, 1);
+        const imageIndex = Math.min(Math.floor(progress * stageCount), stageCount - 1);
+        return currentBoss.images[imageIndex];
+    };
+
+    const getHealthPercent = () => {
+        if (!currentBoss || gameWon) return gameWon ? 0 : 100;
+        const percent = (gameState.clicksOnCurrentBoss / currentBoss.clickThreshold) * 100;
+        return 100 - percent;
+    };
+
+    const handleResetSave = () => {
+        const isConfirmed = window.confirm("Are you sure you want to reset all your progress? This action cannot be undone.");
+        if (isConfirmed) {
+            localStorage.removeItem(SAVE_GAME_KEY);
+            setGameState(defaultState);
+            setGameWon(false);
+            setGamePhase(GAME_PHASES.CLASS_SELECTION);
+        }
+    };
+
+    if (gamePhase === GAME_PHASES.CLASS_SELECTION) {
+        return (
+            <div className="card">
+                <div className="clicker-container">
+                    <h3>Choose Your Class, Cutie!</h3>
+                    <div className="class-selection-container" style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '1rem' }}>
+                        {classes.map(pClass => (
+                            <button key={pClass.id} className="btn-class-select" onClick={() => handleClassSelect(pClass.id)}>
+                                <img src={pClass.image} alt={pClass.name} />
+                                <span>{pClass.name}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (!currentBoss) {
+        return <div className="card"><p>Loading game...</p></div>;
+    }
+
     return (
         <>
-            {offlineProgress && ( <div className="modal-backdrop"> <div className="modal-content"> <h2>Welcome Back!</h2> <p>You were away for <strong>{formatTime(offlineProgress.secondsOffline)}</strong>.</p> <p>While you were gone, you earned</p> <p className="modal-earnings">{Math.floor(offlineProgress.offlineEarnings).toLocaleString()} Fame!</p> <p className="modal-efficiency">({Math.round(OFFLINE_EFFICIENCY_RATE * 100)}% efficiency)</p> <button onClick={() => setOfflineProgress(null)}>Awesome!</button> </div> </div> )}
-            <div className="achievement-alerts-container"> {achievementAlerts.map((ach) => ( <div key={ach.id} className="achievement-alert" onAnimationEnd={() => setAchievementAlerts(current => current.filter(a => a.id !== ach.id))}> <strong>Achievement Unlocked!</strong> <p>{ach.name}</p> </div> ))} </div>
+            {offlineProgress && (
+                <div className="modal-backdrop">
+                    <div className="modal-content">
+                        <h2>Welcome Back!</h2>
+                        <p>You were away for <strong>{formatTime(offlineProgress.secondsOffline)}</strong>.</p>
+                        <p>While you were gone, you earned</p>
+                        <p className="modal-earnings">{Math.floor(offlineProgress.offlineEarnings).toLocaleString()} Fame!</p>
+                        <p className="modal-efficiency">({Math.round(OFFLINE_EFFICIENCY_RATE * 100)}% efficiency)</p>
+                        <button onClick={() => setOfflineProgress(null)}>Awesome!</button>
+                    </div>
+                </div>
+            )}
+
+            <div className="achievement-alerts-container">
+                {achievementAlerts.map((ach) => (
+                    <div key={ach.id} className="achievement-alert" onAnimationEnd={() => setAchievementAlerts(current => current.filter(a => a.id !== ach.id))}>
+                        <strong>Achievement Unlocked!</strong>
+                        <p>{ach.name}</p>
+                    </div>
+                ))}
+            </div>
+
             <div className="card">
-                {floatingNumbers.map(num => ( <span key={num.id} className="floating-number" style={{ left: num.x, top: num.y }} onAnimationEnd={() => setFloatingNumbers(current => current.filter(n => n.id !== num.id))}> -{num.value} </span> ))}
-                {floatingHeals.map(num => ( <span key={num.id} className="floating-number heal" style={{ left: num.x, top: num.y }} onAnimationEnd={() => setFloatingHeals(current => current.filter(n => n.id !== num.id))}> +{num.value} </span> ))}
+                {floatingNumbers.map(num => (
+                    <span key={num.id} className="floating-number" style={{ left: num.x, top: num.y }} onAnimationEnd={() => setFloatingNumbers(current => current.filter(n => n.id !== num.id))}>
+                        -{num.value}
+                    </span>
+                ))}
+                {floatingHeals.map(num => (
+                    <span key={num.id} className="floating-number heal" style={{ left: num.x, top: num.y }} onAnimationEnd={() => setFloatingHeals(current => current.filter(n => n.id !== num.id))}>
+                        +{num.value}
+                    </span>
+                ))}
                 <div className="clicker-container">
                     <h2>{Math.floor(gameState.score).toLocaleString()} Fame </h2>
                     <p style={{ color: '#8a2be2', fontWeight: 'bold' }}>{gameState.exaltedShards} Exalted Shards</p>
-                    {gamePhase === GAME_PHASES.CLICKING && ( <p>{gameState.pointsPerSecond.toLocaleString()} Damage per second / {calculateDamageRange().minDamage.toLocaleString()}-{calculateDamageRange().maxDamage.toLocaleString()} per click</p> )}
-                    <h3 style={{ textAlign: 'center' }}> {gameWon ? 'You Did It!' : currentBoss.name} {isHealing && <span className="healing-indicator"> HEALING...</span>} {isInvulnerable && <span className="invulnerable-indicator"> INVULNERABLE</span>} </h3>
-                    <div className={`gem-button ${isHealing || isInvulnerable || gamePhase === GAME_PHASES.EXALTED_TRANSITION ? 'disabled' : ''}`} ref={gemButtonRef} onClick={handleGemClick}> <img src={getCurrentImage()} alt={currentBoss.name} className={` ${gamePhase === GAME_PHASES.TRANSITIONING ? 'fading-out' : ''} ${gamePhase === GAME_PHASES.EXALTED_TRANSITION ? 'fading-out' : ''} ${isShaking ? 'shake' : ''} `} /> </div>
-                    {(gamePhase === GAME_PHASES.CLICKING || gamePhase === GAME_PHASES.TRANSITIONING || gamePhase === GAME_PHASES.EXALTED_TRANSITION) && ( <div className="health-bar-container"> <div className="health-bar-inner" style={{ width: `${getHealthPercent()}%` }}></div> <span className="health-bar-text">{Math.max(0, Math.floor(currentBoss.clickThreshold - gameState.clicksOnCurrentBoss)).toLocaleString()} / {currentBoss.clickThreshold.toLocaleString()}</span> </div> )}
-                    {gameWon && ( <div className="portal-prompt"> <h4>Congratulations, cutie! You beat the game! 💖</h4> <button onClick={handlePrestige}>Prestige for Bonuses!~</button> </div> )}
-                    {gamePhase === GAME_PHASES.PORTAL && ( <div className="portal-prompt"> <img src={currentBoss.portalImage} alt="A mysterious portal" className="portal-image" /> <h4>A portal has opened! Do you enter?</h4> <button onClick={handleEnterPortal}>Enter!~</button> </div> )}
+                    {gamePhase === GAME_PHASES.CLICKING && (
+                        <p>
+                            {gameState.pointsPerSecond.toLocaleString()} Damage per second / {calculateDamageRange().minDamage.toLocaleString()}-{calculateDamageRange().maxDamage.toLocaleString()} per click
+                        </p>
+                    )}
+
+                    <h3 style={{ textAlign: 'center' }}>
+                        {gameWon ? 'You Did It!' : currentBoss.name}
+                        {isHealing && <span className="healing-indicator"> HEALING...</span>}
+                        {isInvulnerable && <span className="invulnerable-indicator"> INVULNERABLE</span>}
+                    </h3>
+
+                    <div className={`gem-button ${isHealing || isInvulnerable || gamePhase === GAME_PHASES.EXALTED_TRANSITION ? 'disabled' : ''}`} ref={gemButtonRef} onClick={handleGemClick}>
+                        <img
+                            src={getCurrentImage()}
+                            alt={currentBoss.name}
+                            className={`
+                                ${gamePhase === GAME_PHASES.TRANSITIONING ? 'fading-out' : ''}
+                                ${gamePhase === GAME_PHASES.EXALTED_TRANSITION ? 'fading-out' : ''}
+                                ${isShaking ? 'shake' : ''}
+                            `}
+                        />
+                    </div>
+
+                    {(gamePhase === GAME_PHASES.CLICKING || gamePhase === GAME_PHASES.TRANSITIONING || gamePhase === GAME_PHASES.EXALTED_TRANSITION) && (
+                        <div className="health-bar-container">
+                            <div className="health-bar-inner" style={{ width: `${getHealthPercent()}%` }}></div>
+                            <span className="health-bar-text">{Math.max(0, Math.floor(currentBoss.clickThreshold - gameState.clicksOnCurrentBoss)).toLocaleString()} / {currentBoss.clickThreshold.toLocaleString()}</span>
+                        </div>
+                    )}
+
+                    {gameWon && (
+                        <div className="portal-prompt">
+                            <h4>Congratulations, cutie! You beat the game! 💖</h4>
+                            <button onClick={handlePrestige}>Prestige for Bonuses!~</button>
+                        </div>
+                    )}
+
+                    {gamePhase === GAME_PHASES.PORTAL && (
+                        <div className="portal-prompt">
+                            <img src={currentBoss.portalImage} alt="A mysterious portal" className="portal-image" />
+                            <h4>A portal has opened! Do you enter?</h4>
+                            <button onClick={handleEnterPortal}>Enter!~</button>
+                        </div>
+                    )}
+
                     {(gamePhase === GAME_PHASES.CLICKING || isInvulnerable) && (
                         <>
-                            <div className="shop-toggle"> <button className={`btn-toggle ${activeShop === 'upgrades' ? 'active' : ''}`} onClick={() => setActiveShop('upgrades')}> Upgrades </button> <button className={`btn-toggle ${activeShop === 'prestige' ? 'active' : ''}`} onClick={() => setActiveShop('prestige')}> Prestige </button> <button className={`btn-toggle ${activeShop === 'achievements' ? 'active' : ''}`} onClick={() => setActiveShop('achievements')}> Achievements </button> </div>
-                            {activeShop === 'upgrades' && ( <> {currentBoss.temporaryUpgrades && ( <div className="upgrades-shop temporary-shop"> <h4>Temporary Boosts</h4> <div className="upgrades-grid"> {currentBoss.temporaryUpgrades.map(up => { const owned = gameState.temporaryUpgradesOwned[up.id] || 0; const cost = Math.floor(up.cost * Math.pow(1.25, owned)); return ( <button key={up.id} onClick={() => handleBuyTemporaryUpgrade(up)} className="btn-upgrade temporary" disabled={gameState.score < cost || isHealing}> <span className="upgrade-name">{up.name}</span> <small>+{up.clickBonus.toLocaleString()} Click Damage</small> <small>Cost: {cost.toLocaleString()}</small> <small>(Owned: {owned})</small> </button> ); })} </div> </div> )} <div className="upgrades-shop"> <h4>{gameState.playerClass}'s Upgrades!~</h4> <div className="upgrades-grid"> {currentUpgrades.map(up => { const cost = calculateUpgradeCost(up); return ( <button key={up.id} onClick={() => handleBuyUpgrade(up)} className="btn-upgrade" disabled={gameState.score < cost || isHealing}> <img src={up.image} alt={up.name} className="upgrade-image" /> <span className="upgrade-name">{up.name}</span> <small>Cost: {cost.toLocaleString()}</small> <small>(Owned: {gameState.upgradesOwned[up.id] || 0})</small> </button> ); })} </div> </div> </> )}
-                            {activeShop === 'prestige' && ( <div className="upgrades-shop"> <h4 style={{ color: '#8a2be2'}}>Prestige Shop</h4> <div className="upgrades-grid"> {prestigeUpgrades.map(up => { const cost = calculatePrestigeUpgradeCost(up); return ( <button key={up.id} onClick={() => handleBuyPrestigeUpgrade(up)} className="btn-upgrade prestige" disabled={gameState.exaltedShards < cost || isHealing}> <span className="upgrade-name">{up.name}</span> <small>{up.description}</small> <small>Cost: {cost} Shards</small> <small>(Level: {gameState.prestigeUpgradesOwned[up.id] || 0})</small> </button> ); })} </div> </div> )}
-                            {activeShop === 'achievements' && ( <div className="upgrades-shop"> <h4>Achievements</h4> <div className="achievements-grid"> {achievements.map(ach => ( <div key={ach.id} className={`achievement-item ${gameState.unlockedAchievements[ach.id] ? 'unlocked' : ''}`}> <strong className="achievement-name">{ach.name}</strong> <p className="achievement-desc">{ach.description}</p> </div> ))} </div> </div> )}
+                            <div className="shop-toggle">
+                                <button className={`btn-toggle ${activeShop === 'upgrades' ? 'active' : ''}`} onClick={() => setActiveShop('upgrades')}>
+                                    Upgrades
+                                </button>
+                                <button className={`btn-toggle ${activeShop === 'prestige' ? 'active' : ''}`} onClick={() => setActiveShop('prestige')}>
+                                    Prestige
+                                </button>
+                                <button className={`btn-toggle ${activeShop === 'achievements' ? 'active' : ''}`} onClick={() => setActiveShop('achievements')}>
+                                    Achievements
+                                </button>
+                            </div>
+
+                            {activeShop === 'upgrades' && (
+                                <>
+                                    {currentBoss.temporaryUpgrades && (
+                                        <div className="upgrades-shop temporary-shop">
+                                            <h4>Temporary Boosts</h4>
+                                            <div className="upgrades-grid">
+                                                {currentBoss.temporaryUpgrades.map(up => {
+                                                    const owned = gameState.temporaryUpgradesOwned[up.id] || 0;
+                                                    const cost = Math.floor(up.cost * Math.pow(1.25, owned));
+                                                    return (
+                                                        <button key={up.id} onClick={() => handleBuyTemporaryUpgrade(up)} className="btn-upgrade temporary" disabled={gameState.score < cost || isHealing}>
+                                                            <span className="upgrade-name">{up.name}</span>
+                                                            <small>+{up.clickBonus.toLocaleString()} Click Damage</small>
+                                                            <small>Cost: {cost.toLocaleString()}</small>
+                                                            <small>(Owned: {owned})</small>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className="upgrades-shop">
+                                        <h4>{gameState.playerClass}'s Upgrades!~</h4>
+                                        <div className="upgrades-grid">
+                                            {currentUpgrades.map(up => {
+                                                const cost = calculateUpgradeCost(up);
+                                                return (
+                                                    <button key={up.id} onClick={() => handleBuyUpgrade(up)} className="btn-upgrade" disabled={gameState.score < cost || isHealing}>
+                                                        <img src={up.image} alt={up.name} className="upgrade-image" />
+                                                        <span className="upgrade-name">{up.name}</span>
+                                                        <small>Cost: {cost.toLocaleString()}</small>
+                                                        <small>(Owned: {gameState.upgradesOwned[up.id] || 0})</small>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+
+                            {activeShop === 'prestige' && (
+                                <div className="upgrades-shop">
+                                    <h4 style={{ color: '#8a2be2' }}>Prestige Shop</h4>
+                                    <div className="upgrades-grid">
+                                        {prestigeUpgrades.map(up => {
+                                            const cost = calculatePrestigeUpgradeCost(up);
+                                            return (
+                                                <button key={up.id} onClick={() => handleBuyPrestigeUpgrade(up)} className="btn-upgrade prestige" disabled={gameState.exaltedShards < cost || isHealing}>
+                                                    <span className="upgrade-name">{up.name}</span>
+                                                    <small>{up.description}</small>
+                                                    <small>Cost: {cost} Shards</small>
+                                                    <small>(Level: {gameState.prestigeUpgradesOwned[up.id] || 0})</small>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeShop === 'achievements' && (
+                                <div className="upgrades-shop">
+                                    <h4>Achievements</h4>
+                                    <div className="achievements-grid">
+                                        {achievements.map(ach => (
+                                            <div key={ach.id} className={`achievement-item ${gameState.unlockedAchievements[ach.id] ? 'unlocked' : ''}`}>
+                                                <strong className="achievement-name">{ach.name}</strong>
+                                                <p className="achievement-desc">{ach.description}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </>
                     )}
                 </div>
             </div>
-            <div style={{ textAlign: 'center', marginTop: '1rem', paddingBottom: '1rem' }}> <button className="btn-reset" onClick={handleResetSave}> Reset Save Data </button> </div>
+
+            <div style={{ textAlign: 'center', marginTop: '1rem', paddingBottom: '1rem' }}>
+                <button className="btn-reset" onClick={handleResetSave}>
+                    Reset Save Data
+                </button>
+            </div>
         </>
     );
 }
