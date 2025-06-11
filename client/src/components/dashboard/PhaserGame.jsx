@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import Phaser from 'phaser';
 
-// ✨ UPDATED: New constants for our HP system! ✨
+// Constants
 const GAME_WIDTH = 800;
 const GAME_HEIGHT = 600;
 const BOSS_SPEED = 150;
@@ -21,7 +21,9 @@ function PhaserGame() {
             backgroundColor: '#000000',
             physics: {
                 default: 'arcade',
-                arcade: { gravity: { y: 0 } }
+                arcade: {
+                    gravity: { y: 0 }
+                }
             },
             scene: {
                 init: function () {
@@ -29,7 +31,7 @@ function PhaserGame() {
                 },
                 preload: preload,
                 create: create,
-                update: update
+                update: update // This will now point to our fixed update function!
             }
         };
 
@@ -45,7 +47,6 @@ function PhaserGame() {
             this.player = this.physics.add.sprite(GAME_WIDTH / 2, GAME_HEIGHT - 60, 'player');
             this.player.setCollideWorldBounds(true);
             this.player.setScale(0.4);
-            // ✨ NEW: Let's add a property to track invincibility! ✨
             this.player.isInvincible = false;
             
             this.cursors = this.input.keyboard.createCursorKeys();
@@ -56,38 +57,39 @@ function PhaserGame() {
             this.boss.setCollideWorldBounds(true);
             this.boss.setVelocityX(BOSS_SPEED);
 
-            this.projectiles = this.physics.add.group({ defaultKey: 'beamslash', maxSize: 30 });
+            this.projectiles = this.physics.add.group({
+                defaultKey: 'beamslash',
+                maxSize: 30
+            });
 
             this.time.addEvent({
                 delay: 1500,
                 callback: () => {
-                    const laser = this.projectiles.get(this.boss.x, this.boss.y + 60);
-                    if (laser) {
-                        laser.setActive(true).setVisible(true).setVelocityY(PROJECTILE_SPEED);
+                    // Only shoot if the game isn't over
+                    if (this.playerHealth > 0) {
+                        const laser = this.projectiles.get(this.boss.x, this.boss.y + 60);
+                        if (laser) {
+                            laser.setActive(true).setVisible(true).setVelocityY(PROJECTILE_SPEED);
+                        }
                     }
                 },
                 loop: true
             });
             
-            // ✨ UPDATED: Display health as a number! ✨
             this.healthText = this.add.text(10, 10, `Health: ${this.playerHealth}`, { fontSize: '24px', fill: '#ffffff' });
 
             this.physics.add.collider(this.player, this.projectiles, playerHit, null, this);
         }
         
-        // ✨ UPDATED: The playerHit function now has invincibility logic! ✨
         function playerHit(player, laser) {
-            // If the player is invincible, do nothing! Hehe.
             if (player.isInvincible) {
                 return;
             }
 
-            // If not invincible, let's take damage!
             laser.setActive(false).setVisible(false);
             this.playerHealth -= PROJECTILE_DAMAGE;
-            this.healthText.setText('Health: ' + this.playerHealth);
+            this.healthText.setText('Health: ' + Math.max(0, this.playerHealth)); // Show 0 instead of negative
             
-            // Check for Game Over
             if (this.playerHealth <= 0) {
                 this.physics.pause();
                 player.setTint(0xff0000);
@@ -100,30 +102,57 @@ function PhaserGame() {
                 }).setOrigin(0.5).setInteractive();
                 
                 restartText.on('pointerdown', () => {
+                    this.playerHealth = PLAYER_INITIAL_HEALTH; // Reset health before restarting
                     this.scene.restart();
                 });
             } else {
-                // If not game over, start "sparkle time"!
                 player.isInvincible = true;
-                // This makes the player flash for 1 second! So cool!
                 this.tweens.add({
                     targets: player,
                     alpha: 0.5,
                     duration: 100,
                     ease: 'Linear',
                     yoyo: true,
-                    repeat: 5, // 5 flashes for a total of 1 second
+                    repeat: 5,
                     onComplete: () => {
                         player.isInvincible = false;
-                        player.alpha = 1; // Make sure they are fully visible at the end
+                        player.alpha = 1;
                     }
                 });
             }
         }
 
-        function update() { /* ... unchanged ... */ }
+        // ✨ FIXED: The movement logic is now back inside the update loop! ✨
+        function update() {
+            // Only allow movement if the player is active (not game over)
+            if (this.player.active) {
+                if (this.cursors.left.isDown || this.keyA.isDown) {
+                    this.player.setVelocityX(-300);
+                } else if (this.cursors.right.isDown || this.keyD.isDown) {
+                    this.player.setVelocityX(300);
+                } else {
+                    this.player.setVelocityX(0);
+                }
+            }
+            
+            // Boss bouncing logic
+            if (this.boss.body.blocked.right) {
+                this.boss.setVelocityX(-BOSS_SPEED);
+            } else if (this.boss.body.blocked.left) {
+                this.boss.setVelocityX(BOSS_SPEED);
+            }
+            
+            // Projectile recycling logic
+            this.projectiles.children.iterate(laser => {
+                if (laser && laser.y > GAME_HEIGHT) {
+                    laser.setActive(false).setVisible(false);
+                }
+            });
+        }
 
-        return () => { gameRef.current.destroy(true); };
+        return () => {
+            gameRef.current.destroy(true);
+        };
     }, []);
 
     return <div id="phaser-container" />;
