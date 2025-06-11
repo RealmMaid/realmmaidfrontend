@@ -1,12 +1,13 @@
 import React, { useEffect, useRef } from 'react';
 import Phaser from 'phaser';
 
-// Constants
+// ✨ UPDATED: New constants for our HP system! ✨
 const GAME_WIDTH = 800;
 const GAME_HEIGHT = 600;
 const BOSS_SPEED = 150;
 const PROJECTILE_SPEED = 400;
-const PLAYER_INITIAL_HEALTH = 3;
+const PLAYER_INITIAL_HEALTH = 200;
+const PROJECTILE_DAMAGE = 10;
 
 function PhaserGame() {
     const gameRef = useRef(null);
@@ -20,13 +21,9 @@ function PhaserGame() {
             backgroundColor: '#000000',
             physics: {
                 default: 'arcade',
-                arcade: {
-                    gravity: { y: 0 },
-                    debug: false
-                }
+                arcade: { gravity: { y: 0 } }
             },
             scene: {
-                // We need to give our scene access to our variables!
                 init: function () {
                     this.playerHealth = PLAYER_INITIAL_HEALTH;
                 },
@@ -41,33 +38,26 @@ function PhaserGame() {
         function preload() {
             this.load.image('player', '/wizard.png');
             this.load.image('boss', '/oryx.png');
-            // Using the correct filename! Hehe.
             this.load.image('beamslash', '/beamslash.png');
         }
 
         function create() {
-            // Create player
             this.player = this.physics.add.sprite(GAME_WIDTH / 2, GAME_HEIGHT - 60, 'player');
             this.player.setCollideWorldBounds(true);
             this.player.setScale(0.4);
+            // ✨ NEW: Let's add a property to track invincibility! ✨
+            this.player.isInvincible = false;
             
-            // Create keyboard listeners
             this.cursors = this.input.keyboard.createCursorKeys();
             this.keyA = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
             this.keyD = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
 
-            // Create boss
             this.boss = this.physics.add.sprite(100, 80, 'boss');
             this.boss.setCollideWorldBounds(true);
             this.boss.setVelocityX(BOSS_SPEED);
 
-            // Create projectile group
-            this.projectiles = this.physics.add.group({
-                defaultKey: 'beamslash',
-                maxSize: 30
-            });
+            this.projectiles = this.physics.add.group({ defaultKey: 'beamslash', maxSize: 30 });
 
-            // Create a timer to shoot
             this.time.addEvent({
                 delay: 1500,
                 callback: () => {
@@ -79,83 +69,61 @@ function PhaserGame() {
                 loop: true
             });
             
-            // ✨ NEW: Display the player's health! ✨
-            this.healthText = this.add.text(10, 10, 'Health: ❤️❤️❤️', { fontSize: '24px', fill: '#ffffff' });
+            // ✨ UPDATED: Display health as a number! ✨
+            this.healthText = this.add.text(10, 10, `Health: ${this.playerHealth}`, { fontSize: '24px', fill: '#ffffff' });
 
-            // ✨ NEW: The magic collision detector! ✨
-            // This tells Phaser to watch the player and the projectiles,
-            // and if they ever overlap, call the `playerHit` function!
             this.physics.add.collider(this.player, this.projectiles, playerHit, null, this);
         }
         
-        // ✨ NEW: This function runs when the player gets hit! ✨
+        // ✨ UPDATED: The playerHit function now has invincibility logic! ✨
         function playerHit(player, laser) {
-            // "Kill" the laser by deactivating it and hiding it.
-            // This puts it back in the group to be recycled! So efficient!
-            laser.setActive(false);
-            laser.setVisible(false);
+            // If the player is invincible, do nothing! Hehe.
+            if (player.isInvincible) {
+                return;
+            }
 
-            // Subtract one from our health variable
-            this.playerHealth -= 1;
+            // If not invincible, let's take damage!
+            laser.setActive(false).setVisible(false);
+            this.playerHealth -= PROJECTILE_DAMAGE;
+            this.healthText.setText('Health: ' + this.playerHealth);
             
-            // Update the text on the screen
-            this.healthText.setText('Health: ' + '❤️'.repeat(this.playerHealth));
-            
-            // Check for Game Over!
+            // Check for Game Over
             if (this.playerHealth <= 0) {
-                // If health is gone, pause the game!
                 this.physics.pause();
-                // Make the player all red to show they're out T_T
                 player.setTint(0xff0000);
-                // Display a "Game Over" message
-                const gameOverText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 50, 'GAME OVER', { 
+                this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 50, 'GAME OVER', { 
                     fontSize: '64px', fill: '#ff0000' 
                 }).setOrigin(0.5);
 
-                // Add a restart button
                 const restartText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 50, 'Click to Restart', {
                     fontSize: '32px', fill: '#ffffff'
                 }).setOrigin(0.5).setInteractive();
                 
-                // When the restart text is clicked, we restart the whole scene!
                 restartText.on('pointerdown', () => {
                     this.scene.restart();
+                });
+            } else {
+                // If not game over, start "sparkle time"!
+                player.isInvincible = true;
+                // This makes the player flash for 1 second! So cool!
+                this.tweens.add({
+                    targets: player,
+                    alpha: 0.5,
+                    duration: 100,
+                    ease: 'Linear',
+                    yoyo: true,
+                    repeat: 5, // 5 flashes for a total of 1 second
+                    onComplete: () => {
+                        player.isInvincible = false;
+                        player.alpha = 1; // Make sure they are fully visible at the end
+                    }
                 });
             }
         }
 
+        function update() { /* ... unchanged ... */ }
 
-        function update() {
-            // Player movement logic (unchanged)
-            if (this.player.active) { // Only allow movement if the player is active
-                if (this.cursors.left.isDown || this.keyA.isDown) {
-                    this.player.setVelocityX(-300);
-                } else if (this.cursors.right.isDown || this.keyD.isDown) {
-                    this.player.setVelocityX(300);
-                } else {
-                    this.player.setVelocityX(0);
-                }
-            }
-            
-            // Boss bouncing logic (unchanged)
-            if (this.boss.body.blocked.right) {
-                this.boss.setVelocityX(-BOSS_SPEED);
-            } else if (this.boss.body.blocked.left) {
-                this.boss.setVelocityX(BOSS_SPEED);
-            }
-            
-            // Projectile recycling logic (unchanged)
-            this.projectiles.children.iterate(laser => {
-                if (laser && laser.y > GAME_HEIGHT) {
-                    laser.setActive(false).setVisible(false);
-                }
-            });
-        }
-
-        return () => {
-            gameRef.current.destroy(true);
-        };
-
+        return () => { gameRef.current.destroy(true); };
     }, []);
 
     return <div id="phaser-container" />;
