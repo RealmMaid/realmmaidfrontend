@@ -21,7 +21,6 @@ import MyOrders from './components/dashboard/MyOrders.jsx';
 import ProfileSettings from './components/dashboard/ProfileSettings.jsx';
 import PaymentMethods from './components/dashboard/PaymentMethods.jsx';
 import MyWishlist from './components/dashboard/MyWishlist.jsx';
-// --- CHANGE: Added the import for the game component ---
 import PixelClickerGame from './components/dashboard/PixelClickerGame.jsx';
 import SpaceDodgerGame from './components/dashboard/SpaceDodgerGame.jsx';
 
@@ -43,16 +42,15 @@ function App() {
         </Route>
         
         <Route element={<ProtectedRoute />}>
-            {/* This is the nested dashboard route structure */}
-          {/*<Route path="/dashboard" element={<UserDashboardPage />}>
-              <Route index element={<Navigate to="orders" replace />} />
-              <Route path="orders" element={<MyOrders />} />
-              <Route path="settings"element={<ProfileSettings />} />
-              <Route path="payments" element={<PaymentMethods />} />
-              <Route path="wishlist" element={<MyWishlist />} />
-              {/* --- CHANGE: Added the route for your game --- 
-              <Route path="game" element={<PixelClickerGame />} />*/}
-              <Route path="spacedodgegame" element={<SpaceDodgerGame />} />
+            {/* The dashboard route structure - we've moved the game out of here! */}
+            <Route path="/dashboard" element={<UserDashboardPage />}>
+                <Route index element={<Navigate to="orders" replace />} />
+                <Route path="orders" element={<MyOrders />} />
+                <Route path="settings"element={<ProfileSettings />} />
+                <Route path="payments" element={<PaymentMethods />} />
+                <Route path="wishlist" element={<MyWishlist />} />
+                <Route path="game" element={<PixelClickerGame />} />
+                {/* <Route path="spacedodgegame" element={<SpaceDodgerGame />} /> <-- It used to be here! */}
             </Route>
             <Route path="/checkout" element={<CheckoutPage />} />
         </Route>
@@ -60,6 +58,10 @@ function App() {
         <Route element={<ProtectedRoute adminOnly={true} />}>
             <Route path="/admin" element={<AdminDashboardPage />} />
         </Route>
+
+        {/* ✨ NEW: A clean, separate route for our game! ✨ */}
+        {/* This route is at the top level, so no other styles will interfere! */}
+        <Route path="/spacedodger" element={<SpaceDodgerGame />} />
 
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
