@@ -564,6 +564,44 @@ input:focus, textarea:focus {
   max-width: none !important;
   display: block !important;
 }
+/* Container for the toggle buttons */
+.shop-toggle {
+  display: flex;
+  justify-content: center;
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #555;
+}
+
+/* Individual toggle button styling */
+.btn-toggle {
+  flex-grow: 1;
+  padding: 0.75rem 1rem;
+  border: none;
+  background-color: #333;
+  color: #ccc;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  font-size: 1rem;
+}
+
+.btn-toggle:not(:last-child) {
+    border-right: 1px solid #555;
+}
+
+/* Style for the active button */
+.btn-toggle.active {
+  background-color: #6a0dad; /* A nice purple to match the theme */
+  color: white;
+  font-weight: bold;
+}
+
+/* Hover effect for inactive buttons */
+.btn-toggle:not(.active):hover {
+    background-color: #444;
+}
 .badge.verified { background-color: #2ecc71; }
 .badge.not-verified { background-color: #e74c3c; }
 .badge.admin { background-color: #9b59b6; }
