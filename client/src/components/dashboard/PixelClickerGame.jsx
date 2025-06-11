@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { achievements } from './achievements'; // Make sure you have the achievements.js file!
 
 // ====================================================================
-// ✨ DATA STRUCTURES ✨
+// DATA STRUCTURES
 // ====================================================================
 const classes = [
   { id: 'Warrior', name: 'Warrior', image: '/warrior.png', },
@@ -10,60 +11,56 @@ const classes = [
   { id: 'Sorcerer', name: 'Sorcerer', image: '/sorcerer.png', },
 ];
 
-// Using the re-balanced upgrade values
 const classUpgrades = {
-  // Stage 1: For Oryx 1 - Slightly adjusted for better feel
   stage1: {
     Warrior: [
-      { id: 'item1', name: 'Skysplitter Sword', image: '/skysplittersword.png', cost: 40, minBonus: 3, maxBonus: 6, type: 'perClick' }, // Cheaper, stronger
-      { id: 'item2', name: 'Golden Helm', image: '/goldenhelm.png', cost: 220, value: 3, type: 'perSecond', clickBonus: 2 }, // Better click bonus
-      { id: 'item3', name: 'Ring of Exalted Dexterity', image: '/ringofexalteddexterity.png', cost: 700, value: 8, type: 'perSecond', clickBonus: 4 }, // Stronger
+      { id: 'item1', name: 'Skysplitter Sword', image: '/skysplittersword.png', cost: 40, minBonus: 3, maxBonus: 6, type: 'perClick' },
+      { id: 'item2', name: 'Golden Helm', image: '/goldenhelm.png', cost: 220, value: 3, type: 'perSecond', clickBonus: 2 },
+      { id: 'item3', name: 'Ring of Exalted Dexterity', image: '/ringofexalteddexterity.png', cost: 700, value: 8, type: 'perSecond', clickBonus: 4 },
     ],
     Wizard: [
-      { id: 'item1', name: 'Staff of Astral Knowledge', image: '/staffofastralknowledge.png', cost: 45, minBonus: 1, maxBonus: 9, type: 'perClick' }, // Wider range
+      { id: 'item1', name: 'Staff of Astral Knowledge', image: '/staffofastralknowledge.png', cost: 45, minBonus: 1, maxBonus: 9, type: 'perClick' },
       { id: 'item2', name: 'Magic Nova Spell', image: '/magicnovaspell.png', cost: 250, value: 4, type: 'perSecond', clickBonus: 1 },
-      { id: 'item3', name: 'Ring of Exalted Mana', image: '/ringofexaltedattack.png', cost: 750, value: 9, type: 'perSecond', clickBonus: 3 },
+      { id: 'item3', name: 'Ring of Exalted Mana', image: '/ringofexalteddexterity.png', cost: 750, value: 9, type: 'perSecond', clickBonus: 3 },
     ],
     Sorcerer: [
       { id: 'item1', name: 'Wand of Ancient Warning', image: '/woaw.png', cost: 50, minBonus: 4, maxBonus: 4, type: 'perClick' },
-      { id: 'item2', name: 'Scepter of Skybolts', image: '/sos.png', cost: 200, value: 5, type: 'perSecond', clickBonus: 1 }, // Cheaper, more DPS
-      { id: 'item3', name: 'Ring of Exalted Attack', image: '/ringofexaltedattack.png', cost: 800, value: 12, type: 'perSecond', clickBonus: 2 }, // DPS focus
+      { id: 'item2', name: 'Scepter of Skybolts', image: '/sos.png', cost: 200, value: 5, type: 'perSecond', clickBonus: 1 },
+      { id: 'item3', name: 'Ring of Exalted Attack', image: '/ringofexaltedattack.png', cost: 800, value: 12, type: 'perSecond', clickBonus: 2 },
     ],
   },
-  // Stage 2: For Oryx 2 - Significantly buffed to prepare for O3
   stage2: {
     Warrior: [
-        { id: 'item4', name: 'Sword of Acclaim', image: '/soa.png', cost: 8000, minBonus: 40, maxBonus: 70, type: 'perClick' }, // Better scaling
-        { id: 'item5', name: 'Helm of the Great General', image: '/hotgg.png', cost: 45000, value: 250, type: 'perSecond', clickBonus: 25 }, // Higher bonuses
-        { id: 'item6', name: 'Ring of Unbound Attack', image: '/ringofunboundattack.png', cost: 120000, value: 600, type: 'perSecond', clickBonus: 60 }, // Cheaper, stronger
+        { id: 'item4', name: 'Sword of Acclaim', image: '/soa.png', cost: 8000, minBonus: 40, maxBonus: 70, type: 'perClick' },
+        { id: 'item5', name: 'Helm of the Great General', image: '/hotgg.png', cost: 45000, value: 250, type: 'perSecond', clickBonus: 25 },
+        { id: 'item6', name: 'Ring of Unbound Attack', image: '/ringofunboundattack.png', cost: 120000, value: 600, type: 'perSecond', clickBonus: 60 },
     ],
     Wizard: [
-        { id: 'item4', name: 'Staff of the Cosmic Whole', image: '/sotcw.png', cost: 9000, minBonus: 20, maxBonus: 120, type: 'perClick' }, // Wider, more exciting range
+        { id: 'item4', name: 'Staff of the Cosmic Whole', image: '/sotcw.png', cost: 9000, minBonus: 20, maxBonus: 120, type: 'perClick' },
         { id: 'item5', name: 'Elemental Detonation Spell', image: '/eds.png', cost: 50000, value: 300, type: 'perSecond', clickBonus: 20 },
         { id: 'item6', name: 'Ring of Unbound Dexterity', image: '/ringofunbounddexterity.png', cost: 135000, value: 650, type: 'perSecond', clickBonus: 55 },
     ],
     Sorcerer: [
         { id: 'item4', name: 'Wand of Recompense', image: '/wor.png', cost: 10000, minBonus: 55, maxBonus: 55, type: 'perClick' },
-        { id: 'item5', name: 'Scepter of Storms', image: '/sos.png', cost: 40000, value: 350, type: 'perSecond', clickBonus: 22 }, // Cheaper, more DPS
-        { id: 'item6', name: 'Ring of Unbound Attack', image: '/ringofunbounddexterity.png', cost: 150000, value: 800, type: 'perSecond', clickBonus: 40 }, // Stronger DPS
+        { id: 'item5', name: 'Scepter of Storms', image: '/sos.png', cost: 40000, value: 350, type: 'perSecond', clickBonus: 22 },
+        { id: 'item6', name: 'Ring of Unbound Attack', image: '/ringofunbounddexterity.png', cost: 150000, value: 800, type: 'perSecond', clickBonus: 40 },
     ],
   },
-  // Stage 3: For Oryx 3 and Exalted Oryx - Buffed to handle the massive HP pools
   stage3: {
     Warrior: [
-        { id: 'item7', name: 'Pirate Kings Cutlass', image: '/pkc.png', cost: 350000, minBonus: 300, maxBonus: 600, type: 'perClick' }, // Lower cost, higher output
+        { id: 'item7', name: 'Pirate Kings Cutlass', image: '/pkc.png', cost: 350000, minBonus: 300, maxBonus: 600, type: 'perClick' },
         { id: 'item8', name: 'Hivemaster Helm', image: '/hivehelm.png', cost: 800000, value: 2500, type: 'perSecond', clickBonus: 200 },
-        { id: 'item9', name: 'Battalion Banner', image: '/bb.png', cost: 2000000, value: 7000, type: 'perSecond', clickBonus: 500 }, // Cheaper, stronger
+        { id: 'item9', name: 'Battalion Banner', image: '/bb.png', cost: 2000000, value: 7000, type: 'perSecond', clickBonus: 500 },
     ],
     Wizard: [
-        { id: 'item7', name: 'Superior', image: '/superior.png', cost: 400000, minBonus: 150, maxBonus: 850, type: 'perClick' },
-        { id: 'item8', name: 'Genesis Spell', image: '/gs.png', cost: 900000, value: 3000, type: 'perSecond', clickBonus: 150 },
-        { id: 'item9', name: 'Chancellors Cranium', image: '/cc.png', cost: 2200000, value: 7500, type: 'perSecond', clickBonus: 450 },
+        { id: 'item7', name: 'Superior', image: '/superior.png', cost: 150000, minBonus: 150, maxBonus: 850, type: 'perClick' },
+        { id: 'item8', name: 'Genesis Spell', image: '/gs.png', cost: 300000, value: 3000, type: 'perSecond', clickBonus: 150 },
+        { id: 'item9', name: 'Chancellors Cranium', image: '/cc.png', cost: 600000, value: 7500, type: 'perSecond', clickBonus: 450 },
     ],
     Sorcerer: [
         { id: 'item7', name: 'Lumiaire', image: '/lumi.png', cost: 450000, minBonus: 400, maxBonus: 400, type: 'perClick' },
-        { id: 'item8', name: 'Scepter of Devastation', image: '/sod.png', cost: 750000, value: 3500, type: 'perSecond', clickBonus: 180 }, // Cheaper, DPS focus
-        { id: 'item9', name: 'Divine Coronation', image: '/dc.png', cost: 2500000, value: 10000, type: 'perSecond', clickBonus: 400 }, // THE idle item
+        { id: 'item8', name: 'Scepter of Devastation', image: '/sod.png', cost: 750000, value: 3500, type: 'perSecond', clickBonus: 180 },
+        { id: 'item9', name: 'Divine Coronation', image: '/dc.png', cost: 2500000, value: 10000, type: 'perSecond', clickBonus: 400 },
     ],
   },
 };
@@ -156,6 +153,12 @@ const defaultState = {
     triggeredHeals: {},
     exaltedShards: 0,
     prestigeUpgradesOwned: {},
+    // -- Achievement Stats --
+    totalClicks: 0,
+    totalFameEarned: 0,
+    bossesDefeated: {},
+    unlockedAchievements: {},
+    hasPrestiged: false,
 };
 
 function PixelClickerGame() {
@@ -180,7 +183,8 @@ function PixelClickerGame() {
     const [floatingHeals, setFloatingHeals] = useState([]);
     const [isHealing, setIsHealing] = useState(false);
     const [isInvulnerable, setIsInvulnerable] = useState(false); 
-    const [activeShop, setActiveShop] = useState('upgrades'); // ✨ NEW: State to control which shop is visible
+    const [activeShop, setActiveShop] = useState('upgrades');
+    const [achievementAlerts, setAchievementAlerts] = useState([]);
     const gemButtonRef = useRef(null);
 
     const currentBoss = bosses[gameState.currentBossIndex];
@@ -192,9 +196,37 @@ function PixelClickerGame() {
     }, [gameState]);
 
     useEffect(() => {
+        const newUnlocks = [];
+        for (const ach of achievements) {
+            if (!gameState.unlockedAchievements[ach.id] && ach.isUnlocked(gameState)) {
+                newUnlocks.push(ach);
+            }
+        }
+
+        if (newUnlocks.length > 0) {
+            setGameState(prev => ({
+                ...prev,
+                unlockedAchievements: {
+                    ...prev.unlockedAchievements,
+                    ...newUnlocks.reduce((obj, ach) => {
+                        obj[ach.id] = true;
+                        return obj;
+                    }, {})
+                }
+            }));
+            setAchievementAlerts(prev => [...prev, ...newUnlocks]);
+        }
+    }, [gameState.totalClicks, gameState.totalFameEarned, gameState.bossesDefeated, gameState.hasPrestiged]);
+
+
+    useEffect(() => {
         if (gamePhase !== GAME_PHASES.CLICKING || isHealing) return;
         const interval = setInterval(() => {
-            setGameState(prev => ({ ...prev, score: prev.score + prev.pointsPerSecond }));
+            setGameState(prev => ({ 
+                ...prev, 
+                score: prev.score + prev.pointsPerSecond,
+                totalFameEarned: prev.totalFameEarned + prev.pointsPerSecond,
+            }));
         }, 1000);
         return () => clearInterval(interval);
     }, [gameState.pointsPerSecond, gamePhase, isHealing]);
@@ -202,6 +234,13 @@ function PixelClickerGame() {
     useEffect(() => {
         if (!currentBoss || gamePhase !== GAME_PHASES.CLICKING || isHealing) return;
         if (gameState.clicksOnCurrentBoss >= currentBoss.clickThreshold) {
+            setGameState(prev => ({
+                ...prev,
+                bossesDefeated: {
+                    ...prev.bossesDefeated,
+                    [currentBoss.id]: (prev.bossesDefeated[currentBoss.id] || 0) + 1
+                }
+            }));
             
             if (currentBoss.id === 'oryx3') {
                 setGamePhase(GAME_PHASES.EXALTED_TRANSITION);
@@ -337,6 +376,8 @@ function PixelClickerGame() {
             ...prev,
             score: prev.score + damageDealt,
             clicksOnCurrentBoss: prev.clicksOnCurrentBoss + damageDealt,
+            totalClicks: prev.totalClicks + 1,
+            totalFameEarned: prev.totalFameEarned + damageDealt,
         }));
     };
 
@@ -401,7 +442,13 @@ function PixelClickerGame() {
                     exaltedShards: prev.exaltedShards + shardsToAward,
                     prestigeUpgradesOwned: prev.prestigeUpgradesOwned,
                     score: startingScore,
-                    pointsPerSecond: startingPps
+                    pointsPerSecond: startingPps,
+                    // Keep achievement stats but reset bosses defeated for replayability
+                    totalClicks: prev.totalClicks,
+                    totalFameEarned: prev.totalFameEarned,
+                    unlockedAchievements: prev.unlockedAchievements,
+                    bossesDefeated: {}, 
+                    hasPrestiged: true,
                 };
             });
             setGameWon(false);
@@ -485,6 +532,19 @@ function PixelClickerGame() {
     
     return (
         <>
+            <div className="achievement-alerts-container">
+                {achievementAlerts.map((ach) => (
+                    <div 
+                        key={ach.id} 
+                        className="achievement-alert"
+                        onAnimationEnd={() => setAchievementAlerts(current => current.filter(a => a.id !== ach.id))}
+                    >
+                        <strong>Achievement Unlocked!</strong>
+                        <p>{ach.name}</p>
+                    </div>
+                ))}
+            </div>
+
             <div className="card">
                 {floatingNumbers.map(num => (
                     <span key={num.id} className="floating-number" style={{ left: num.x, top: num.y }} onAnimationEnd={() => setFloatingNumbers(current => current.filter(n => n.id !== num.id))}>
@@ -551,7 +611,6 @@ function PixelClickerGame() {
                     
                     {(gamePhase === GAME_PHASES.CLICKING || isInvulnerable) && (
                         <>
-                            {/* ✨ NEW: Shop Toggle UI */}
                             <div className="shop-toggle">
                                 <button className={`btn-toggle ${activeShop === 'upgrades' ? 'active' : ''}`} onClick={() => setActiveShop('upgrades')}>
                                     {gameState.playerClass}'s Upgrades
@@ -559,10 +618,31 @@ function PixelClickerGame() {
                                 <button className={`btn-toggle ${activeShop === 'prestige' ? 'active' : ''}`} onClick={() => setActiveShop('prestige')}>
                                     Prestige Shop
                                 </button>
+                                <button className={`btn-toggle ${activeShop === 'achievements' ? 'active' : ''}`} onClick={() => setActiveShop('achievements')}>
+                                    Achievements
+                                </button>
                             </div>
 
-                            {/* ✨ NEW: Conditional rendering for the shops */}
-                            {activeShop === 'prestige' ? (
+                            {activeShop === 'upgrades' && (
+                                <div className="upgrades-shop">
+                                    <h4>{gameState.playerClass}'s Upgrades!~</h4>
+                                    <div className="upgrades-grid">
+                                        {currentUpgrades.map(up => {
+                                            const cost = calculateUpgradeCost(up);
+                                            return (
+                                                <button key={up.id} onClick={() => handleBuyUpgrade(up)} className="btn-upgrade" disabled={gameState.score < cost || isHealing}>
+                                                    <img src={up.image} alt={up.name} className="upgrade-image" />
+                                                    <span className="upgrade-name">{up.name}</span>
+                                                    <small>Cost: {cost}</small>
+                                                    <small>(Owned: {gameState.upgradesOwned[up.id] || 0})</small>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {activeShop === 'prestige' && (
                                 <div className="upgrades-shop">
                                     <h4 style={{ color: '#8a2be2'}}>Prestige Shop</h4>
                                     <div className="upgrades-grid">
@@ -579,21 +659,18 @@ function PixelClickerGame() {
                                         })}
                                     </div>
                                 </div>
-                            ) : (
+                            )}
+
+                            {activeShop === 'achievements' && (
                                 <div className="upgrades-shop">
-                                    <h4>{gameState.playerClass}'s Upgrades!~</h4>
-                                    <div className="upgrades-grid">
-                                        {currentUpgrades.map(up => {
-                                            const cost = calculateUpgradeCost(up);
-                                            return (
-                                                <button key={up.id} onClick={() => handleBuyUpgrade(up)} className="btn-upgrade" disabled={gameState.score < cost || isHealing}>
-                                                    <img src={up.image} alt={up.name} className="upgrade-image" />
-                                                    <span className="upgrade-name">{up.name}</span>
-                                                    <small>Cost: {cost}</small>
-                                                    <small>(Owned: {gameState.upgradesOwned[up.id] || 0})</small>
-                                                </button>
-                                            );
-                                        })}
+                                    <h4>Achievements</h4>
+                                    <div className="achievements-grid">
+                                        {achievements.map(ach => (
+                                            <div key={ach.id} className={`achievement-item ${gameState.unlockedAchievements[ach.id] ? 'unlocked' : ''}`}>
+                                                <strong className="achievement-name">{ach.name}</strong>
+                                                <p className="achievement-desc">{ach.description}</p>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
                             )}
