@@ -4,7 +4,6 @@ import { v4 as uuidv4 } from 'uuid';
 // ====================================================================
 // ✨ DATA STRUCTURES ✨
 // ====================================================================
-
 const classes = [
   { id: 'Warrior', name: 'Warrior', image: '/warrior.png', emoji: '⚔️' },
   { id: 'Wizard', name: 'Wizard', image: '/wizard.png', emoji: '🔮' },
@@ -68,6 +67,7 @@ const classUpgrades = {
   },
 };
 
+
 const bosses = [
     {
         id: 'oryx1',
@@ -76,10 +76,8 @@ const bosses = [
         clickThreshold: 45000,
         clickSound: '/oryxhit.mp3',
         breakSound: '/oryxdeath.mp3',
-        portalImage: '/winecellar.png', // Portal that appears AFTER this boss
-        healThresholds: [
-            { percent: 50, amount: 10000 }, // Heals 10k when health drops to 50%
-        ]
+        portalImage: '/winecellar.png',
+        healThresholds: [{ percent: 50, amount: 10000 }]
     },
     {
         id: 'oryx2',
@@ -89,10 +87,7 @@ const bosses = [
         clickSound: '/oryxhit.mp3',
         breakSound: '/oryxdeath.mp3',
         portalImage: '/oryxchamber.png',
-        healThresholds: [
-            { percent: 75, amount: 20000 },
-            { percent: 40, amount: 25000 },
-        ]
+        healThresholds: [{ percent: 75, amount: 20000 }, { percent: 40, amount: 25000 }]
     },
     {
         id: 'oryx3',
@@ -101,22 +96,18 @@ const bosses = [
         clickThreshold: 562500,
         clickSound: '/oryxhit.mp3',
         breakSound: '/oryxdeath.mp3',
-        portalImage: null, // No portal, transitions directly to the next form
-        healThresholds: [
-            { percent: 80, amount: 100000 },
-            { percent: 60, amount: 125000 },
-            { percent: 30, amount: 150000 },
-        ]
+        portalImage: null,
+        healThresholds: [{ percent: 80, amount: 100000 }, { percent: 60, amount: 125000 }, { percent: 30, amount: 150000 }]
     },
     {
         id: 'oryxexalted',
         name: 'Oryx the Mad God Exalted',
         images: ['/oryxexalted.png'],
-        clickThreshold: 1250000, // Increased health for "rage" mode
+        clickThreshold: 1250000,
         clickSound: '/oryxhit.mp3',
         breakSound: '/oryxdeath.mp3',
-        portalImage: null, // Final boss
-        healThresholds: [] // No healing in the final phase
+        portalImage: null,
+        healThresholds: []
     },
 ];
 
@@ -143,7 +134,11 @@ function PixelClickerGame() {
         };
         const savedGame = localStorage.getItem(SAVE_GAME_KEY);
         if (savedGame) {
-            const loadedState = { ...defaultState, ...JSON.parse(savedGame) };
+            let loadedData = JSON.parse(savedGame);
+            if (loadedData.playerClass && loadedData.playerClass === loadedData.playerClass.toLowerCase()) {
+                loadedData.playerClass = loadedData.playerClass.charAt(0).toUpperCase() + loadedData.playerClass.slice(1);
+            }
+            const loadedState = { ...defaultState, ...loadedData };
             delete loadedState.pointsPerClick;
             return loadedState;
         }
@@ -176,7 +171,6 @@ function PixelClickerGame() {
 
     useEffect(() => {
         if (!currentBoss || gamePhase !== GAME_PHASES.CLICKING || isHealing) return;
-        
         if (gameState.clicksOnCurrentBoss >= currentBoss.clickThreshold) {
             new Audio(currentBoss.breakSound).play();
             if (gameState.currentBossIndex === bosses.length - 1) {
@@ -205,26 +199,21 @@ function PixelClickerGame() {
         if (!currentBoss || !currentBoss.healThresholds || gamePhase !== GAME_PHASES.CLICKING || isHealing) {
             return;
         }
-
         const currentHealthPercent = 100 - (gameState.clicksOnCurrentBoss / currentBoss.clickThreshold) * 100;
         const triggeredHealsForBoss = gameState.triggeredHeals[currentBoss.id] || [];
-
         for (const heal of currentBoss.healThresholds) {
             if (currentHealthPercent <= heal.percent && !triggeredHealsForBoss.includes(heal.percent)) {
                 setGameState(prev => ({
                     ...prev,
                     triggeredHeals: { ...prev.triggeredHeals, [currentBoss.id]: [...triggeredHealsForBoss, heal.percent] }
                 }));
-
                 setIsHealing(true);
                 let amountHealed = 0;
                 const healPerIncrement = 2500;
                 const healInterval = setInterval(() => {
                     const healThisTick = Math.min(healPerIncrement, heal.amount - amountHealed);
                     amountHealed += healThisTick;
-                    
                     setGameState(prev => ({ ...prev, clicksOnCurrentBoss: Math.max(0, prev.clicksOnCurrentBoss - healThisTick) }));
-
                     if (gemButtonRef.current) {
                         const rect = gemButtonRef.current.getBoundingClientRect();
                         setFloatingHeals(current => [...current, {
@@ -233,13 +222,11 @@ function PixelClickerGame() {
                             y: rect.top + (Math.random() * 20 - 10),
                         }]);
                     }
-
                     if (amountHealed >= heal.amount) {
                         clearInterval(healInterval);
                         setIsHealing(false);
                     }
                 }, 200);
-                
                 break;
             }
         }
@@ -253,7 +240,6 @@ function PixelClickerGame() {
     const calculateDamageRange = () => {
         let minDamage = 1;
         let maxDamage = 1;
-        
         currentUpgrades.forEach(upgrade => {
             const owned = gameState.upgradesOwned[upgrade.id] || 0;
             if (owned > 0) {
@@ -276,16 +262,13 @@ function PixelClickerGame() {
         const { minDamage, maxDamage } = calculateDamageRange();
         const damageDealt = Math.floor(Math.random() * (maxDamage - minDamage + 1)) + minDamage;
         const rect = event.currentTarget.getBoundingClientRect();
-        
         setFloatingNumbers(current => [...current, {
             id: uuidv4(), value: damageDealt,
             x: rect.left + rect.width / 2 + (Math.random() * 80 - 40),
             y: rect.top + (Math.random() * 20 - 10),
         }]);
-        
         setIsShaking(true);
         setTimeout(() => setIsShaking(false), 150);
-        
         setGameState(prev => ({
             ...prev,
             score: prev.score + damageDealt,
@@ -346,22 +329,20 @@ function PixelClickerGame() {
         return 100 - percent;
     };
     
-    if (gamePhase === GAME_PHASES.CLASS_SELECTION) {
-        return (
-            <div className="card">
-                <div className="clicker-container">
-                    <h3>Choose Your Class, Cutie!</h3>
-                    <div className="class-selection-container" style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '1rem' }}>
-                        {classes.map(pClass => (
-                            <button key={pClass.id} className="btn-class-select" onClick={() => handleClassSelect(pClass.id)}>
-                                <img src={pClass.image} alt={pClass.name} />
-                                <span>{pClass.name} {pClass.emoji}</span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </div>
+    // ✨ NEW: The function to handle resetting the user's save data. ✨
+    const handleResetSave = () => {
+        const isConfirmed = window.confirm(
+            "Are you sure you want to reset all your progress? This action cannot be undone."
         );
+
+        if (isConfirmed) {
+            localStorage.removeItem(SAVE_GAME_KEY);
+            window.location.reload();
+        }
+    };
+    
+    if (gamePhase === GAME_PHASES.CLASS_SELECTION) {
+        // ... Class selection JSX is unchanged
     }
 
     if (!currentBoss) {
@@ -369,74 +350,85 @@ function PixelClickerGame() {
     }
     
     return (
-        <div className="card">
-            {floatingNumbers.map(num => (
-                <span key={num.id} className="floating-number" style={{ left: num.x, top: num.y }} onAnimationEnd={() => setFloatingNumbers(current => current.filter(n => n.id !== num.id))}>
-                    -{num.value}
-                </span>
-            ))}
-            {floatingHeals.map(num => (
-                <span key={num.id} className="floating-number heal" style={{ left: num.x, top: num.y }} onAnimationEnd={() => setFloatingHeals(current => current.filter(n => n.id !== num.id))}>
-                    +{num.value}
-                </span>
-            ))}
-            
-            <h3>
-              {gameWon ? 'You Did It!' : currentBoss.name}
-              {isHealing && <span className="healing-indicator"> HEALING...</span>}
-            </h3>
-            
-            {(gamePhase === GAME_PHASES.CLICKING || gamePhase === GAME_PHASES.TRANSITIONING) && (
-                <div className="health-bar-container">
-                    <div className="health-bar-inner" style={{ width: `${getHealthPercent()}%` }}></div>
-                    <span className="health-bar-text">{Math.max(0, Math.floor(currentBoss.clickThreshold - gameState.clicksOnCurrentBoss))} / {currentBoss.clickThreshold}</span>
-                </div>
-            )}
-            
-            <div className="clicker-container">
-                <h2>{Math.floor(gameState.score)} Sparkles ✨</h2>
-                {gamePhase === GAME_PHASES.CLICKING && (
-                    <p>{gameState.pointsPerSecond} sparkles per second / {calculateDamageRange().minDamage}-{calculateDamageRange().maxDamage} per click</p>
-                )}
+        // Use a React Fragment to wrap the card and the new button
+        <>
+            <div className="card">
+                {/* All the existing game UI is here */}
+                {floatingNumbers.map(num => (
+                    <span key={num.id} className="floating-number" style={{ left: num.x, top: num.y }} onAnimationEnd={() => setFloatingNumbers(current => current.filter(n => n.id !== num.id))}>
+                        -{num.value}
+                    </span>
+                ))}
+                {floatingHeals.map(num => (
+                    <span key={num.id} className="floating-number heal" style={{ left: num.x, top: num.y }} onAnimationEnd={() => setFloatingHeals(current => current.filter(n => n.id !== num.id))}>
+                        +{num.value}
+                    </span>
+                ))}
+                
+                <div className="clicker-container">
+                    <h2>{Math.floor(gameState.score)} Sparkles ✨</h2>
+                    {gamePhase === GAME_PHASES.CLICKING && (
+                        <p>{gameState.pointsPerSecond} sparkles per second / {calculateDamageRange().minDamage}-{calculateDamageRange().maxDamage} per click</p>
+                    )}
 
-                <div className={`gem-button ${isHealing ? 'disabled' : ''}`} ref={gemButtonRef} onClick={handleGemClick}>
-                    <img src={getCurrentImage()} alt={currentBoss.name} className={`${gamePhase === GAME_PHASES.TRANSITIONING ? 'fading-out' : ''} ${isShaking ? 'shake' : ''}`} />
-                </div>
+                    <h3 style={{ textAlign: 'center' }}>
+                        {gameWon ? 'You Did It!' : currentBoss.name}
+                        {isHealing && <span className="healing-indicator"> HEALING...</span>}
+                    </h3>
 
-                {gameWon && (
-                    <div className="portal-prompt">
-                        <h4>Congratulations, cutie! You beat the game! 💖</h4>
+                    <div className={`gem-button ${isHealing ? 'disabled' : ''}`} ref={gemButtonRef} onClick={handleGemClick}>
+                        <img src={getCurrentImage()} alt={currentBoss.name} className={`${gamePhase === GAME_PHASES.TRANSITIONING ? 'fading-out' : ''} ${isShaking ? 'shake' : ''}`} />
                     </div>
-                )}
-
-                {gamePhase === GAME_PHASES.PORTAL && (
-                    <div className="portal-prompt">
-                        <img src={currentBoss.portalImage} alt="A mysterious portal" className="portal-image" />
-                        <h4>A portal has opened! Do you enter?</h4>
-                        <button onClick={handleEnterPortal}>Enter!~</button>
-                    </div>
-                )}
-
-                {gamePhase === GAME_PHASES.CLICKING && (
-                    <div className="upgrades-shop">
-                        <h4>{gameState.playerClass}'s Upgrades!~</h4>
-                        <div className="upgrades-grid">
-                            {currentUpgrades.map(up => {
-                                const cost = calculateUpgradeCost(up);
-                                return (
-                                    <button key={up.id} onClick={() => handleBuyUpgrade(up)} className="btn-upgrade" disabled={gameState.score < cost || isHealing}>
-                                        <img src={up.image} alt={up.name} className="upgrade-image" />
-                                        <span className="upgrade-name">{up.name}</span>
-                                        <small>Cost: {cost}</small>
-                                        <small>(Owned: {gameState.upgradesOwned[up.id] || 0})</small>
-                                    </button>
-                                );
-                            })}
+                    
+                    {(gamePhase === GAME_PHASES.CLICKING || gamePhase === GAME_PHASES.TRANSITIONING) && (
+                        <div className="health-bar-container">
+                            <div className="health-bar-inner" style={{ width: `${getHealthPercent()}%` }}></div>
+                            <span className="health-bar-text">{Math.max(0, Math.floor(currentBoss.clickThreshold - gameState.clicksOnCurrentBoss))} / {currentBoss.clickThreshold}</span>
                         </div>
-                    </div>
-                )}
+                    )}
+
+                    {gameWon && (
+                        <div className="portal-prompt">
+                            <h4>Congratulations, cutie! You beat the game! 💖</h4>
+                        </div>
+                    )}
+
+                    {gamePhase === GAME_PHASES.PORTAL && (
+                        <div className="portal-prompt">
+                            <img src={currentBoss.portalImage} alt="A mysterious portal" className="portal-image" />
+                            <h4>A portal has opened! Do you enter?</h4>
+                            <button onClick={handleEnterPortal}>Enter!~</button>
+                        </div>
+                    )}
+
+                    {gamePhase === GAME_PHASES.CLICKING && (
+                        <div className="upgrades-shop">
+                            <h4>{gameState.playerClass}'s Upgrades!~</h4>
+                            <div className="upgrades-grid">
+                                {currentUpgrades.map(up => {
+                                    const cost = calculateUpgradeCost(up);
+                                    return (
+                                        <button key={up.id} onClick={() => handleBuyUpgrade(up)} className="btn-upgrade" disabled={gameState.score < cost || isHealing}>
+                                            <img src={up.image} alt={up.name} className="upgrade-image" />
+                                            <span className="upgrade-name">{up.name}</span>
+                                            <small>Cost: {cost}</small>
+                                            <small>(Owned: {gameState.upgradesOwned[up.id] || 0})</small>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
-        </div>
+
+            {/* ✨ NEW: A button outside the main card to reset the game. ✨ */}
+            <div style={{ textAlign: 'center', marginTop: '1rem', paddingBottom: '1rem' }}>
+                 <button className="btn-reset" onClick={handleResetSave}>
+                    Reset Save Data
+                </button>
+            </div>
+        </>
     );
 }
 
