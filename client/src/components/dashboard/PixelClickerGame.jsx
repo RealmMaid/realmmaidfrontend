@@ -50,19 +50,19 @@ const classUpgrades = {
   // Stage 3: For Oryx 3 and Exalted Oryx
   stage3: {
     Warrior: [
-        { id: 'item7', name: 'Pirate Kings Cutlass', image: '/pkc.png', cost: 500000, minBonus: 200, maxBonus: 500, type: 'perClick' },
-        { id: 'item8', name: 'Hivemaster Helm', image: '/hivehelm.png', cost: 2500000, value: 2000, type: 'perSecond', clickBonus: 150 },
-        { id: 'item9', name: 'Battalion Banner', image: '/bb.png', cost: 7500000, value: 5000, type: 'perSecond', clickBonus: 400 },
+        { id: 'item7', name: 'Pirate Kings Cutlass', image: '/pkc.png', cost: 45000, minBonus: 200, maxBonus: 500, type: 'perClick' },
+        { id: 'item8', name: 'Hivemaster Helm', image: '/hivehelm.png', cost: 100000, value: 2000, type: 'perSecond', clickBonus: 150 },
+        { id: 'item9', name: 'Battalion Banner', image: '/bb.png', cost: 250000, value: 5000, type: 'perSecond', clickBonus: 400 },
     ],
     Wizard: [
-        { id: 'item7', name: 'Superior', image: '/superior.png', cost: 500000, minBonus: 100, maxBonus: 700, type: 'perClick' },
-        { id: 'item8', name: 'Genesis Spell', image: '/gs.png', cost: 2500000, value: 2200, type: 'perSecond', clickBonus: 120 },
-        { id: 'item9', name: 'Chancellors Cranium', image: '/cc.png', cost: 7500000, value: 5000, type: 'perSecond', clickBonus: 400 },
+        { id: 'item7', name: 'Superior', image: '/superior.png', cost: 45000, minBonus: 100, maxBonus: 700, type: 'perClick' },
+        { id: 'item8', name: 'Genesis Spell', image: '/gs.png', cost: 100000, value: 2200, type: 'perSecond', clickBonus: 120 },
+        { id: 'item9', name: 'Chancellors Cranium', image: '/cc.png', cost: 250000, value: 5000, type: 'perSecond', clickBonus: 400 },
     ],
     Sorcerer: [
-        { id: 'item7', name: 'Lumiaire', image: '/lumi.png', cost: 500000, minBonus: 350, maxBonus: 350, type: 'perClick' },
-        { id: 'item8', name: 'Scepter of Devastation', image: '/sod.png', cost: 2500000, value: 2100, type: 'perSecond', clickBonus: 140 },
-        { id: 'item9', name: 'Divine Coronation', image: '/dc.png', cost: 7500000, value: 5000, type: 'perSecond', clickBonus: 400 },
+        { id: 'item7', name: 'Lumiaire', image: '/lumi.png', cost: 45000, minBonus: 350, maxBonus: 350, type: 'perClick' },
+        { id: 'item8', name: 'Scepter of Devastation', image: '/sod.png', cost: 100000, value: 2100, type: 'perSecond', clickBonus: 140 },
+        { id: 'item9', name: 'Divine Coronation', image: '/dc.png', cost: 250000, value: 5000, type: 'perSecond', clickBonus: 400 },
     ],
   },
 };
