@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { useCart } from '../contexts/CartContext.jsx';
+import { useChatStore } from '../hooks/useChatStore.js';
 import ChatWidget from './ChatWidget.jsx';
 
 // Component to render a dynamic, animated starry background.
@@ -137,8 +138,10 @@ const Footer = () => ( <footer className="site-footer"> <p>© 2025 Realm Maid. A
 
 function MainLayout() {
     const [isCartOpen, setIsCartOpen] = useState(false);
-    // --- FIX: Get the authentication loading state from the useAuth hook ---
     const { isAuthLoading } = useAuth();
+    
+    // Select the primitive state value directly to prevent unnecessary re-renders.
+    const isConnected = useChatStore(state => state.isConnected);
 
     return (
         <div className="site-container">
@@ -147,13 +150,31 @@ function MainLayout() {
             <Header onCartClick={() => setIsCartOpen(true)} />
             <main>
                 <Outlet />
+
+                {/* --- Temporary Debug Panel (Optional) --- */}
+                <div style={{
+                    position: 'fixed',
+                    bottom: '10px',
+                    left: '10px',
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    color: 'white',
+                    padding: '15px',
+                    borderRadius: '10px',
+                    zIndex: '9999',
+                    fontFamily: 'monospace',
+                    fontSize: '14px'
+                }}>
+                    <h4 style={{marginTop: 0, borderBottom: '1px solid white', paddingBottom: '5px'}}>Debug State</h4>
+                    <p>isAuthLoading: {isAuthLoading ? 'true' : 'false'}</p>
+                    <p>isConnected (from ChatStore): {isConnected ? 'true' : 'false'}</p>
+                </div>
+
             </main>
             <Footer />
             <ShoppingCart isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
             
-            {/* --- FIX: Conditionally render the ChatWidget --- */}
-            {/* This ensures the WebSocket connection is only attempted AFTER the initial authentication check is complete. */}
-            {!isAuthLoading && <ChatWidget />}
+            {/* The ChatWidget is now managed within its own file */}
+            <ChatWidget />
         </div>
     );
 }
