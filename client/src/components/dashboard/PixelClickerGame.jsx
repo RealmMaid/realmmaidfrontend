@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { achievements } from './achievements';
+import toast, { Toaster } from 'react-hot-toast';
 
 // ====================================================================
 // CONFIG & DATA
@@ -184,6 +185,7 @@ const defaultState = {
     unlockedAchievements: {},
     hasPrestiged: false,
     lastSavedTimestamp: null,
+    isMuted: false,
 };
 
 function formatTime(totalSeconds) {
@@ -237,12 +239,53 @@ function PixelClickerGame() {
     const [isHealing, setIsHealing] = useState(false);
     const [isInvulnerable, setIsInvulnerable] = useState(false);
     const [activeShop, setActiveShop] = useState('upgrades');
-    const [achievementAlerts, setAchievementAlerts] = useState([]);
     const gemButtonRef = useRef(null);
     
     const currentBoss = bosses[gameState.currentBossIndex];
     const bossStage = `stage${Math.min(gameState.currentBossIndex + 1, 3)}`;
     const currentUpgrades = classUpgrades[bossStage]?.[gameState.playerClass] || [];
+
+    const playSound = (soundFile, volume = 1) => {
+        if (!gameState.isMuted) {
+            try {
+                const audio = new Audio(soundFile);
+                audio.volume = volume;
+                audio.play().catch(e => console.error("Audio play failed:", e));
+            } catch (e) {
+                console.error("Audio creation failed:", e);
+            }
+        }
+    };
+
+    const calculateAchievementBonuses = () => {
+        const bonuses = {
+            clickDamageMultiplier: 1,
+            fameMultiplier: 1,
+            clickDamageFlat: 0,
+            shardMultiplier: 1,
+        };
+        for (const ach of achievements) {
+            if (gameState.unlockedAchievements[ach.id]) {
+                switch (ach.reward.type) {
+                    case 'CLICK_DAMAGE_MULTIPLIER':
+                        bonuses.clickDamageMultiplier += ach.reward.value;
+                        break;
+                    case 'FAME_MULTIPLIER':
+                        bonuses.fameMultiplier += ach.reward.value;
+                        break;
+                    case 'CLICK_DAMAGE_FLAT':
+                        bonuses.clickDamageFlat += ach.reward.value;
+                        break;
+                    case 'SHARD_MULTIPLIER':
+                        bonuses.shardMultiplier += ach.reward.value;
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+        return bonuses;
+    };
 
     useEffect(() => {
         const stateToSave = { ...gameState, lastSavedTimestamp: Date.now() };
@@ -250,38 +293,36 @@ function PixelClickerGame() {
     }, [gameState]);
 
     useEffect(() => {
-        const newUnlocks = [];
         for (const ach of achievements) {
             if (!gameState.unlockedAchievements[ach.id] && ach.isUnlocked(gameState)) {
-                newUnlocks.push(ach);
+                setGameState(prev => ({ ...prev, unlockedAchievements: { ...prev.unlockedAchievements, [ach.id]: true } }));
+                toast.custom((t) => (
+                    <div
+                        className={`achievement-alert ${t.visible ? 'animate-enter' : 'animate-leave'}`}
+                        onClick={() => toast(ach.rewardDescription, { icon: '🏆' })}
+                    >
+                        <strong>🏆 Achievement Unlocked!</strong>
+                        <p>{ach.name}</p>
+                        <small>Click to see reward!</small>
+                    </div>
+                ));
             }
-        }
-        if (newUnlocks.length > 0) {
-            setGameState(prev => ({
-                ...prev,
-                unlockedAchievements: {
-                    ...prev.unlockedAchievements,
-                    ...newUnlocks.reduce((obj, ach) => {
-                        obj[ach.id] = true;
-                        return obj;
-                    }, {})
-                }
-            }));
-            setAchievementAlerts(prev => [...prev, ...newUnlocks]);
         }
     }, [gameState.totalClicks, gameState.totalFameEarned, gameState.bossesDefeated, gameState.hasPrestiged]);
 
     useEffect(() => {
         if (gamePhase !== GAME_PHASES.CLICKING || isHealing) return;
+        const bonuses = calculateAchievementBonuses();
         const interval = setInterval(() => {
+            const fameFromDps = Math.floor(gameState.pointsPerSecond * bonuses.fameMultiplier);
             setGameState(prev => ({
                 ...prev,
-                score: prev.score + prev.pointsPerSecond,
-                totalFameEarned: prev.totalFameEarned + prev.pointsPerSecond,
+                score: prev.score + fameFromDps,
+                totalFameEarned: prev.totalFameEarned + fameFromDps
             }));
         }, 1000);
         return () => clearInterval(interval);
-    }, [gameState.pointsPerSecond, gamePhase, isHealing]);
+    }, [gameState.pointsPerSecond, gamePhase, isHealing, gameState.unlockedAchievements]);
 
     useEffect(() => {
         if (!currentBoss || gamePhase !== GAME_PHASES.CLICKING || isHealing) return;
@@ -297,7 +338,7 @@ function PixelClickerGame() {
                 setGamePhase(GAME_PHASES.EXALTED_TRANSITION);
                 return;
             }
-            new Audio(currentBoss.breakSound).play();
+            playSound(currentBoss.breakSound);
             if (gameState.currentBossIndex === bosses.length - 1) {
                 setGameWon(true);
                 setGamePhase(GAME_PHASES.FINISHED);
@@ -385,6 +426,7 @@ function PixelClickerGame() {
     const calculateDamageRange = () => {
         let minDamage = 1;
         let maxDamage = 1;
+        const bonuses = calculateAchievementBonuses();
 
         currentUpgrades.forEach(upgrade => {
             const owned = gameState.upgradesOwned[upgrade.id] || 0;
@@ -410,25 +452,30 @@ function PixelClickerGame() {
                 }
             });
         }
-
+        
+        minDamage += bonuses.clickDamageFlat;
+        maxDamage += bonuses.clickDamageFlat;
+        
         const prestigeDamageBonus = gameState.prestigeUpgradesOwned['permanentDamage'] || 0;
         const damageMultiplier = 1 + (prestigeDamageBonus * 0.10);
+        
+        minDamage = Math.floor(minDamage * damageMultiplier * bonuses.clickDamageMultiplier);
+        maxDamage = Math.floor(maxDamage * damageMultiplier * bonuses.clickDamageMultiplier);
 
-        return {
-            minDamage: Math.floor(minDamage * damageMultiplier),
-            maxDamage: Math.floor(maxDamage * damageMultiplier)
-        };
+        return { minDamage, maxDamage };
     };
 
     const handleGemClick = (event) => {
         if (gamePhase !== GAME_PHASES.CLICKING || !currentBoss || isHealing || isInvulnerable) return;
-        new Audio(currentBoss.clickSound).play();
+        playSound(currentBoss.clickSound, 0.5);
         const { minDamage, maxDamage } = calculateDamageRange();
+        const bonuses = calculateAchievementBonuses();
         const damageDealt = Math.floor(Math.random() * (maxDamage - minDamage + 1)) + minDamage;
+        const fameEarned = Math.floor(damageDealt * bonuses.fameMultiplier);
         const rect = event.currentTarget.getBoundingClientRect();
         setFloatingNumbers(current => [...current, {
             id: uuidv4(),
-            value: damageDealt,
+            value: fameEarned,
             x: rect.left + rect.width / 2 + (Math.random() * 80 - 40),
             y: rect.top + (Math.random() * 20 - 10),
         }]);
@@ -436,10 +483,10 @@ function PixelClickerGame() {
         setTimeout(() => setIsShaking(false), 150);
         setGameState(prev => ({
             ...prev,
-            score: prev.score + damageDealt,
+            score: prev.score + fameEarned,
             clicksOnCurrentBoss: prev.clicksOnCurrentBoss + damageDealt,
             totalClicks: prev.totalClicks + 1,
-            totalFameEarned: prev.totalFameEarned + damageDealt,
+            totalFameEarned: prev.totalFameEarned + fameEarned,
         }));
     };
 
@@ -480,7 +527,8 @@ function PixelClickerGame() {
     };
 
     const handlePrestige = () => {
-        const shardsToAward = Math.floor(gameState.score / 2500000);
+        const bonuses = calculateAchievementBonuses();
+        const shardsToAward = Math.floor((gameState.score / 2500000) * bonuses.shardMultiplier);
         if (shardsToAward < 1) {
             alert("You need a higher score to prestige! Try reaching at least 2,500,000 Fame.");
             return;
@@ -504,6 +552,7 @@ function PixelClickerGame() {
                     unlockedAchievements: prev.unlockedAchievements,
                     bossesDefeated: {},
                     hasPrestiged: true,
+                    isMuted: prev.isMuted,
                 };
             });
             setGameWon(false);
@@ -576,6 +625,10 @@ function PixelClickerGame() {
         }
     };
 
+    const toggleMute = () => {
+        setGameState(prev => ({ ...prev, isMuted: !prev.isMuted }));
+    };
+
     if (gamePhase === GAME_PHASES.CLASS_SELECTION) {
         return (
             <div className="card">
@@ -600,6 +653,13 @@ function PixelClickerGame() {
 
     return (
         <>
+            <Toaster position="top-right" reverseOrder={false} />
+            <div className="game-hud">
+                <button onClick={toggleMute} className="btn-mute">
+                    {gameState.isMuted ? '🔇' : '🔊'}
+                </button>
+            </div>
+
             {offlineProgress && (
                 <div className="modal-backdrop">
                     <div className="modal-content">
@@ -613,24 +673,15 @@ function PixelClickerGame() {
                 </div>
             )}
 
-            <div className="achievement-alerts-container">
-                {achievementAlerts.map((ach) => (
-                    <div key={ach.id} className="achievement-alert" onAnimationEnd={() => setAchievementAlerts(current => current.filter(a => a.id !== ach.id))}>
-                        <strong>Achievement Unlocked!</strong>
-                        <p>{ach.name}</p>
-                    </div>
-                ))}
-            </div>
-
             <div className="card">
                 {floatingNumbers.map(num => (
                     <span key={num.id} className="floating-number" style={{ left: num.x, top: num.y }} onAnimationEnd={() => setFloatingNumbers(current => current.filter(n => n.id !== num.id))}>
-                        -{num.value}
+                        -{num.value.toLocaleString()}
                     </span>
                 ))}
                 {floatingHeals.map(num => (
                     <span key={num.id} className="floating-number heal" style={{ left: num.x, top: num.y }} onAnimationEnd={() => setFloatingHeals(current => current.filter(n => n.id !== num.id))}>
-                        +{num.value}
+                        +{num.value.toLocaleString()}
                     </span>
                 ))}
                 <div className="clicker-container">
@@ -763,6 +814,7 @@ function PixelClickerGame() {
                                             <div key={ach.id} className={`achievement-item ${gameState.unlockedAchievements[ach.id] ? 'unlocked' : ''}`}>
                                                 <strong className="achievement-name">{ach.name}</strong>
                                                 <p className="achievement-desc">{ach.description}</p>
+                                                <p className="achievement-reward">{gameState.unlockedAchievements[ach.id] ? ach.rewardDescription : '???'}</p>
                                             </div>
                                         ))}
                                     </div>
