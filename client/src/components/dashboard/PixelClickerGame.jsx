@@ -10,6 +10,7 @@ const classes = [
   { id: 'Sorcerer', name: 'Sorcerer', image: '/sorcerer.png', },
 ];
 
+// Using the re-balanced upgrade values
 const classUpgrades = {
   // Stage 1: For Oryx 1 - Slightly adjusted for better feel
   stage1: {
@@ -134,7 +135,6 @@ const prestigeUpgrades = [
     }
 ];
 
-// ✨ NEW: Added EXALTED_TRANSITION phase
 const GAME_PHASES = {
   CLASS_SELECTION: 'classSelection',
   CLICKING: 'clicking',
@@ -179,7 +179,8 @@ function PixelClickerGame() {
     const [isShaking, setIsShaking] = useState(false);
     const [floatingHeals, setFloatingHeals] = useState([]);
     const [isHealing, setIsHealing] = useState(false);
-    const [isInvulnerable, setIsInvulnerable] = useState(false); // ✨ NEW: State for invulnerability
+    const [isInvulnerable, setIsInvulnerable] = useState(false); 
+    const [activeShop, setActiveShop] = useState('upgrades'); // ✨ NEW: State to control which shop is visible
     const gemButtonRef = useRef(null);
 
     const currentBoss = bosses[gameState.currentBossIndex];
@@ -198,19 +199,15 @@ function PixelClickerGame() {
         return () => clearInterval(interval);
     }, [gameState.pointsPerSecond, gamePhase, isHealing]);
 
-    // ✨ MODIFIED: Boss progression logic to handle Oryx 3's defeat specially
     useEffect(() => {
         if (!currentBoss || gamePhase !== GAME_PHASES.CLICKING || isHealing) return;
         if (gameState.clicksOnCurrentBoss >= currentBoss.clickThreshold) {
             
-            // Special transition for Oryx 3
             if (currentBoss.id === 'oryx3') {
                 setGamePhase(GAME_PHASES.EXALTED_TRANSITION);
-                // We DON'T play the death sound here and return early
                 return;
             }
 
-            // Normal boss defeat for all other bosses
             new Audio(currentBoss.breakSound).play();
             if (gameState.currentBossIndex === bosses.length - 1) {
                 setGameWon(true);
@@ -230,31 +227,25 @@ function PixelClickerGame() {
         }
     }, [gamePhase]);
 
-    // ✨ NEW: useEffect to handle the seamless transition to Exalted Oryx
     useEffect(() => {
         if (gamePhase === GAME_PHASES.EXALTED_TRANSITION) {
-            // Step 1: Wait for fade-out animation
             const transitionTimer = setTimeout(() => {
-                
-                // Step 2: Advance to the final boss
                 setGameState(prev => ({
                     ...prev,
                     currentBossIndex: prev.currentBossIndex + 1,
                     clicksOnCurrentBoss: 0,
                 }));
     
-                // Step 3: Start the invulnerability phase
                 setIsInvulnerable(true);
     
-                // Step 4: End invulnerability after a delay (e.g., 2 seconds)
                 const invulnerabilityTimer = setTimeout(() => {
                     setIsInvulnerable(false);
-                    setGamePhase(GAME_PHASES.CLICKING); // The fight begins!
+                    setGamePhase(GAME_PHASES.CLICKING);
                 }, 2000);
     
                 return () => clearTimeout(invulnerabilityTimer);
     
-            }, 3000); // This should match the fade-out animation time
+            }, 3000);
     
             return () => clearTimeout(transitionTimer);
         }
@@ -330,7 +321,6 @@ function PixelClickerGame() {
     };
 
     const handleGemClick = (event) => {
-        // ✨ MODIFIED: Prevent clicks during invulnerability and the new transition
         if (gamePhase !== GAME_PHASES.CLICKING || !currentBoss || isHealing || isInvulnerable) return;
         new Audio(currentBoss.clickSound).play();
         const { minDamage, maxDamage } = calculateDamageRange();
@@ -518,11 +508,9 @@ function PixelClickerGame() {
                     <h3 style={{ textAlign: 'center' }}>
                         {gameWon ? 'You Did It!' : currentBoss.name}
                         {isHealing && <span className="healing-indicator"> HEALING...</span>}
-                        {/* ✨ NEW: Show invulnerability status */}
                         {isInvulnerable && <span className="invulnerable-indicator"> INVULNERABLE</span>}
                     </h3>
 
-                    {/* ✨ MODIFIED: Disable button during new phases and add transition class */}
                     <div 
                         className={`gem-button ${isHealing || isInvulnerable || gamePhase === GAME_PHASES.EXALTED_TRANSITION ? 'disabled' : ''}`} 
                         ref={gemButtonRef} 
@@ -561,41 +549,54 @@ function PixelClickerGame() {
                         </div>
                     )}
                     
-                    {(gamePhase === GAME_PHASES.CLICKING || isInvulnerable) && ( // Show shops during invulnerability
+                    {(gamePhase === GAME_PHASES.CLICKING || isInvulnerable) && (
                         <>
-                            <div className="upgrades-shop">
-                                <h4 style={{ color: '#8a2be2'}}>Prestige Shop</h4>
-                                <div className="upgrades-grid">
-                                    {prestigeUpgrades.map(up => {
-                                        const cost = calculatePrestigeUpgradeCost(up);
-                                        return (
-                                            <button key={up.id} onClick={() => handleBuyPrestigeUpgrade(up)} className="btn-upgrade prestige" disabled={gameState.exaltedShards < cost || isHealing}>
-                                                <span className="upgrade-name">{up.name}</span>
-                                                <small>{up.description}</small>
-                                                <small>Cost: {cost} Shards</small>
-                                                <small>(Level: {gameState.prestigeUpgradesOwned[up.id] || 0})</small>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
+                            {/* ✨ NEW: Shop Toggle UI */}
+                            <div className="shop-toggle">
+                                <button className={`btn-toggle ${activeShop === 'upgrades' ? 'active' : ''}`} onClick={() => setActiveShop('upgrades')}>
+                                    {gameState.playerClass}'s Upgrades
+                                </button>
+                                <button className={`btn-toggle ${activeShop === 'prestige' ? 'active' : ''}`} onClick={() => setActiveShop('prestige')}>
+                                    Prestige Shop
+                                </button>
                             </div>
 
-                            <div className="upgrades-shop">
-                                <h4>{gameState.playerClass}'s Upgrades!~</h4>
-                                <div className="upgrades-grid">
-                                    {currentUpgrades.map(up => {
-                                        const cost = calculateUpgradeCost(up);
-                                        return (
-                                            <button key={up.id} onClick={() => handleBuyUpgrade(up)} className="btn-upgrade" disabled={gameState.score < cost || isHealing}>
-                                                <img src={up.image} alt={up.name} className="upgrade-image" />
-                                                <span className="upgrade-name">{up.name}</span>
-                                                <small>Cost: {cost}</small>
-                                                <small>(Owned: {gameState.upgradesOwned[up.id] || 0})</small>
-                                            </button>
-                                        );
-                                    })}
+                            {/* ✨ NEW: Conditional rendering for the shops */}
+                            {activeShop === 'prestige' ? (
+                                <div className="upgrades-shop">
+                                    <h4 style={{ color: '#8a2be2'}}>Prestige Shop</h4>
+                                    <div className="upgrades-grid">
+                                        {prestigeUpgrades.map(up => {
+                                            const cost = calculatePrestigeUpgradeCost(up);
+                                            return (
+                                                <button key={up.id} onClick={() => handleBuyPrestigeUpgrade(up)} className="btn-upgrade prestige" disabled={gameState.exaltedShards < cost || isHealing}>
+                                                    <span className="upgrade-name">{up.name}</span>
+                                                    <small>{up.description}</small>
+                                                    <small>Cost: {cost} Shards</small>
+                                                    <small>(Level: {gameState.prestigeUpgradesOwned[up.id] || 0})</small>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
-                            </div>
+                            ) : (
+                                <div className="upgrades-shop">
+                                    <h4>{gameState.playerClass}'s Upgrades!~</h4>
+                                    <div className="upgrades-grid">
+                                        {currentUpgrades.map(up => {
+                                            const cost = calculateUpgradeCost(up);
+                                            return (
+                                                <button key={up.id} onClick={() => handleBuyUpgrade(up)} className="btn-upgrade" disabled={gameState.score < cost || isHealing}>
+                                                    <img src={up.image} alt={up.name} className="upgrade-image" />
+                                                    <span className="upgrade-name">{up.name}</span>
+                                                    <small>Cost: {cost}</small>
+                                                    <small>(Owned: {gameState.upgradesOwned[up.id] || 0})</small>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
                         </>
                     )}
                 </div>
