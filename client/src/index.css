@@ -665,6 +665,27 @@ input:focus, textarea:focus {
 .modal-content button:hover {
   background-color: #7925c4;
 }
+/* Styling for the temporary boosts shop container */
+.temporary-shop {
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px dashed #555;
+}
+
+.temporary-shop h4 {
+  color: #20c20e; /* A distinct green color */
+}
+
+/* Styling for the temporary upgrade buttons */
+.btn-upgrade.temporary {
+    background-color: #1a3a1a;
+    border-color: #20c20e;
+}
+
+.btn-upgrade.temporary:hover:not(:disabled) {
+    background-color: #2a5a2a;
+    border-color: #30e21e;
+}
 .badge.verified { background-color: #2ecc71; }
 .badge.not-verified { background-color: #e74c3c; }
 .badge.admin { background-color: #9b59b6; }
