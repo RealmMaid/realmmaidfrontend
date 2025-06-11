@@ -92,7 +92,11 @@ export const AuthProvider = ({ children }) => {
 
     return (
         <AuthContext.Provider value={value}>
-            {!isAuthLoading && children}
+            {/* --- THIS IS THE FIX! --- */}
+            {/* We now ALWAYS render the children components. */}
+            {/* Other parts of your app (like MainLayout) will use */}
+            {/* the 'isAuthLoading' value to decide what to show! */}
+            {children}
         </AuthContext.Provider>
     );
 };
