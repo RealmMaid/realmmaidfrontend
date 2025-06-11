@@ -42,18 +42,10 @@ function PhaserGame() {
         gameRef.current = new Phaser.Game(config);
 
         function preload() {
-            // Images
             this.load.image('player', '/wizard.png');
             this.load.image('boss', '/oryx.png');
             this.load.image('boss-beamslash', '/beamslash.png');
             this.load.image('player-beamslash', '/player-beamslash.png');
-
-            // Sounds
-            this.load.audio('boss-hit', '/oryxhit.mp3');
-            this.load.audio('boss-death', '/oryxdeath.mp3');
-            this.load.audio('player-death', '/wizarddeath.mp3');
-            // Once you have a player hit sound, you can add it here!
-            // For example: this.load.audio('player-hit', '/playerhit.mp3'); 
         }
 
         function create() {
@@ -76,21 +68,6 @@ function PhaserGame() {
             // Projectiles
             this.bossProjectiles = this.physics.add.group({ defaultKey: 'boss-beamslash', maxSize: 30 });
             this.playerProjectiles = this.physics.add.group({ defaultKey: 'player-beamslash', maxSize: 10 });
-
-            // Timers
-            this.time.addEvent({
-                delay: 1500,
-                callback: () => {
-                    if (this.boss.active) {
-                        const laser = this.bossProjectiles.get(this.boss.x, this.boss.y + 60);
-                        if (laser) {
-                            laser.setActive(true).setVisible(true).setVelocity(0, PROJECTILE_SPEED);
-                            laser.body.setSize(laser.width * 0.5, laser.height * 0.8);
-                        }
-                    }
-                },
-                loop: true
-            });
             
             // UI Text
             this.healthText = this.add.text(10, 10, `Health: ${this.playerHealth}`, { fontSize: '24px', fill: '#ffffff' });
@@ -99,41 +76,68 @@ function PhaserGame() {
             // Collision Handlers
             this.physics.add.overlap(this.player, this.bossProjectiles, playerHit, null, this);
             this.physics.add.overlap(this.boss, this.playerProjectiles, bossHit, null, this);
+            
+            // Boss shooting timer with special attacks!
+            this.shotCounter = 0;
+            this.time.addEvent({
+                delay: 1500,
+                callback: () => {
+                    if (this.boss.active) {
+                        this.shotCounter++;
+                        if (this.shotCounter % 4 === 0) {
+                            shootShotgunBlast.call(this);
+                        } else {
+                            shootSingleLaser.call(this);
+                        }
+                    }
+                },
+                loop: true
+            });
         }
         
-        function playerHit(player, laser) {
-            // Use a property on the player sprite to track invincibility
-            if (player.isInvincible) {
-                return;
+        function shootSingleLaser() {
+            const laser = this.bossProjectiles.get(this.boss.x, this.boss.y + 60);
+            if (laser) {
+                laser.setActive(true).setVisible(true).setVelocity(0, PROJECTILE_SPEED);
+                laser.body.setSize(laser.width * 0.5, laser.height * 0.8);
             }
+        }
+        
+        function shootShotgunBlast() {
+            const projectileCount = 5;
+            const spreadAngle = 45;
+            const baseAngle = 90;
+            for (let i = 0; i < projectileCount; i++) {
+                const angle = baseAngle - (spreadAngle / 2) + (spreadAngle / (projectileCount - 1)) * i;
+                const laser = this.bossProjectiles.get(this.boss.x, this.boss.y + 60);
+                if (laser) {
+                    laser.setActive(true).setVisible(true);
+                    laser.body.setSize(laser.width * 0.5, laser.height * 0.8);
+                    this.physics.velocityFromAngle(angle, PROJECTILE_SPEED, laser.body.velocity);
+                }
+            }
+        }
+
+        function playerHit(player, laser) {
+            if (player.isInvincible) { return; }
             player.isInvincible = true;
-            
             laser.setActive(false).setVisible(false).body.reset(laser.x, laser.y);
             this.playerHealth -= PROJECTILE_DAMAGE;
             this.healthText.setText('Health: ' + Math.max(0, this.playerHealth));
-            
             if (this.playerHealth <= 0) {
-                this.sound.play('player-death');
                 this.physics.pause();
                 player.setTint(0xff0000);
                 this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 50, 'GAME OVER', { fontSize: '64px', fill: '#ff0000' }).setOrigin(0.5);
                 const restartText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 50, 'Click to Restart', { fontSize: '32px', fill: '#ffffff' }).setOrigin(0.5).setInteractive();
-                restartText.on('pointerdown', () => {
-                    // Reset health before restarting the scene
-                    this.playerHealth = PLAYER_INITIAL_HEALTH;
-                    this.bossHealth = BOSS_INITIAL_HEALTH;
-                    this.scene.restart();
-                });
+                restartText.on('pointerdown', () => { this.scene.restart(); });
             } else {
-                // Placeholder for your player hit sound!
-                // this.sound.play('player-hit');
                 this.tweens.add({
                     targets: player,
                     alpha: 0.5,
                     duration: 150,
                     ease: 'Linear',
                     yoyo: true,
-                    repeat: 3, 
+                    repeat: 3,
                     onComplete: () => {
                         player.isInvincible = false;
                         player.setAlpha(1);
@@ -146,12 +150,8 @@ function PhaserGame() {
             laser.setActive(false).setVisible(false).body.reset(laser.x, laser.y);
             this.bossHealth -= PROJECTILE_DAMAGE;
             this.bossHealthText.setText(`Boss HP: ${Math.max(0, this.bossHealth)}`);
-
             if (this.bossHealth <= 0) {
-                this.sound.play('boss-death');
                 boss.setActive(false).setVisible(false);
-            } else {
-                this.sound.play('boss-hit');
             }
         }
 
