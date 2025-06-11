@@ -1,27 +1,154 @@
 import React, { useEffect, useRef } from 'react';
 import Phaser from 'phaser';
-import { CombatScene } from '../../scenes/CombatScene';
-import { MapScene } from '../../scenes/MapScene'; // ✨ Import our new MapScene! ✨
+
+// All our constants can live outside the component
+const GAME_WIDTH = 800;
+const GAME_HEIGHT = 600;
+const BOSS_SPEED = 150;
+const BOSS_INITIAL_HEALTH = 1000;
+const PROJECTILE_SPEED = 400;
+const PLAYER_INITIAL_HEALTH = 200;
+const PROJECTILE_DAMAGE = 10;
+const PLAYER_PROJECTILE_SPEED = -600;
+
+// ✨ SCENE 1: The Map Scene Blueprint ✨
+class MapScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'MapScene' });
+    }
+
+    create() {
+        this.cameras.main.setBackgroundColor('#3d874b');
+        this.add.text(400, 250, 'You are on the World Map!', { fontSize: '32px', fill: '#ffffff' }).setOrigin(0.5);
+        const enterCombatText = this.add.text(400, 350, 'Enter the Boss Dungeon! >:3', { fontSize: '24px', fill: '#ffffff' }).setOrigin(0.5).setInteractive();
+        
+        enterCombatText.on('pointerdown', () => {
+            // This tells Phaser to stop this scene and start the other one!
+            this.scene.start('CombatScene');
+        });
+    }
+}
+
+// ✨ SCENE 2: The Combat Scene Blueprint ✨
+// This is all our working game logic, now inside its own class!
+class CombatScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'CombatScene' });
+    }
+
+    init() { /* ... unchanged ... */ }
+    preload() { /* ... unchanged ... */ }
+    create() { /* ... unchanged ... */ }
+    update() { /* ... unchanged ... */ }
+    playerHit(player, laser) { /* ... unchanged ... */ }
+    bossHit(boss, laser) { /* ... unchanged ... */ }
+    // ... all our helper functions will be here ...
+}
+
 
 function PhaserGame() {
     const gameRef = useRef(null);
 
     useEffect(() => {
+        // ✨ UPDATED: We put our whole Combat Scene logic inside the class definition! ✨
+        class CombatScene extends Phaser.Scene {
+            constructor() { super({ key: 'CombatScene' }); }
+            init() {
+                this.playerHealth = PLAYER_INITIAL_HEALTH;
+                this.bossHealth = BOSS_INITIAL_HEALTH;
+            }
+            preload() {
+                this.load.image('player', '/wizard.png');
+                this.load.image('boss', '/oryx.png');
+                this.load.image('boss-beamslash', '/beamslash.png');
+                this.load.image('player-beamslash', '/player-beamslash.png');
+            }
+            create() {
+                this.player = this.physics.add.sprite(GAME_WIDTH / 2, GAME_HEIGHT - 60, 'player');
+                this.player.setCollideWorldBounds(true).setScale(0.4);
+                this.player.body.setSize(this.player.width * 0.5, this.player.height * 0.8);
+                this.cursors = this.input.keyboard.createCursorKeys();
+                this.keyA = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
+                this.keyD = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
+                this.keySpace = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+                this.boss = this.physics.add.sprite(100, 80, 'boss');
+                this.boss.setCollideWorldBounds(true).setVelocityX(BOSS_SPEED);
+                this.boss.body.setSize(this.boss.width * 0.8, this.boss.height * 0.7);
+                this.bossProjectiles = this.physics.add.group({ defaultKey: 'boss-beamslash', maxSize: 50 });
+                this.playerProjectiles = this.physics.add.group({ defaultKey: 'player-beamslash', maxSize: 10 });
+                this.healthText = this.add.text(10, 10, `Health: ${this.playerHealth}`, { fontSize: '24px', fill: '#ffffff' });
+                this.bossHealthText = this.add.text(GAME_WIDTH - 10, 10, `Boss HP: ${this.bossHealth}`, { fontSize: '24px', fill: '#ffffff' }).setOrigin(1, 0);
+                this.time.addEvent({ delay: 1500, callback: () => { if (this.boss.active) { this.shootSingleLaser(); } }, loop: true });
+                this.physics.add.overlap(this.player, this.bossProjectiles, this.playerHit, null, this);
+                this.physics.add.overlap(this.boss, this.playerProjectiles, this.bossHit, null, this);
+            }
+            update() {
+                if (this.player.active) {
+                    if (this.cursors.left.isDown || this.keyA.isDown) { this.player.setVelocityX(-300); }
+                    else if (this.cursors.right.isDown || this.keyD.isDown) { this.player.setVelocityX(300); }
+                    else { this.player.setVelocityX(0); }
+                    if (Phaser.Input.Keyboard.JustDown(this.keySpace)) {
+                        const laser = this.playerProjectiles.get(this.player.x, this.player.y - 40);
+                        if (laser) { laser.setActive(true).setVisible(true).setVelocityY(PLAYER_PROJECTILE_SPEED); laser.body.setSize(laser.width * 0.5, laser.height * 0.8); }
+                    }
+                }
+                if (this.boss.active) {
+                    if (this.boss.body.blocked.right) { this.boss.setVelocityX(-BOSS_SPEED); }
+                    else if (this.boss.body.blocked.left) { this.boss.setVelocityX(BOSS_SPEED); }
+                }
+                this.bossProjectiles.children.iterate(laser => { if (laser && laser.y > GAME_HEIGHT) { laser.setActive(false).setVisible(false).body.reset(laser.x, laser.y); }});
+                this.playerProjectiles.children.iterate(laser => { if (laser && laser.y < 0) { laser.setActive(false).setVisible(false).body.reset(laser.x, laser.y); }});
+            }
+            playerHit(player, laser) {
+                if (player.isInvincible) return;
+                player.isInvincible = true;
+                laser.setActive(false).setVisible(false).body.reset(laser.x, laser.y);
+                this.playerHealth -= PROJECTILE_DAMAGE;
+                this.healthText.setText('Health: ' + Math.max(0, this.playerHealth));
+                if (this.playerHealth <= 0) {
+                    this.physics.pause();
+                    player.setTint(0xff0000);
+                    this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 50, 'GAME OVER', { fontSize: '64px', fill: '#ff0000' }).setOrigin(0.5);
+                    const restartText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 50, 'Click to Return to Map', { fontSize: '32px', fill: '#ffffff' }).setOrigin(0.5).setInteractive();
+                    restartText.on('pointerdown', () => { this.scene.start('MapScene'); });
+                } else {
+                    this.tweens.add({ targets: player, alpha: 0.5, duration: 150, ease: 'Linear', yoyo: true, repeat: 3, onComplete: () => { player.isInvincible = false; player.setAlpha(1); } });
+                }
+            }
+            bossHit(boss, laser) {
+                if (boss.isInvincible) { laser.setActive(false).setVisible(false).body.reset(laser.x, laser.y); return; }
+                laser.setActive(false).setVisible(false).body.reset(laser.x, laser.y);
+                this.bossHealth -= PROJECTILE_DAMAGE;
+                this.bossHealthText.setText(`Boss HP: ${Math.max(0, this.bossHealth)}`);
+                if (this.bossHealth <= 0) {
+                    boss.setActive(false).setVisible(false);
+                    this.physics.pause();
+                    this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 50, 'YOU WIN!', { fontSize: '64px', fill: '#00e6cc' }).setOrigin(0.5);
+                    const playAgainText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 50, 'Click to Return to Map', { fontSize: '32px', fill: '#ffffff' }).setOrigin(0.5).setInteractive();
+                    playAgainText.on('pointerdown', () => { this.scene.start('MapScene'); });
+                }
+            }
+            shootSingleLaser() {
+                const laser = this.bossProjectiles.get(this.boss.x, this.boss.y + 60);
+                if (laser) { laser.setActive(true).setVisible(true).setVelocity(0, PROJECTILE_SPEED); laser.body.setSize(laser.width * 0.5, laser.height * 0.8); }
+            }
+        }
+
         const config = {
             type: Phaser.AUTO,
             width: 800,
             height: 600,
             parent: 'phaser-container',
-            // ✨ We give Phaser a list of all our scenes! ✨
-            // The first one in the list is the one that starts automatically.
+            physics: {
+                default: 'arcade',
+                arcade: {
+                    gravity: { y: 0 }
+                }
+            },
             scene: [MapScene, CombatScene]
         };
-
         gameRef.current = new Phaser.Game(config);
-
-        return () => {
-            gameRef.current.destroy(true);
-        };
+        return () => { gameRef.current.destroy(true); };
     }, []);
 
     return <div id="phaser-container" />;
