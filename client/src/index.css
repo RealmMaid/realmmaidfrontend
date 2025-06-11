@@ -558,6 +558,12 @@ input:focus, textarea:focus {
 .btn-reset:hover {
   background-color: #ff1f1f;
 }
+.game-sprite {
+  /* These styles will override any global img styles and fix our game! */
+  position: absolute !important;
+  max-width: none !important;
+  display: block !important;
+}
 .badge.verified { background-color: #2ecc71; }
 .badge.not-verified { background-color: #e74c3c; }
 .badge.admin { background-color: #9b59b6; }
