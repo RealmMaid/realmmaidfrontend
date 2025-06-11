@@ -11,58 +11,58 @@ const classes = [
 ];
 
 const classUpgrades = {
-  // Stage 1: For Oryx 1
+  // Stage 1: For Oryx 1 - Slightly adjusted for better feel
   stage1: {
     Warrior: [
-      { id: 'item1', name: 'Skysplitter Sword', image: '/skysplittersword.png', cost: 50, minBonus: 2, maxBonus: 5, type: 'perClick' },
-      { id: 'item2', name: 'Golden Helm', image: '/goldenhelm.png', cost: 250, value: 2, type: 'perSecond', clickBonus: 1 },
-      { id: 'item3', name: 'Ring of Exalted Dexterity', image: '/ringofexalteddexterity.png', cost: 750, value: 4, type: 'perSecond', clickBonus: 3 },
+      { id: 'item1', name: 'Skysplitter Sword', image: '/skysplittersword.png', cost: 40, minBonus: 3, maxBonus: 6, type: 'perClick' }, // Cheaper, stronger
+      { id: 'item2', name: 'Golden Helm', image: '/goldenhelm.png', cost: 220, value: 3, type: 'perSecond', clickBonus: 2 }, // Better click bonus
+      { id: 'item3', name: 'Ring of Exalted Dexterity', image: '/ringofexalteddexterity.png', cost: 700, value: 8, type: 'perSecond', clickBonus: 4 }, // Stronger
     ],
     Wizard: [
-      { id: 'item1', name: 'Staff of Astral Knowledge', image: '/staffofastralknowledge.png', cost: 50, minBonus: 1, maxBonus: 7, type: 'perClick' },
-      { id: 'item2', name: 'Magic Nova Spell', image: '/magicnovaspell.png', cost: 250, value: 2, type: 'perSecond', clickBonus: 1 },
-      { id: 'item3', name: 'Ring of Exalted Mana', image: '/ringofexaltedattack.png', cost: 750, value: 4, type: 'perSecond', clickBonus: 3 },
+      { id: 'item1', name: 'Staff of Astral Knowledge', image: '/staffofastralknowledge.png', cost: 45, minBonus: 1, maxBonus: 9, type: 'perClick' }, // Wider range
+      { id: 'item2', name: 'Magic Nova Spell', image: '/magicnovaspell.png', cost: 250, value: 4, type: 'perSecond', clickBonus: 1 },
+      { id: 'item3', name: 'Ring of Exalted Mana', image: '/ringofexaltedattack.png', cost: 750, value: 9, type: 'perSecond', clickBonus: 3 },
     ],
     Sorcerer: [
-      { id: 'item1', name: 'Wand of Ancient Warning', image: '/woaw.png', cost: 50, minBonus: 3, maxBonus: 3, type: 'perClick' },
-      { id: 'item2', name: 'Scepter of Skybolts', image: '/sos.png', cost: 250, value: 2, type: 'perSecond', clickBonus: 1 },
-      { id: 'item3', name: 'Ring of Exalted Attack', image: '/ringofexaltedattack.png', cost: 750, value: 4, type: 'perSecond', clickBonus: 3 },
+      { id: 'item1', name: 'Wand of Ancient Warning', image: '/woaw.png', cost: 50, minBonus: 4, maxBonus: 4, type: 'perClick' },
+      { id: 'item2', name: 'Scepter of Skybolts', image: '/sos.png', cost: 200, value: 5, type: 'perSecond', clickBonus: 1 }, // Cheaper, more DPS
+      { id: 'item3', name: 'Ring of Exalted Attack', image: '/ringofexaltedattack.png', cost: 800, value: 12, type: 'perSecond', clickBonus: 2 }, // DPS focus
     ],
   },
-  // Stage 2: For Oryx 2
+  // Stage 2: For Oryx 2 - Significantly buffed to prepare for O3
   stage2: {
     Warrior: [
-        { id: 'item4', name: 'Sword of Acclaim', image: '/soa.png', cost: 10000, minBonus: 20, maxBonus: 50, type: 'perClick' },
-        { id: 'item5', name: 'Helm of the Great General', image: '/hotgg.png', cost: 50000, value: 200, type: 'perSecond', clickBonus: 15 },
-        { id: 'item6', name: 'Ring of Unbound Attack', image: '/ringofunboundattack.png', cost: 150000, value: 500, type: 'perSecond', clickBonus: 40 },
+        { id: 'item4', name: 'Sword of Acclaim', image: '/soa.png', cost: 8000, minBonus: 40, maxBonus: 70, type: 'perClick' }, // Better scaling
+        { id: 'item5', name: 'Helm of the Great General', image: '/hotgg.png', cost: 45000, value: 250, type: 'perSecond', clickBonus: 25 }, // Higher bonuses
+        { id: 'item6', name: 'Ring of Unbound Attack', image: '/ringofunboundattack.png', cost: 120000, value: 600, type: 'perSecond', clickBonus: 60 }, // Cheaper, stronger
     ],
     Wizard: [
-        { id: 'item4', name: 'Staff of the Cosmic Whole', image: '/sotcw.png', cost: 10000, minBonus: 10, maxBonus: 70, type: 'perClick' },
-        { id: 'item5', name: 'Elemental Detonation Spell', image: '/eds.png', cost: 50000, value: 220, type: 'perSecond', clickBonus: 12 },
-        { id: 'item6', name: 'Ring of Unbound Dexterity', image: '/ringofunbounddexterity.png', cost: 150000, value: 500, type: 'perSecond', clickBonus: 40 },
+        { id: 'item4', name: 'Staff of the Cosmic Whole', image: '/sotcw.png', cost: 9000, minBonus: 20, maxBonus: 120, type: 'perClick' }, // Wider, more exciting range
+        { id: 'item5', name: 'Elemental Detonation Spell', image: '/eds.png', cost: 50000, value: 300, type: 'perSecond', clickBonus: 20 },
+        { id: 'item6', name: 'Ring of Unbound Dexterity', image: '/ringofunbounddexterity.png', cost: 135000, value: 650, type: 'perSecond', clickBonus: 55 },
     ],
     Sorcerer: [
-        { id: 'item4', name: 'Wand of Recompense', image: '/wor.png', cost: 10000, minBonus: 35, maxBonus: 35, type: 'perClick' },
-        { id: 'item5', name: 'Scepter of Storms', image: '/sos.png', cost: 50000, value: 210, type: 'perSecond', clickBonus: 14 },
-        { id: 'item6', name: 'Ring of Unbound Attack', image: '/ringofunbounddexterity.png', cost: 150000, value: 500, type: 'perSecond', clickBonus: 40 },
+        { id: 'item4', name: 'Wand of Recompense', image: '/wor.png', cost: 10000, minBonus: 55, maxBonus: 55, type: 'perClick' },
+        { id: 'item5', name: 'Scepter of Storms', image: '/sos.png', cost: 40000, value: 350, type: 'perSecond', clickBonus: 22 }, // Cheaper, more DPS
+        { id: 'item6', name: 'Ring of Unbound Attack', image: '/ringofunbounddexterity.png', cost: 150000, value: 800, type: 'perSecond', clickBonus: 40 }, // Stronger DPS
     ],
   },
-  // Stage 3: For Oryx 3 and Exalted Oryx
+  // Stage 3: For Oryx 3 and Exalted Oryx - Buffed to handle the massive HP pools
   stage3: {
     Warrior: [
-        { id: 'item7', name: 'Pirate Kings Cutlass', image: '/pkc.png', cost: 45000, minBonus: 200, maxBonus: 500, type: 'perClick' },
-        { id: 'item8', name: 'Hivemaster Helm', image: '/hivehelm.png', cost: 100000, value: 2000, type: 'perSecond', clickBonus: 150 },
-        { id: 'item9', name: 'Battalion Banner', image: '/bb.png', cost: 250000, value: 5000, type: 'perSecond', clickBonus: 400 },
+        { id: 'item7', name: 'Pirate Kings Cutlass', image: '/pkc.png', cost: 350000, minBonus: 300, maxBonus: 600, type: 'perClick' }, // Lower cost, higher output
+        { id: 'item8', name: 'Hivemaster Helm', image: '/hivehelm.png', cost: 800000, value: 2500, type: 'perSecond', clickBonus: 200 },
+        { id: 'item9', name: 'Battalion Banner', image: '/bb.png', cost: 2000000, value: 7000, type: 'perSecond', clickBonus: 500 }, // Cheaper, stronger
     ],
     Wizard: [
-        { id: 'item7', name: 'Superior', image: '/superior.png', cost: 45000, minBonus: 100, maxBonus: 700, type: 'perClick' },
-        { id: 'item8', name: 'Genesis Spell', image: '/gs.png', cost: 100000, value: 2200, type: 'perSecond', clickBonus: 120 },
-        { id: 'item9', name: 'Chancellors Cranium', image: '/cc.png', cost: 250000, value: 5000, type: 'perSecond', clickBonus: 400 },
+        { id: 'item7', name: 'Superior', image: '/superior.png', cost: 400000, minBonus: 150, maxBonus: 850, type: 'perClick' },
+        { id: 'item8', name: 'Genesis Spell', image: '/gs.png', cost: 900000, value: 3000, type: 'perSecond', clickBonus: 150 },
+        { id: 'item9', name: 'Chancellors Cranium', image: '/cc.png', cost: 2200000, value: 7500, type: 'perSecond', clickBonus: 450 },
     ],
     Sorcerer: [
-        { id: 'item7', name: 'Lumiaire', image: '/lumi.png', cost: 45000, minBonus: 350, maxBonus: 350, type: 'perClick' },
-        { id: 'item8', name: 'Scepter of Devastation', image: '/sod.png', cost: 100000, value: 2100, type: 'perSecond', clickBonus: 140 },
-        { id: 'item9', name: 'Divine Coronation', image: '/dc.png', cost: 250000, value: 5000, type: 'perSecond', clickBonus: 400 },
+        { id: 'item7', name: 'Lumiaire', image: '/lumi.png', cost: 450000, minBonus: 400, maxBonus: 400, type: 'perClick' },
+        { id: 'item8', name: 'Scepter of Devastation', image: '/sod.png', cost: 750000, value: 3500, type: 'perSecond', clickBonus: 180 }, // Cheaper, DPS focus
+        { id: 'item9', name: 'Divine Coronation', image: '/dc.png', cost: 2500000, value: 10000, type: 'perSecond', clickBonus: 400 }, // THE idle item
     ],
   },
 };
