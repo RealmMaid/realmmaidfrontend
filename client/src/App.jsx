@@ -21,7 +21,8 @@ import MyOrders from './components/dashboard/MyOrders.jsx';
 import ProfileSettings from './components/dashboard/ProfileSettings.jsx';
 import PaymentMethods from './components/dashboard/PaymentMethods.jsx';
 import MyWishlist from './components/dashboard/MyWishlist.jsx';
- // The import!
+// --- CHANGE: Added the import for the game component ---
+import PixelClickerGame from './components/dashboard/PixelClickerGame.jsx';
 
 
 function App() {
@@ -41,12 +42,15 @@ function App() {
         </Route>
         
         <Route element={<ProtectedRoute />}>
+            {/* This is the nested dashboard route structure */}
             <Route path="/dashboard" element={<UserDashboardPage />}>
               <Route index element={<Navigate to="orders" replace />} />
               <Route path="orders" element={<MyOrders />} />
               <Route path="settings"element={<ProfileSettings />} />
               <Route path="payments" element={<PaymentMethods />} />
               <Route path="wishlist" element={<MyWishlist />} />
+              {/* --- CHANGE: Added the route for your game --- */}
+              <Route path="game" element={<PixelClickerGame />} />
             </Route>
             <Route path="/checkout" element={<CheckoutPage />} />
         </Route>
