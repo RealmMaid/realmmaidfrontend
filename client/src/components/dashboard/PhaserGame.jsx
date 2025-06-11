@@ -1,10 +1,11 @@
 import React, { useEffect, useRef } from 'react';
 import Phaser from 'phaser';
 
-// Constants are the same!
+// Constants
 const GAME_WIDTH = 800;
 const GAME_HEIGHT = 600;
 const BOSS_SPEED = 150;
+const PROJECTILE_SPEED = 400;
 
 function PhaserGame() {
     const gameRef = useRef(null);
@@ -35,50 +36,75 @@ function PhaserGame() {
         function preload() {
             this.load.image('player', '/wizard.png');
             this.load.image('boss', '/oryx.png');
+            // ✨ NEW: Let's load a little image for our laser! ✨
+            this.load.image('laser', '/laser.png'); // You'll need to create a small image for this!
         }
 
         function create() {
-            // Create the player
-            const playerX = GAME_WIDTH / 2;
-            const playerY = GAME_HEIGHT - 60;
-            this.player = this.physics.add.sprite(playerX, playerY, 'player');
+            // Create player
+            this.player = this.physics.add.sprite(GAME_WIDTH / 2, GAME_HEIGHT - 60, 'player');
             this.player.setCollideWorldBounds(true);
-
-            // ✨ UPDATED: Making our little wizard even smaller! ✨
-            this.player.setScale(0.4); // Changed from 0.5 to 0.4!
+            this.player.setScale(0.4);
             
-            // Create the keyboard listeners
+            // Create keyboard listeners
             this.cursors = this.input.keyboard.createCursorKeys();
             this.keyA = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
             this.keyD = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
 
-            // Create the boss
+            // Create boss
             this.boss = this.physics.add.sprite(100, 80, 'boss');
             this.boss.setCollideWorldBounds(true);
             this.boss.setVelocityX(BOSS_SPEED);
+
+            // ✨ NEW: Create our magical box for projectiles! ✨
+            this.projectiles = this.physics.add.group({
+                defaultKey: 'laser',
+                maxSize: 30 // We won't have more than 30 lasers on screen at once
+            });
+
+            // ✨ NEW: A Phaser timer to make the boss shoot! ✨
+            this.time.addEvent({
+                delay: 1500, // Shoots every 1.5 seconds
+                callback: () => {
+                    // This function gets a laser from our group.
+                    // If there are no inactive lasers to recycle, it creates a new one!
+                    const laser = this.projectiles.get(this.boss.x, this.boss.y + 60);
+                    if (laser) {
+                        laser.setActive(true);
+                        laser.setVisible(true);
+                        laser.setVelocityY(PROJECTILE_SPEED);
+                    }
+                },
+                loop: true
+            });
         }
 
         function update() {
             // Player movement logic (unchanged)
             if (this.cursors.left.isDown || this.keyA.isDown) {
                 this.player.setVelocityX(-300);
-            }
-            else if (this.cursors.right.isDown || this.keyD.isDown) {
+            } else if (this.cursors.right.isDown || this.keyD.isDown) {
                 this.player.setVelocityX(300);
-            }
-            else {
+            } else {
                 this.player.setVelocityX(0);
             }
 
-            // ✨ UPDATED: Boss bouncing logic is now more reliable! ✨
-            // We check if the physics body is "blocked" by the world bounds.
+            // Boss bouncing logic (unchanged)
             if (this.boss.body.blocked.right) {
-                // If he's blocked on the right, move left.
                 this.boss.setVelocityX(-BOSS_SPEED);
             } else if (this.boss.body.blocked.left) {
-                // If he's blocked on the left, move right.
                 this.boss.setVelocityX(BOSS_SPEED);
             }
+            
+            // ✨ NEW: Recycling projectiles that go off-screen! ✨
+            this.projectiles.children.iterate(laser => {
+                if (laser && laser.y > GAME_HEIGHT) {
+                    // If a laser goes off the bottom, we "kill" it by hiding
+                    // and deactivating it, which puts it back in the box to be reused!
+                    laser.setActive(false);
+                    laser.setVisible(false);
+                }
+            });
         }
 
         return () => {
