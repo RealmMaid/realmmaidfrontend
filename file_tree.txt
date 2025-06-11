@@ -5,6 +5,7 @@ File tree for: C:\Users\admin\projects\realmmaid_frontend
 │   └── file_tree.txt
 │   ├── client/
 │   │   ├── dist
+│   │   ├── public
 │   │   ├── src
 │   │   ├── index.html
 │   │   ├── package-lock.json
@@ -16,6 +17,25 @@ File tree for: C:\Users\admin\projects\realmmaid_frontend
 │   │   │   ├── assets/
 │   │   │   │   ├── index-Bv03OH9e.css
 │   │   │   │   └── index-BW3O4cBO.js
+│   │   ├── public/
+│   │   │   ├── goldenhelm.png
+│   │   │   ├── magicnovaspell.png
+│   │   │   ├── oryx.png
+│   │   │   ├── oryx2.png
+│   │   │   ├── oryx3.png
+│   │   │   ├── oryxdeath.mp3
+│   │   │   ├── oryxexalted.png
+│   │   │   ├── oryxhit.mp3
+│   │   │   ├── ringofexaltedattack.png
+│   │   │   ├── ringofexalteddexterity.png
+│   │   │   ├── scepterofsskybolts.png
+│   │   │   ├── skysplittersword.png
+│   │   │   ├── sorcerer.png
+│   │   │   ├── staffofastralknowledge.png
+│   │   │   ├── wandofancientwarning.png
+│   │   │   ├── warrior.png
+│   │   │   ├── winecellar.png
+│   │   │   └── wizard.png
 │   │   ├── src/
 │   │   │   ├── admin-dashboard-modules
 │   │   │   ├── api
@@ -32,6 +52,7 @@ File tree for: C:\Users\admin\projects\realmmaid_frontend
 │   │   │   │   ├── axios.js
 │   │   │   │   └── csrf.js
 │   │   │   ├── components/
+│   │   │   │   ├── dashboard
 │   │   │   │   ├── AdminChat.jsx
 │   │   │   │   ├── ChatManagement.jsx
 │   │   │   │   ├── ChatModal.jsx
@@ -42,11 +63,19 @@ File tree for: C:\Users\admin\projects\realmmaid_frontend
 │   │   │   │   ├── IpManagement.jsx
 │   │   │   │   ├── MainLayout.jsx
 │   │   │   │   ├── OrderManagement.jsx
+│   │   │   │   ├── ProductCard.jsx
 │   │   │   │   ├── ProductManagement.jsx
 │   │   │   │   ├── ProtectedRoute.jsx
 │   │   │   │   ├── SettingsManagement.jsx
 │   │   │   │   ├── ShoppingCart.jsx
 │   │   │   │   └── UserManagement.jsx
+│   │   │   │   ├── dashboard/
+│   │   │   │   │   ├── MyOrders.jsx
+│   │   │   │   │   ├── MyWishlist.jsx
+│   │   │   │   │   ├── OrderDetailsModal.jsx
+│   │   │   │   │   ├── PaymentMethods.jsx
+│   │   │   │   │   ├── PixelClickerGame.jsx
+│   │   │   │   │   └── ProfileSettings.jsx
 │   │   │   ├── contexts/
 │   │   │   │   ├── CartContext.jsx
 │   │   │   │   └── WebSocketProvider.jsx
@@ -55,7 +84,8 @@ File tree for: C:\Users\admin\projects\realmmaid_frontend
 │   │   │   │   ├── useChatSessions.js
 │   │   │   │   ├── useChatStore.js
 │   │   │   │   ├── useReadReceipts.js
-│   │   │   │   └── useUpdateSessionStatus.js
+│   │   │   │   ├── useUpdateSessionStatus.js
+│   │   │   │   └── useWishlistStore.js
 │   │   │   ├── pages/
 │   │   │   │   ├── AdminDashboardPage.css
 │   │   │   │   ├── AdminDashboardPage.jsx
@@ -67,6 +97,9 @@ File tree for: C:\Users\admin\projects\realmmaid_frontend
 │   │   │   │   ├── LoginPage.jsx
 │   │   │   │   ├── NotFoundPage.jsx
 │   │   │   │   ├── PleaseVerifyPage.jsx
+│   │   │   │   ├── ProductsPage.css
+│   │   │   │   ├── ProductsPage.jsx
 │   │   │   │   ├── RegisterPage.jsx
 │   │   │   │   ├── ResetPasswordPage.jsx
+│   │   │   │   ├── UserDashboardPage.css
 │   │   │   │   └── UserDashboardPage.jsx
