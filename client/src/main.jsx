@@ -23,9 +23,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <BrowserRouter>
         <AuthProvider>
           <WebSocketProvider>
-            <CartProvider>
               <App />
-            </CartProvider>
           </WebSocketProvider>
         </AuthProvider>
       </BrowserRouter>
