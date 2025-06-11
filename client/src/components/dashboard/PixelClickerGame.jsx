@@ -110,7 +110,6 @@ const bosses = [
     },
 ];
 
-// ✨ NEW: Data for prestige upgrades
 const prestigeUpgrades = [
     { 
       id: 'permanentDamage', 
@@ -135,17 +134,18 @@ const prestigeUpgrades = [
     }
 ];
 
+// ✨ NEW: Added EXALTED_TRANSITION phase
 const GAME_PHASES = {
   CLASS_SELECTION: 'classSelection',
   CLICKING: 'clicking',
   TRANSITIONING: 'transitioning',
   PORTAL: 'portal',
   FINISHED: 'finished',
+  EXALTED_TRANSITION: 'exalted_transition',
 };
 
 const SAVE_GAME_KEY = 'realmmaid-clicker-game-save';
 
-// ✨ NEW: Updated default state to include prestige properties
 const defaultState = {
     score: 0,
     pointsPerSecond: 0,
@@ -159,18 +159,15 @@ const defaultState = {
 };
 
 function PixelClickerGame() {
-    // ✨ NEW: Updated game state loading to safely handle new prestige properties
     const [gameState, setGameState] = useState(() => {
         const savedGame = localStorage.getItem(SAVE_GAME_KEY);
         if (savedGame) {
             let loadedData = JSON.parse(savedGame);
-            // Quick fix for old save data class name format
             if (loadedData.playerClass && loadedData.playerClass === loadedData.playerClass.toLowerCase()) {
                 loadedData.playerClass = loadedData.playerClass.charAt(0).toUpperCase() + loadedData.playerClass.slice(1);
             }
-            // Ensure new prestige properties exist
             const loadedState = { ...defaultState, ...loadedData };
-            delete loadedState.pointsPerClick; // remove obsolete property if it exists
+            delete loadedState.pointsPerClick;
             return loadedState;
         }
         return defaultState;
@@ -182,6 +179,7 @@ function PixelClickerGame() {
     const [isShaking, setIsShaking] = useState(false);
     const [floatingHeals, setFloatingHeals] = useState([]);
     const [isHealing, setIsHealing] = useState(false);
+    const [isInvulnerable, setIsInvulnerable] = useState(false); // ✨ NEW: State for invulnerability
     const gemButtonRef = useRef(null);
 
     const currentBoss = bosses[gameState.currentBossIndex];
@@ -200,19 +198,25 @@ function PixelClickerGame() {
         return () => clearInterval(interval);
     }, [gameState.pointsPerSecond, gamePhase, isHealing]);
 
+    // ✨ MODIFIED: Boss progression logic to handle Oryx 3's defeat specially
     useEffect(() => {
         if (!currentBoss || gamePhase !== GAME_PHASES.CLICKING || isHealing) return;
         if (gameState.clicksOnCurrentBoss >= currentBoss.clickThreshold) {
+            
+            // Special transition for Oryx 3
+            if (currentBoss.id === 'oryx3') {
+                setGamePhase(GAME_PHASES.EXALTED_TRANSITION);
+                // We DON'T play the death sound here and return early
+                return;
+            }
+
+            // Normal boss defeat for all other bosses
             new Audio(currentBoss.breakSound).play();
             if (gameState.currentBossIndex === bosses.length - 1) {
                 setGameWon(true);
                 setGamePhase(GAME_PHASES.FINISHED);
             } else {
-                if (currentBoss.id === 'oryx3') {
-                    handleEnterPortal(); 
-                } else {
-                    setGamePhase(GAME_PHASES.TRANSITIONING);
-                }
+                setGamePhase(GAME_PHASES.TRANSITIONING);
             }
         }
     }, [gameState.clicksOnCurrentBoss, gameState.currentBossIndex, currentBoss, gamePhase, isHealing]);
@@ -223,6 +227,36 @@ function PixelClickerGame() {
                 setGamePhase(GAME_PHASES.PORTAL);
             }, 4000);
             return () => clearTimeout(timer);
+        }
+    }, [gamePhase]);
+
+    // ✨ NEW: useEffect to handle the seamless transition to Exalted Oryx
+    useEffect(() => {
+        if (gamePhase === GAME_PHASES.EXALTED_TRANSITION) {
+            // Step 1: Wait for fade-out animation
+            const transitionTimer = setTimeout(() => {
+                
+                // Step 2: Advance to the final boss
+                setGameState(prev => ({
+                    ...prev,
+                    currentBossIndex: prev.currentBossIndex + 1,
+                    clicksOnCurrentBoss: 0,
+                }));
+    
+                // Step 3: Start the invulnerability phase
+                setIsInvulnerable(true);
+    
+                // Step 4: End invulnerability after a delay (e.g., 2 seconds)
+                const invulnerabilityTimer = setTimeout(() => {
+                    setIsInvulnerable(false);
+                    setGamePhase(GAME_PHASES.CLICKING); // The fight begins!
+                }, 2000);
+    
+                return () => clearTimeout(invulnerabilityTimer);
+    
+            }, 3000); // This should match the fade-out animation time
+    
+            return () => clearTimeout(transitionTimer);
         }
     }, [gamePhase]);
 
@@ -268,7 +302,6 @@ function PixelClickerGame() {
         setGamePhase(GAME_PHASES.CLICKING);
     };
     
-    // ✨ NEW: Updated damage calculation to include prestige bonus
     const calculateDamageRange = () => {
         let minDamage = 1;
         let maxDamage = 1;
@@ -287,9 +320,8 @@ function PixelClickerGame() {
             }
         });
 
-        // Apply prestige bonus
         const prestigeDamageBonus = gameState.prestigeUpgradesOwned['permanentDamage'] || 0;
-        const damageMultiplier = 1 + (prestigeDamageBonus * 0.10); // 10% per level
+        const damageMultiplier = 1 + (prestigeDamageBonus * 0.10);
 
         return { 
             minDamage: Math.floor(minDamage * damageMultiplier), 
@@ -298,7 +330,8 @@ function PixelClickerGame() {
     };
 
     const handleGemClick = (event) => {
-        if (gamePhase !== GAME_PHASES.CLICKING || !currentBoss || isHealing) return;
+        // ✨ MODIFIED: Prevent clicks during invulnerability and the new transition
+        if (gamePhase !== GAME_PHASES.CLICKING || !currentBoss || isHealing || isInvulnerable) return;
         new Audio(currentBoss.clickSound).play();
         const { minDamage, maxDamage } = calculateDamageRange();
         const damageDealt = Math.floor(Math.random() * (maxDamage - minDamage + 1)) + minDamage;
@@ -352,9 +385,7 @@ function PixelClickerGame() {
         }
     };
     
-    // ✨ NEW: Function to handle the prestige reset
     const handlePrestige = () => {
-        // Award 1 shard for every 2,500,000 score
         const shardsToAward = Math.floor(gameState.score / 2500000);
     
         if (shardsToAward < 1) {
@@ -368,7 +399,6 @@ function PixelClickerGame() {
     
         if (isConfirmed) {
             setGameState(prev => {
-                // Get starting bonuses from prestige upgrades
                 const startingFameLevel = prev.prestigeUpgradesOwned['permanentFame'] || 0;
                 const startingPpsLevel = prev.prestigeUpgradesOwned['permanentPPS'] || 0;
                 
@@ -376,12 +406,12 @@ function PixelClickerGame() {
                 const startingPps = startingPpsLevel * 50;
 
                 return {
-                    ...defaultState, // Reset to the default state
-                    playerClass: prev.playerClass, // Keep the player class
-                    exaltedShards: prev.exaltedShards + shardsToAward, // Add new shards
-                    prestigeUpgradesOwned: prev.prestigeUpgradesOwned, // Keep existing prestige upgrades
-                    score: startingScore, // Apply starting fame bonus
-                    pointsPerSecond: startingPps // Apply starting PPS bonus
+                    ...defaultState,
+                    playerClass: prev.playerClass,
+                    exaltedShards: prev.exaltedShards + shardsToAward,
+                    prestigeUpgradesOwned: prev.prestigeUpgradesOwned,
+                    score: startingScore,
+                    pointsPerSecond: startingPps
                 };
             });
             setGameWon(false);
@@ -389,10 +419,8 @@ function PixelClickerGame() {
         }
     };
 
-    // ✨ NEW: Functions to buy and calculate costs for prestige upgrades
     const calculatePrestigeUpgradeCost = (upgrade) => {
         const owned = gameState.prestigeUpgradesOwned[upgrade.id] || 0;
-        // Prestige upgrades get more expensive faster
         return Math.floor(upgrade.cost * Math.pow(1.5, owned));
     };
 
@@ -481,7 +509,6 @@ function PixelClickerGame() {
                 
                 <div className="clicker-container">
                     <h2>{Math.floor(gameState.score)} Fame </h2>
-                    {/* ✨ NEW: Display Exalted Shards */}
                     <p style={{ color: '#8a2be2', fontWeight: 'bold' }}>{gameState.exaltedShards} Exalted Shards</p>
                     
                     {gamePhase === GAME_PHASES.CLICKING && (
@@ -491,13 +518,28 @@ function PixelClickerGame() {
                     <h3 style={{ textAlign: 'center' }}>
                         {gameWon ? 'You Did It!' : currentBoss.name}
                         {isHealing && <span className="healing-indicator"> HEALING...</span>}
+                        {/* ✨ NEW: Show invulnerability status */}
+                        {isInvulnerable && <span className="invulnerable-indicator"> INVULNERABLE</span>}
                     </h3>
 
-                    <div className={`gem-button ${isHealing ? 'disabled' : ''}`} ref={gemButtonRef} onClick={handleGemClick}>
-                        <img src={getCurrentImage()} alt={currentBoss.name} className={`${gamePhase === GAME_PHASES.TRANSITIONING ? 'fading-out' : ''} ${isShaking ? 'shake' : ''}`} />
+                    {/* ✨ MODIFIED: Disable button during new phases and add transition class */}
+                    <div 
+                        className={`gem-button ${isHealing || isInvulnerable || gamePhase === GAME_PHASES.EXALTED_TRANSITION ? 'disabled' : ''}`} 
+                        ref={gemButtonRef} 
+                        onClick={handleGemClick}
+                    >
+                        <img 
+                            src={getCurrentImage()} 
+                            alt={currentBoss.name} 
+                            className={`
+                                ${gamePhase === GAME_PHASES.TRANSITIONING ? 'fading-out' : ''} 
+                                ${gamePhase === GAME_PHASES.EXALTED_TRANSITION ? 'fading-out' : ''}
+                                ${isShaking ? 'shake' : ''}
+                            `} 
+                        />
                     </div>
                     
-                    {(gamePhase === GAME_PHASES.CLICKING || gamePhase === GAME_PHASES.TRANSITIONING) && (
+                    {(gamePhase === GAME_PHASES.CLICKING || gamePhase === GAME_PHASES.TRANSITIONING || gamePhase === GAME_PHASES.EXALTED_TRANSITION) && (
                         <div className="health-bar-container">
                             <div className="health-bar-inner" style={{ width: `${getHealthPercent()}%` }}></div>
                             <span className="health-bar-text">{Math.max(0, Math.floor(currentBoss.clickThreshold - gameState.clicksOnCurrentBoss))} / {currentBoss.clickThreshold}</span>
@@ -507,7 +549,6 @@ function PixelClickerGame() {
                     {gameWon && (
                         <div className="portal-prompt">
                             <h4>Congratulations, cutie! You beat the game! 💖</h4>
-                            {/* ✨ NEW: Add prestige button */}
                             <button onClick={handlePrestige}>Prestige for Bonuses!~</button>
                         </div>
                     )}
@@ -520,8 +561,7 @@ function PixelClickerGame() {
                         </div>
                     )}
                     
-                    {/* ✨ NEW: Prestige Upgrades Shop */}
-                    {gamePhase === GAME_PHASES.CLICKING && (
+                    {(gamePhase === GAME_PHASES.CLICKING || isInvulnerable) && ( // Show shops during invulnerability
                         <>
                             <div className="upgrades-shop">
                                 <h4 style={{ color: '#8a2be2'}}>Prestige Shop</h4>
