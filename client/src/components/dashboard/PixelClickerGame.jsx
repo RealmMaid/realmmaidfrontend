@@ -379,9 +379,9 @@ function PixelClickerGame() {
                 ))}
                 
                 <div className="clicker-container">
-                    <h2>{Math.floor(gameState.score)} Sparkles ✨</h2>
+                    <h2>{Math.floor(gameState.score)} Fame </h2>
                     {gamePhase === GAME_PHASES.CLICKING && (
-                        <p>{gameState.pointsPerSecond} sparkles per second / {calculateDamageRange().minDamage}-{calculateDamageRange().maxDamage} per click</p>
+                        <p>{gameState.pointsPerSecond} Damage per second / {calculateDamageRange().minDamage}-{calculateDamageRange().maxDamage} per click</p>
                     )}
 
                     <h3 style={{ textAlign: 'center' }}>
