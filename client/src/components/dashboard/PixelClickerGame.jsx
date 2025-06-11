@@ -121,17 +121,18 @@ const GAME_PHASES = {
 
 const SAVE_GAME_KEY = 'realmmaid-clicker-game-save';
 
+const defaultState = {
+    score: 0,
+    pointsPerSecond: 0,
+    currentBossIndex: 0,
+    clicksOnCurrentBoss: 0,
+    upgradesOwned: {},
+    playerClass: null,
+    triggeredHeals: {},
+};
+
 function PixelClickerGame() {
     const [gameState, setGameState] = useState(() => {
-        const defaultState = {
-            score: 0,
-            pointsPerSecond: 0,
-            currentBossIndex: 0,
-            clicksOnCurrentBoss: 0,
-            upgradesOwned: {},
-            playerClass: null,
-            triggeredHeals: {},
-        };
         const savedGame = localStorage.getItem(SAVE_GAME_KEY);
         if (savedGame) {
             let loadedData = JSON.parse(savedGame);
@@ -333,9 +334,11 @@ function PixelClickerGame() {
         const isConfirmed = window.confirm(
             "Are you sure you want to reset all your progress? This action cannot be undone."
         );
+
         if (isConfirmed) {
             localStorage.removeItem(SAVE_GAME_KEY);
-            window.location.reload();
+            setGameState(defaultState);
+            setGamePhase(GAME_PHASES.CLASS_SELECTION);
         }
     };
     
