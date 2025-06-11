@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-
+console.log("--- CANARY TEST: This is the updated CartContext speaking! 🦜 ---");
 // A default value to act as a safety net!
 const defaultCartValue = {
     cartItems: [],
