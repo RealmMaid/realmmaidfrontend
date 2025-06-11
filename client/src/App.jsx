@@ -21,7 +21,7 @@ import MyOrders from './components/dashboard/MyOrders.jsx';
 import ProfileSettings from './components/dashboard/ProfileSettings.jsx';
 import PaymentMethods from './components/dashboard/PaymentMethods.jsx';
 import MyWishlist from './components/dashboard/MyWishlist.jsx';
-import PixelClickerGame from './components/dashboard/PixelClickerGame.jsx'; // The import!
+ // The import!
 
 
 function App() {
@@ -47,7 +47,6 @@ function App() {
               <Route path="settings"element={<ProfileSettings />} />
               <Route path="payments" element={<PaymentMethods />} />
               <Route path="wishlist" element={<MyWishlist />} />
-              <Route path="game" element={<PixelClickerGame />} /> {/* The usage! */}
             </Route>
             <Route path="/checkout" element={<CheckoutPage />} />
         </Route>
