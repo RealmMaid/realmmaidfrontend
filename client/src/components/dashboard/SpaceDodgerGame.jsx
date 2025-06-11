@@ -126,11 +126,12 @@ function SpaceDodgerGame() {
     const projectileStyle = {
         width: `${PROJECTILE_WIDTH}px`,
         height: `${PROJECTILE_HEIGHT}px`,
-        backgroundColor: 'hotpink',
+        backgroundColor: 'white', // ✨ Changed from 'hotpink' to 'white'!
         borderRadius: '4px',
-        boxShadow: '0 0 10px hotpink',
+        boxShadow: '0 0 15px white', // ✨ Let's make the glow white too! So pretty!
         position: 'absolute',
     };
+
 
     return (
         <div style={{ fontFamily: 'monospace', color: 'white', textAlign: 'center' }}>
