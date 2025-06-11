@@ -149,7 +149,7 @@ function SpaceDodgerGame() {
                 ))}
 
                 <img className="game-sprite" src="/oryx.png" alt="Oryx the Mad God" style={bossStyle} />
-                <img className="game-sprite" src="/Warrior.png" alt="Hero" style={playerStyle} />
+                <img className="game-sprite" src="/wizard.png" alt="Hero" style={playerStyle} />
             </div>
         </div>
     );
