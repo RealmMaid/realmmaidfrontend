@@ -115,7 +115,7 @@ function SpaceDodgerGame() {
                     style={bossStyle} 
                 />
                 <img 
-                    src="/Warrior.png"
+                    src="/warrior.png"
                     alt="Hero" 
                     style={playerStyle} 
                 />
