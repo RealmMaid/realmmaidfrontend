@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import Phaser from 'phaser';
-import { CombatScene } from '../../scenes/CombatScene'; // ✨ Import our new scene! ✨
+import { CombatScene } from '../../scenes/CombatScene';
+import { MapScene } from '../../scenes/MapScene'; // ✨ Import our new MapScene! ✨
 
 function PhaserGame() {
     const gameRef = useRef(null);
@@ -11,14 +12,9 @@ function PhaserGame() {
             width: 800,
             height: 600,
             parent: 'phaser-container',
-            physics: {
-                default: 'arcade',
-                arcade: {
-                    gravity: { y: 0 }
-                }
-            },
-            // ✨ We just give Phaser our Scene class! So clean! ✨
-            scene: [CombatScene]
+            // ✨ We give Phaser a list of all our scenes! ✨
+            // The first one in the list is the one that starts automatically.
+            scene: [MapScene, CombatScene]
         };
 
         gameRef.current = new Phaser.Game(config);
