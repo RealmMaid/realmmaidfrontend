@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 
-// Constants are all the same!
+// Constants for our game world
 const GAME_WIDTH = 800;
 const GAME_HEIGHT = 600;
 const PLAYER_WIDTH = 60;
@@ -10,55 +10,67 @@ const BOSS_WIDTH = 120;
 const BOSS_HEIGHT = 80;
 const BOSS_SPEED = 5;
 
+// ✨ FRESH START: A completely rewritten and re-checked component! ✨
 function SpaceDodgerGame() {
+    // State for the player's horizontal position, starting in the middle.
     const [playerX, setPlayerX] = useState((GAME_WIDTH - PLAYER_WIDTH) / 2);
+
+    // State for the boss, now in a single object for stability.
+    // Let's start the boss in the middle too! Hehe.
+    const [bossState, setBossState] = useState({
+        x: (GAME_WIDTH - BOSS_WIDTH) / 2,
+        direction: 'right',
+    });
+    
+    // State to track which keys are currently being held down.
     const [keysPressed, setKeysPressed] = useState({});
-    const [bossX, setBossX] = useState(0);
 
-    // ✨ BUG FIX: Using a ref for the boss's direction! ✨
-    // A ref is like a little box that holds a value. Unlike state, changing it
-    // doesn't cause a re-render, which is perfect for our game loop!
-    const bossDirectionRef = useRef('right');
-
-    // ✨ BUG FIX: A brand new, super stable Game Loop! ✨
+    // The main game loop, rewritten to be extra careful!
     useEffect(() => {
         const gameTick = setInterval(() => {
-            // Player Movement (Now all in one place!)
+
+            // --- Player Movement Logic ---
             setPlayerX(prevX => {
+                let newX = prevX;
                 if (keysPressed['a'] || keysPressed['ArrowLeft']) {
-                    return Math.max(0, prevX - PLAYER_SPEED);
+                    newX = prevX - PLAYER_SPEED;
                 }
                 if (keysPressed['d'] || keysPressed['ArrowRight']) {
-                    return Math.min(GAME_WIDTH - PLAYER_WIDTH, prevX + PLAYER_SPEED);
+                    newX = prevX + PLAYER_SPEED;
                 }
-                return prevX; // If no movement keys are pressed, don't change anything!
+                // Clamp the new position to stay within the boundaries!
+                return Math.max(0, Math.min(newX, GAME_WIDTH - PLAYER_WIDTH));
             });
 
-            // Boss Movement (Now also all in one place!)
-            setBossX(prevX => {
-                let newX = prevX;
-                // We check the direction from our little ref box!
-                if (bossDirectionRef.current === 'right') {
-                    newX = prevX + BOSS_SPEED;
-                    if (newX >= GAME_WIDTH - BOSS_WIDTH) {
-                        newX = GAME_WIDTH - BOSS_WIDTH;
-                        bossDirectionRef.current = 'left'; // We just flip the value in the box
+            // --- Boss Movement Logic ---
+            setBossState(prev => {
+                let nextX = prev.x;
+                let nextDirection = prev.direction;
+
+                if (prev.direction === 'right') {
+                    nextX = prev.x + BOSS_SPEED;
+                    // Check right boundary
+                    if (nextX > GAME_WIDTH - BOSS_WIDTH) {
+                        nextX = GAME_WIDTH - BOSS_WIDTH;
+                        nextDirection = 'left';
                     }
-                } else {
-                    newX = prevX - BOSS_SPEED;
-                    if (newX <= 0) {
-                        newX = 0;
-                        bossDirectionRef.current = 'right'; // And flip it back here!
+                } else { // Moving left
+                    nextX = prev.x - BOSS_SPEED;
+                    // Check left boundary
+                    if (nextX < 0) {
+                        nextX = 0;
+                        nextDirection = 'right';
                     }
                 }
-                return newX;
+                return { x: nextX, direction: nextDirection };
             });
-        }, 16);
+
+        }, 16); // Runs at about 60 frames per second!
 
         return () => clearInterval(gameTick);
-    }, [keysPressed]); // The loop ONLY depends on keysPressed, so it's super stable!
+    }, [keysPressed]); // This dependency is correct and efficient!
 
-    // The keyboard listener is still perfect!
+    // Keyboard event listeners (this part was already working perfectly!)
     useEffect(() => {
         const handleKeyDown = (e) => {
             setKeysPressed(prev => ({ ...prev, [e.key]: true }));
@@ -74,13 +86,12 @@ function SpaceDodgerGame() {
         };
     }, []);
 
-    // ✨ UPDATED: New style for our tiled background! ✨
+    // ✨ NEW: Style for our awesome tiled background! ✨
     const gameAreaStyle = {
         width: `${GAME_WIDTH}px`,
         height: `${GAME_HEIGHT}px`,
-        // backgroundColor: '#000000', // <-- Replaced this!
-        backgroundImage: 'url(/space-tile.png)', // <-- Change to your tile's filename!
-        backgroundRepeat: 'repeat', // This tells CSS to tile the image!
+        backgroundImage: 'url(/space-tile.png)', // <-- ❗ Change this to your tile's filename!
+        backgroundRepeat: 'repeat', // This makes the image tile seamlessly!
         border: '2px solid hotpink',
         borderRadius: '10px',
         position: 'relative',
@@ -93,7 +104,7 @@ function SpaceDodgerGame() {
         height: `${BOSS_HEIGHT}px`,
         position: 'absolute',
         top: '30px',
-        transform: `translateX(${bossX}px)`,
+        transform: `translateX(${bossState.x}px)`,
     };
     
     const playerStyle = {
