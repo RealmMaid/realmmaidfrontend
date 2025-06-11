@@ -735,6 +735,67 @@ input:focus, textarea:focus {
     font-size: 0.9rem;
     font-style: italic;
 }
+/* Styling for the new Armory tab */
+.armory-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.weapon-item {
+    padding: 1rem;
+    background-color: #222;
+    border-radius: 6px;
+    border: 2px solid #444;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.weapon-item:hover {
+    border-color: #777;
+    transform: translateY(-2px);
+}
+
+.weapon-item.equipped {
+    border-color: #8a2be2;
+    box-shadow: 0 0 15px rgba(138, 43, 226, 0.5);
+}
+
+.weapon-item strong {
+    font-size: 1.2rem;
+    color: #fff;
+}
+
+.weapon-item p {
+    margin: 0.25rem 0 0.5rem;
+    color: #ccc;
+    font-size: 0.9rem;
+}
+
+.weapon-pro-con small {
+    display: block;
+    font-size: 0.85rem;
+}
+
+.weapon-pro-con .pro {
+    color: #32cd32; /* Lime green */
+}
+.weapon-pro-con .pro::before {
+    content: '✅ ';
+}
+
+.weapon-pro-con .con {
+    color: #ff4500; /* Orange red */
+}
+.weapon-pro-con .con::before {
+    content: '❌ ';
+}
+
+/* For unlocking weapons in the prestige shop */
+.btn-upgrade.weapon-unlock {
+    background-color: #3a2d4a;
+    border-color: #8a2be2;
+}
 .badge.verified { background-color: #2ecc71; }
 .badge.not-verified { background-color: #e74c3c; }
 .badge.admin { background-color: #9b59b6; }
