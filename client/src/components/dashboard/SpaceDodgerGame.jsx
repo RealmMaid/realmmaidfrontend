@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-// Constants for our game world
+// Constants are all the same
 const GAME_WIDTH = 800;
 const GAME_HEIGHT = 600;
 const PLAYER_WIDTH = 60;
@@ -11,19 +11,17 @@ const BOSS_HEIGHT = 80;
 const BOSS_SPEED = 5;
 
 function SpaceDodgerGame() {
-    // Player state, starting in the middle.
     const [playerX, setPlayerX] = useState((GAME_WIDTH - PLAYER_WIDTH) / 2);
-
-    // ✨ BUG FIX: Going back to simple, separate states for the boss. ✨
     const [bossX, setBossX] = useState((GAME_WIDTH - BOSS_WIDTH) / 2);
     const [bossDirection, setBossDirection] = useState('right');
-
-    // State to track which keys are currently being held down.
     const [keysPressed, setKeysPressed] = useState({});
 
-    // ✨ BUG FIX: A simplified and corrected Game Loop! ✨
     useEffect(() => {
         const gameTick = setInterval(() => {
+            // ✨ DETECTIVE LOGGING! ✨
+            // This will print the game's state to the console on every tick!
+            console.log(`Player X: ${playerX}, Boss X: ${bossX}, Boss Direction: ${bossDirection}`);
+
             // --- Player Movement Logic ---
             setPlayerX(prevX => {
                 let newX = prevX;
@@ -33,7 +31,6 @@ function SpaceDodgerGame() {
                 if (keysPressed['d'] || keysPressed['ArrowRight']) {
                     newX = prevX + PLAYER_SPEED;
                 }
-                // Clamp the player's position!
                 return Math.max(0, Math.min(newX, GAME_WIDTH - PLAYER_WIDTH));
             });
 
@@ -54,10 +51,9 @@ function SpaceDodgerGame() {
             }
             setBossX(newBossX);
 
-        }, 16);
+        }, 100); // Slowing down the interval just a little to make logs easier to read
 
         return () => clearInterval(gameTick);
-    // The dependency array now correctly watches the boss's state to avoid bugs!
     }, [keysPressed, bossX, bossDirection]);
 
     // Keyboard event listeners
@@ -76,11 +72,10 @@ function SpaceDodgerGame() {
         };
     }, []);
 
-    // Style for the tiled background!
     const gameAreaStyle = {
         width: `${GAME_WIDTH}px`,
         height: `${GAME_HEIGHT}px`,
-        backgroundImage: 'url(/space-tile.png)', // <-- ❗ Change this to your tile's filename!
+        backgroundImage: 'url(/space-tile.png)',
         backgroundRepeat: 'repeat',
         border: '2px solid hotpink',
         borderRadius: '10px',
@@ -115,7 +110,7 @@ function SpaceDodgerGame() {
                     style={bossStyle} 
                 />
                 <img 
-                    src="/wizard.png"
+                    src="/Warrior.png"
                     alt="Hero" 
                     style={playerStyle} 
                 />
