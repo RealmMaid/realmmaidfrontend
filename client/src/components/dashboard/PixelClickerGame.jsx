@@ -329,12 +329,10 @@ function PixelClickerGame() {
         return 100 - percent;
     };
     
-    // ✨ NEW: The function to handle resetting the user's save data. ✨
     const handleResetSave = () => {
         const isConfirmed = window.confirm(
             "Are you sure you want to reset all your progress? This action cannot be undone."
         );
-
         if (isConfirmed) {
             localStorage.removeItem(SAVE_GAME_KEY);
             window.location.reload();
@@ -342,7 +340,21 @@ function PixelClickerGame() {
     };
     
     if (gamePhase === GAME_PHASES.CLASS_SELECTION) {
-        // ... Class selection JSX is unchanged
+        return (
+            <div className="card">
+                <div className="clicker-container">
+                    <h3>Choose Your Class, Cutie!</h3>
+                    <div className="class-selection-container" style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '1rem' }}>
+                        {classes.map(pClass => (
+                            <button key={pClass.id} className="btn-class-select" onClick={() => handleClassSelect(pClass.id)}>
+                                <img src={pClass.image} alt={pClass.name} />
+                                <span>{pClass.name} {pClass.emoji}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
     }
 
     if (!currentBoss) {
@@ -350,10 +362,8 @@ function PixelClickerGame() {
     }
     
     return (
-        // Use a React Fragment to wrap the card and the new button
         <>
             <div className="card">
-                {/* All the existing game UI is here */}
                 {floatingNumbers.map(num => (
                     <span key={num.id} className="floating-number" style={{ left: num.x, top: num.y }} onAnimationEnd={() => setFloatingNumbers(current => current.filter(n => n.id !== num.id))}>
                         -{num.value}
@@ -422,7 +432,6 @@ function PixelClickerGame() {
                 </div>
             </div>
 
-            {/* ✨ NEW: A button outside the main card to reset the game. ✨ */}
             <div style={{ textAlign: 'center', marginTop: '1rem', paddingBottom: '1rem' }}>
                  <button className="btn-reset" onClick={handleResetSave}>
                     Reset Save Data
