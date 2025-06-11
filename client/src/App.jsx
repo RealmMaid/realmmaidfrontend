@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense } from 'react'; // ✨ 1. We add Suspense here! ✨
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { getCsrfToken } from './api/csrf';
 import { Toaster } from 'react-hot-toast';
@@ -23,7 +23,10 @@ import PaymentMethods from './components/dashboard/PaymentMethods.jsx';
 import MyWishlist from './components/dashboard/MyWishlist.jsx';
 import PixelClickerGame from './components/dashboard/PixelClickerGame.jsx';
 import SpaceDodgerGame from './components/dashboard/SpaceDodgerGame.jsx';
-import PhaserGame from './components/dashboard/PhaserGame';
+
+// ✨ 2. We change the PhaserGame import to be lazy! ✨
+// This tells React to only download the game code when it's needed.
+const PhaserGame = React.lazy(() => import('./components/dashboard/PhaserGame'));
 
 
 function App() {
@@ -33,40 +36,39 @@ function App() {
 
   return (
     <>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route element={<MainLayout />}>
-            <Route path="/products" element={<ProductsPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/please-verify" element={<PleaseVerifyPage />} />
-        </Route>
-        
-        <Route element={<ProtectedRoute />}>
-            {/* The dashboard route structure - we've moved the game out of here! */}
-            <Route path="/dashboard" element={<UserDashboardPage />}>
-                <Route index element={<Navigate to="orders" replace />} />
-                <Route path="orders" element={<MyOrders />} />
-                <Route path="settings"element={<ProfileSettings />} />
-                <Route path="payments" element={<PaymentMethods />} />
-                <Route path="wishlist" element={<MyWishlist />} />
-                <Route path="game" element={<PixelClickerGame />} />
-                <Route path="/phasergame" element={<PhaserGame />} />
-                {/* <Route path="spacedodgegame" element={<SpaceDodgerGame />} /> <-- It used to be here! */}
-            </Route>
-            <Route path="/checkout" element={<CheckoutPage />} />
-        </Route>
+      {/* ✨ 3. We wrap our Routes in a Suspense component! ✨ */}
+      <Suspense fallback={<div style={{color: 'white', textAlign: 'center', paddingTop: '5rem'}}>Loading page, please wait! uwu</div>}>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route element={<MainLayout />}>
+              <Route path="/products" element={<ProductsPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/please-verify" element={<PleaseVerifyPage />} />
+          </Route>
+          
+          <Route element={<ProtectedRoute />}>
+              <Route path="/dashboard" element={<UserDashboardPage />}>
+                  <Route index element={<Navigate to="orders" replace />} />
+                  <Route path="orders" element={<MyOrders />} />
+                  <Route path="settings"element={<ProfileSettings />} />
+                  <Route path="payments" element={<PaymentMethods />} />
+                  <Route path="wishlist" element={<MyWishlist />} />
+                  <Route path="game" element={<PixelClickerGame />} />
+                  {/* The route for our lazy-loaded game! */}
+                  <Route path="phasergame" element={<PhaserGame />} />
+              </Route>
+              <Route path="/checkout" element={<CheckoutPage />} />
+          </Route>
 
-        <Route element={<ProtectedRoute adminOnly={true} />}>
-            <Route path="/admin" element={<AdminDashboardPage />} />
-        </Route>
+          <Route element={<ProtectedRoute adminOnly={true} />}>
+              <Route path="/admin" element={<AdminDashboardPage />} />
+          </Route>
 
-        {/* ✨ NEW: A clean, separate route for our game! ✨ */}
-        {/* This route is at the top level, so no other styles will interfere! */}
-        <Route path="/spacedodger" element={<SpaceDodgerGame />} />
-
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
+          <Route path="/spacedodger" element={<SpaceDodgerGame />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </Suspense>
 
       <Toaster 
         position="bottom-right"
