@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-// Constants are the same!
+// Constants are all the same!
 const GAME_WIDTH = 800;
 const GAME_HEIGHT = 600;
 const PLAYER_WIDTH = 60;
@@ -12,28 +12,46 @@ const BOSS_SPEED = 5;
 
 function SpaceDodgerGame() {
     const canvasRef = useRef(null);
+    // ✨ NEW: A ref to hold our loaded image objects! ✨
+    const imageRef = useRef({
+        player: null,
+        boss: null,
+    });
 
-    // ✨ We're bringing back our game state! ✨
+    // All our game state is the same!
     const [playerX, setPlayerX] = useState((GAME_WIDTH - PLAYER_WIDTH) / 2);
     const [bossState, setBossState] = useState({
         x: (GAME_WIDTH - BOSS_WIDTH) / 2,
         direction: 'right',
     });
     const [keysPressed, setKeysPressed] = useState({});
+    
+    // ✨ NEW: This effect loads our images when the game starts! ✨
+    useEffect(() => {
+        const playerImg = new Image();
+        playerImg.src = '/wizard.png'; // Make sure this path is correct!
+        playerImg.onload = () => {
+            imageRef.current.player = playerImg;
+        };
 
-    // --- Game Logic Loop ---
-    // This useEffect handles all the game's "thinking" like movement.
+        const bossImg = new Image();
+        bossImg.src = '/oryx.png'; // And this one too!
+        bossImg.onload = () => {
+            imageRef.current.boss = bossImg;
+        };
+    }, []);
+
+
+    // --- Game Logic Loop (unchanged) ---
     useEffect(() => {
         const gameTick = setInterval(() => {
-            // Player Movement
+            // Player and Boss movement logic is all perfect!
             setPlayerX(prevX => {
                 let newX = prevX;
                 if (keysPressed['a'] || keysPressed['ArrowLeft']) { newX = prevX - PLAYER_SPEED; }
                 if (keysPressed['d'] || keysPressed['ArrowRight']) { newX = prevX + PLAYER_SPEED; }
                 return Math.max(0, Math.min(newX, GAME_WIDTH - PLAYER_WIDTH));
             });
-
-            // Boss Movement
             setBossState(prev => {
                 let nextX = prev.x;
                 let nextDirection = prev.direction;
@@ -46,36 +64,30 @@ function SpaceDodgerGame() {
                 }
                 return { x: nextX, direction: nextDirection };
             });
-        }, 16); // Logic updates about 60 times per second
-
+        }, 16);
         return () => clearInterval(gameTick);
     }, [keysPressed]);
 
     // --- Drawing Loop ---
-    // ✨ This new useEffect handles all the drawing! ✨
     useEffect(() => {
         const canvas = canvasRef.current;
         const context = canvas.getContext('2d');
         
-        // Our new draw function!
         const draw = () => {
-            // Clear the whole canvas every frame
             context.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-
-            // Draw the black background
             context.fillStyle = 'black';
             context.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
-            // Draw the boss
-            context.fillStyle = 'hotpink';
-            context.fillRect(bossState.x, 30, BOSS_WIDTH, BOSS_HEIGHT);
-
-            // Draw the player
-            context.fillStyle = 'cyan';
-            context.fillRect(playerX, GAME_HEIGHT - PLAYER_HEIGHT - 20, PLAYER_WIDTH, PLAYER_HEIGHT);
+            // ✨ UPDATED: We now draw the images instead of colored boxes! ✨
+            // We check if the image has loaded before trying to draw it!
+            if (imageRef.current.boss) {
+                context.drawImage(imageRef.current.boss, bossState.x, 30, BOSS_WIDTH, BOSS_HEIGHT);
+            }
+            if (imageRef.current.player) {
+                context.drawImage(imageRef.current.player, playerX, GAME_HEIGHT - PLAYER_HEIGHT - 20, PLAYER_WIDTH, PLAYER_HEIGHT);
+            }
         };
         
-        // We use requestAnimationFrame to create a super smooth drawing loop!
         let animationFrameId;
         const render = () => {
             draw();
@@ -86,7 +98,7 @@ function SpaceDodgerGame() {
         return () => {
             window.cancelAnimationFrame(animationFrameId);
         };
-    }, [playerX, bossState]); // We re-draw whenever the player or boss state changes!
+    }, [playerX, bossState]);
 
     // Keyboard listeners (unchanged)
     useEffect(() => {
