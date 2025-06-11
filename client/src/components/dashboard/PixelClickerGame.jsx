@@ -67,7 +67,6 @@ const classUpgrades = {
   },
 };
 
-
 const bosses = [
     {
         id: 'oryx1',
@@ -111,6 +110,31 @@ const bosses = [
     },
 ];
 
+// ✨ NEW: Data for prestige upgrades
+const prestigeUpgrades = [
+    { 
+      id: 'permanentDamage', 
+      name: 'Exalted Power', 
+      description: 'Permanently increase all damage by 10% per level.', 
+      cost: 1, 
+      type: 'damage_multiplier' 
+    },
+    { 
+      id: 'permanentFame', 
+      name: 'Exalted Wealth', 
+      description: 'Start each new run with 1000 Fame per level.', 
+      cost: 2, 
+      type: 'starting_score' 
+    },
+    {
+      id: 'permanentPPS',
+      name: 'Exalted Will',
+      description: 'Permanently gain 50 DPS per level.',
+      cost: 3,
+      type: 'starting_pps'
+    }
+];
+
 const GAME_PHASES = {
   CLASS_SELECTION: 'classSelection',
   CLICKING: 'clicking',
@@ -121,6 +145,7 @@ const GAME_PHASES = {
 
 const SAVE_GAME_KEY = 'realmmaid-clicker-game-save';
 
+// ✨ NEW: Updated default state to include prestige properties
 const defaultState = {
     score: 0,
     pointsPerSecond: 0,
@@ -129,18 +154,23 @@ const defaultState = {
     upgradesOwned: {},
     playerClass: null,
     triggeredHeals: {},
+    exaltedShards: 0,
+    prestigeUpgradesOwned: {},
 };
 
 function PixelClickerGame() {
+    // ✨ NEW: Updated game state loading to safely handle new prestige properties
     const [gameState, setGameState] = useState(() => {
         const savedGame = localStorage.getItem(SAVE_GAME_KEY);
         if (savedGame) {
             let loadedData = JSON.parse(savedGame);
+            // Quick fix for old save data class name format
             if (loadedData.playerClass && loadedData.playerClass === loadedData.playerClass.toLowerCase()) {
                 loadedData.playerClass = loadedData.playerClass.charAt(0).toUpperCase() + loadedData.playerClass.slice(1);
             }
+            // Ensure new prestige properties exist
             const loadedState = { ...defaultState, ...loadedData };
-            delete loadedState.pointsPerClick;
+            delete loadedState.pointsPerClick; // remove obsolete property if it exists
             return loadedState;
         }
         return defaultState;
@@ -238,9 +268,11 @@ function PixelClickerGame() {
         setGamePhase(GAME_PHASES.CLICKING);
     };
     
+    // ✨ NEW: Updated damage calculation to include prestige bonus
     const calculateDamageRange = () => {
         let minDamage = 1;
         let maxDamage = 1;
+        
         currentUpgrades.forEach(upgrade => {
             const owned = gameState.upgradesOwned[upgrade.id] || 0;
             if (owned > 0) {
@@ -254,7 +286,15 @@ function PixelClickerGame() {
                 }
             }
         });
-        return { minDamage, maxDamage };
+
+        // Apply prestige bonus
+        const prestigeDamageBonus = gameState.prestigeUpgradesOwned['permanentDamage'] || 0;
+        const damageMultiplier = 1 + (prestigeDamageBonus * 0.10); // 10% per level
+
+        return { 
+            minDamage: Math.floor(minDamage * damageMultiplier), 
+            maxDamage: Math.floor(maxDamage * damageMultiplier) 
+        };
     };
 
     const handleGemClick = (event) => {
@@ -311,6 +351,66 @@ function PixelClickerGame() {
             alert("Oopsie! Not enough points, cutie!");
         }
     };
+    
+    // ✨ NEW: Function to handle the prestige reset
+    const handlePrestige = () => {
+        // Award 1 shard for every 2,500,000 score
+        const shardsToAward = Math.floor(gameState.score / 2500000);
+    
+        if (shardsToAward < 1) {
+            alert("You need a higher score to prestige! Try reaching at least 2,500,000 Fame.");
+            return;
+        }
+    
+        const isConfirmed = window.confirm(
+            `Are you sure you want to prestige? You will earn ${shardsToAward} Exalted Shards, but your Fame, upgrades, and boss progress will reset.`
+        );
+    
+        if (isConfirmed) {
+            setGameState(prev => {
+                // Get starting bonuses from prestige upgrades
+                const startingFameLevel = prev.prestigeUpgradesOwned['permanentFame'] || 0;
+                const startingPpsLevel = prev.prestigeUpgradesOwned['permanentPPS'] || 0;
+                
+                const startingScore = startingFameLevel * 1000;
+                const startingPps = startingPpsLevel * 50;
+
+                return {
+                    ...defaultState, // Reset to the default state
+                    playerClass: prev.playerClass, // Keep the player class
+                    exaltedShards: prev.exaltedShards + shardsToAward, // Add new shards
+                    prestigeUpgradesOwned: prev.prestigeUpgradesOwned, // Keep existing prestige upgrades
+                    score: startingScore, // Apply starting fame bonus
+                    pointsPerSecond: startingPps // Apply starting PPS bonus
+                };
+            });
+            setGameWon(false);
+            setGamePhase(GAME_PHASES.CLICKING);
+        }
+    };
+
+    // ✨ NEW: Functions to buy and calculate costs for prestige upgrades
+    const calculatePrestigeUpgradeCost = (upgrade) => {
+        const owned = gameState.prestigeUpgradesOwned[upgrade.id] || 0;
+        // Prestige upgrades get more expensive faster
+        return Math.floor(upgrade.cost * Math.pow(1.5, owned));
+    };
+
+    const handleBuyPrestigeUpgrade = (upgrade) => {
+        const cost = calculatePrestigeUpgradeCost(upgrade);
+        if (gameState.exaltedShards >= cost) {
+            setGameState(prev => ({
+                ...prev,
+                exaltedShards: prev.exaltedShards - cost,
+                prestigeUpgradesOwned: {
+                    ...prev.prestigeUpgradesOwned,
+                    [upgrade.id]: (prev.prestigeUpgradesOwned[upgrade.id] || 0) + 1
+                }
+            }));
+        } else {
+            alert("Not enough Exalted Shards!");
+        }
+    };
 
     const getCurrentImage = () => {
         if (!currentBoss) return '';
@@ -338,6 +438,7 @@ function PixelClickerGame() {
         if (isConfirmed) {
             localStorage.removeItem(SAVE_GAME_KEY);
             setGameState(defaultState);
+            setGameWon(false);
             setGamePhase(GAME_PHASES.CLASS_SELECTION);
         }
     };
@@ -380,6 +481,9 @@ function PixelClickerGame() {
                 
                 <div className="clicker-container">
                     <h2>{Math.floor(gameState.score)} Fame </h2>
+                    {/* ✨ NEW: Display Exalted Shards */}
+                    <p style={{ color: '#8a2be2', fontWeight: 'bold' }}>{gameState.exaltedShards} Exalted Shards</p>
+                    
                     {gamePhase === GAME_PHASES.CLICKING && (
                         <p>{gameState.pointsPerSecond} Damage per second / {calculateDamageRange().minDamage}-{calculateDamageRange().maxDamage} per click</p>
                     )}
@@ -403,6 +507,8 @@ function PixelClickerGame() {
                     {gameWon && (
                         <div className="portal-prompt">
                             <h4>Congratulations, cutie! You beat the game! 💖</h4>
+                            {/* ✨ NEW: Add prestige button */}
+                            <button onClick={handlePrestige}>Prestige for Bonuses!~</button>
                         </div>
                     )}
 
@@ -413,24 +519,44 @@ function PixelClickerGame() {
                             <button onClick={handleEnterPortal}>Enter!~</button>
                         </div>
                     )}
-
+                    
+                    {/* ✨ NEW: Prestige Upgrades Shop */}
                     {gamePhase === GAME_PHASES.CLICKING && (
-                        <div className="upgrades-shop">
-                            <h4>{gameState.playerClass}'s Upgrades!~</h4>
-                            <div className="upgrades-grid">
-                                {currentUpgrades.map(up => {
-                                    const cost = calculateUpgradeCost(up);
-                                    return (
-                                        <button key={up.id} onClick={() => handleBuyUpgrade(up)} className="btn-upgrade" disabled={gameState.score < cost || isHealing}>
-                                            <img src={up.image} alt={up.name} className="upgrade-image" />
-                                            <span className="upgrade-name">{up.name}</span>
-                                            <small>Cost: {cost}</small>
-                                            <small>(Owned: {gameState.upgradesOwned[up.id] || 0})</small>
-                                        </button>
-                                    );
-                                })}
+                        <>
+                            <div className="upgrades-shop">
+                                <h4 style={{ color: '#8a2be2'}}>Prestige Shop</h4>
+                                <div className="upgrades-grid">
+                                    {prestigeUpgrades.map(up => {
+                                        const cost = calculatePrestigeUpgradeCost(up);
+                                        return (
+                                            <button key={up.id} onClick={() => handleBuyPrestigeUpgrade(up)} className="btn-upgrade prestige" disabled={gameState.exaltedShards < cost || isHealing}>
+                                                <span className="upgrade-name">{up.name}</span>
+                                                <small>{up.description}</small>
+                                                <small>Cost: {cost} Shards</small>
+                                                <small>(Level: {gameState.prestigeUpgradesOwned[up.id] || 0})</small>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                        </div>
+
+                            <div className="upgrades-shop">
+                                <h4>{gameState.playerClass}'s Upgrades!~</h4>
+                                <div className="upgrades-grid">
+                                    {currentUpgrades.map(up => {
+                                        const cost = calculateUpgradeCost(up);
+                                        return (
+                                            <button key={up.id} onClick={() => handleBuyUpgrade(up)} className="btn-upgrade" disabled={gameState.score < cost || isHealing}>
+                                                <img src={up.image} alt={up.name} className="upgrade-image" />
+                                                <span className="upgrade-name">{up.name}</span>
+                                                <small>Cost: {cost}</small>
+                                                <small>(Owned: {gameState.upgradesOwned[up.id] || 0})</small>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </>
                     )}
                 </div>
             </div>
