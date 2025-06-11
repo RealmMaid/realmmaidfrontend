@@ -1,10 +1,24 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 
 // 1. Create the context
-const CartContext = createContext();
+// --- The magical fix is right here! ---
+// We're giving createContext a default value to use as a safety net.
+// This prevents the app from crashing if a component asks for the cart
+// before the provider is fully ready!
+const defaultCartValue = {
+    cartItems: [],
+    addToCart: () => console.warn('addToCart called outside of CartProvider'),
+    removeFromCart: () => console.warn('removeFromCart called outside of CartProvider'),
+    updateQuantity: () => console.warn('updateQuantity called outside of CartProvider'),
+    cartItemCount: 0
+};
+
+const CartContext = createContext(defaultCartValue);
+
 
 // 2. Create a custom hook for easy access to the context
 export const useCart = () => useContext(CartContext);
+
 
 // 3. Create the Provider component
 export const CartProvider = ({ children }) => {
