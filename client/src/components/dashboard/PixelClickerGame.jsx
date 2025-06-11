@@ -6,27 +6,66 @@ import { v4 as uuidv4 } from 'uuid';
 // ====================================================================
 
 const classes = [
-  { id: 'warrior', name: 'Warrior', image: '/warrior.png', emoji: '⚔️' },
-  { id: 'wizard', name: 'Wizard', image: '/wizard.png', emoji: '🔮' },
-  { id: 'sorcerer', name: 'Sorcerer', image: '/sorcerer.png', emoji: '🔪' },
+  { id: 'Warrior', name: 'Warrior', image: '/warrior.png', emoji: '⚔️' },
+  { id: 'Wizard', name: 'Wizard', image: '/wizard.png', emoji: '🔮' },
+  { id: 'Sorcerer', name: 'Sorcerer', image: '/sorcerer.png', emoji: '🔪' },
 ];
 
 const classUpgrades = {
-  warrior: [
-    { id: 'item1', name: 'Skysplitter Sword', image: '/skysplittersword.png', cost: 50, minBonus: 2, maxBonus: 5, type: 'perClick' },
-    { id: 'item2', name: 'Golden Helm', image: '/goldenhelm.png', cost: 250, value: 2, type: 'perSecond', clickBonus: 1 },
-    { id: 'item3', name: 'Ring of Exalted Dexterity', image: '/ringofexalteddexterity.png', cost: 750, value: 4, type: 'perSecond', clickBonus: 3 },
-  ],
-  wizard: [
-    { id: 'item1', name: 'Staff of Astral Knowledge', image: '/staffofastralknowledge.png', cost: 50, minBonus: 1, maxBonus: 7, type: 'perClick' },
-    { id: 'item2', name: 'Magic Nova Spell', image: '/magicnovaspell.png', cost: 250, value: 2, type: 'perSecond', clickBonus: 1 },
-    { id: 'item3', name: 'Ring of Exalted Mana', image: '/ringofexaltedattack.png', cost: 750, value: 4, type: 'perSecond', clickBonus: 3 },
-  ],
-  sorcerer: [
-    { id: 'item1', name: 'Wand of Ancient Power', image: '/wandofancientknowledge.png', cost: 50, minBonus: 3, maxBonus: 3, type: 'perClick' },
-    { id: 'item2', name: 'Scepter of Skybolts', image: '/scepterofskybolts.png', cost: 250, value: 2, type: 'perSecond', clickBonus: 1 },
-    { id: 'item3', name: 'Ring of Exalted Wisdom', image: '/ringofexalteddexterity.png', cost: 750, value: 4, type: 'perSecond', clickBonus: 3 },
-  ],
+  // Stage 1: For Oryx 1
+  stage1: {
+    Warrior: [
+      { id: 'item1', name: 'Skysplitter Sword', image: '/skysplittersword.png', cost: 50, minBonus: 2, maxBonus: 5, type: 'perClick' },
+      { id: 'item2', name: 'Golden Helm', image: '/goldenhelm.png', cost: 250, value: 2, type: 'perSecond', clickBonus: 1 },
+      { id: 'item3', name: 'Ring of Exalted Dexterity', image: '/ringofexalteddexterity.png', cost: 750, value: 4, type: 'perSecond', clickBonus: 3 },
+    ],
+    Wizard: [
+      { id: 'item1', name: 'Staff of Astral Knowledge', image: '/staffofastralknowledge.png', cost: 50, minBonus: 1, maxBonus: 7, type: 'perClick' },
+      { id: 'item2', name: 'Magic Nova Spell', image: '/magicnovaspell.png', cost: 250, value: 2, type: 'perSecond', clickBonus: 1 },
+      { id: 'item3', name: 'Ring of Exalted Mana', image: '/ringofexaltedattack.png', cost: 750, value: 4, type: 'perSecond', clickBonus: 3 },
+    ],
+    Sorcerer: [
+      { id: 'item1', name: 'Wand of Ancient Power', image: '/wandofancientknowledge.png', cost: 50, minBonus: 3, maxBonus: 3, type: 'perClick' },
+      { id: 'item2', name: 'Scepter of Skybolts', image: '/scepterofskybolts.png', cost: 250, value: 2, type: 'perSecond', clickBonus: 1 },
+      { id: 'item3', name: 'Ring of Exalted Wisdom', image: '/ringofexalteddexterity.png', cost: 750, value: 4, type: 'perSecond', clickBonus: 3 },
+    ],
+  },
+  // Stage 2: For Oryx 2
+  stage2: {
+    Warrior: [
+        { id: 'item4', name: 'Sword of Acclaim', image: '/soa.png', cost: 10000, minBonus: 20, maxBonus: 50, type: 'perClick' },
+        { id: 'item5', name: 'Helm of the Great General', image: '/hotgg.png', cost: 50000, value: 200, type: 'perSecond', clickBonus: 15 },
+        { id: 'item6', name: 'Ring of Unbound Attack', image: '/ringofunboundattack.png', cost: 150000, value: 500, type: 'perSecond', clickBonus: 40 },
+    ],
+    Wizard: [
+        { id: 'item4', name: 'Staff of the Cosmic Whole', image: '/sotcw.png', cost: 10000, minBonus: 10, maxBonus: 70, type: 'perClick' },
+        { id: 'item5', name: 'Elemental Detonation Spell', image: '/eds.png', cost: 50000, value: 220, type: 'perSecond', clickBonus: 12 },
+        { id: 'item6', name: 'Ring of Unbound Dexterity', image: '/ringofunbounddexterity.png', cost: 150000, value: 500, type: 'perSecond', clickBonus: 40 },
+    ],
+    Sorcerer: [
+        { id: 'item4', name: 'Wand of Recompense', image: '/wor.png', cost: 10000, minBonus: 35, maxBonus: 35, type: 'perClick' },
+        { id: 'item5', name: 'Scepter of Storms', image: '/sos.png', cost: 50000, value: 210, type: 'perSecond', clickBonus: 14 },
+        { id: 'item6', name: 'Ring of Unbound Attack', image: '/ringofunbounddexterity.png', cost: 150000, value: 500, type: 'perSecond', clickBonus: 40 },
+    ],
+  },
+  // Stage 3: For Oryx 3 and Exalted Oryx
+  stage3: {
+    Warrior: [
+        { id: 'item7', name: 'Pirate Kings Cutlass', image: '/pkc.png', cost: 500000, minBonus: 200, maxBonus: 500, type: 'perClick' },
+        { id: 'item8', name: 'Hivemaster Helm', image: '/hivehelm.png', cost: 2500000, value: 2000, type: 'perSecond', clickBonus: 150 },
+        { id: 'item9', name: 'Battalion Banner', image: '/bb.png', cost: 7500000, value: 5000, type: 'perSecond', clickBonus: 400 },
+    ],
+    Wizard: [
+        { id: 'item7', name: 'Superior', image: '/superior.png', cost: 500000, minBonus: 100, maxBonus: 700, type: 'perClick' },
+        { id: 'item8', name: 'Genesis Spell', image: '/gs.png', cost: 2500000, value: 2200, type: 'perSecond', clickBonus: 120 },
+        { id: 'item9', name: 'Chancellors Cranium', image: '/cc.png', cost: 7500000, value: 5000, type: 'perSecond', clickBonus: 400 },
+    ],
+    Sorcerer: [
+        { id: 'item7', name: 'Lumiaire', image: '/lumi.png', cost: 500000, minBonus: 350, maxBonus: 350, type: 'perClick' },
+        { id: 'item8', name: 'Scepter of Devastation', image: '/sod.png', cost: 2500000, value: 2100, type: 'perSecond', clickBonus: 140 },
+        { id: 'item9', name: 'Divine Coronation', image: '/dc.png', cost: 7500000, value: 5000, type: 'perSecond', clickBonus: 400 },
+    ],
+  },
 };
 
 const bosses = [
@@ -37,6 +76,10 @@ const bosses = [
         clickThreshold: 45000,
         clickSound: '/oryxhit.mp3',
         breakSound: '/oryxdeath.mp3',
+        portalImage: '/winecellar.png', // Portal that appears AFTER this boss
+        healThresholds: [
+            { percent: 50, amount: 10000 }, // Heals 10k when health drops to 50%
+        ]
     },
     {
         id: 'oryx2',
@@ -45,6 +88,11 @@ const bosses = [
         clickThreshold: 100000,
         clickSound: '/oryxhit.mp3',
         breakSound: '/oryxdeath.mp3',
+        portalImage: '/oryxchamber.png',
+        healThresholds: [
+            { percent: 75, amount: 20000 },
+            { percent: 40, amount: 25000 },
+        ]
     },
     {
         id: 'oryx3',
@@ -53,16 +101,32 @@ const bosses = [
         clickThreshold: 562500,
         clickSound: '/oryxhit.mp3',
         breakSound: '/oryxdeath.mp3',
+        portalImage: null, // No portal, transitions directly to the next form
+        healThresholds: [
+            { percent: 80, amount: 100000 },
+            { percent: 60, amount: 125000 },
+            { percent: 30, amount: 150000 },
+        ]
     },
     {
         id: 'oryxexalted',
         name: 'Oryx the Mad God Exalted',
         images: ['/oryxexalted.png'],
-        clickThreshold: 562500,
+        clickThreshold: 1250000, // Increased health for "rage" mode
         clickSound: '/oryxhit.mp3',
         breakSound: '/oryxdeath.mp3',
+        portalImage: null, // Final boss
+        healThresholds: [] // No healing in the final phase
     },
 ];
+
+const GAME_PHASES = {
+  CLASS_SELECTION: 'classSelection',
+  CLICKING: 'clicking',
+  TRANSITIONING: 'transitioning',
+  PORTAL: 'portal',
+  FINISHED: 'finished',
+};
 
 const SAVE_GAME_KEY = 'realmmaid-clicker-game-save';
 
@@ -73,8 +137,9 @@ function PixelClickerGame() {
             pointsPerSecond: 0,
             currentBossIndex: 0,
             clicksOnCurrentBoss: 0,
-            upgradesOwned: { item1: 0, item2: 0, item3: 0 },
-            playerClass: null
+            upgradesOwned: {},
+            playerClass: null,
+            triggeredHeals: {},
         };
         const savedGame = localStorage.getItem(SAVE_GAME_KEY);
         if (savedGame) {
@@ -85,72 +150,118 @@ function PixelClickerGame() {
         return defaultState;
     });
 
-    const [gamePhase, setGamePhase] = useState(gameState.playerClass ? 'clicking' : 'classSelection');
+    const [gamePhase, setGamePhase] = useState(gameState.playerClass ? GAME_PHASES.CLICKING : GAME_PHASES.CLASS_SELECTION);
     const [gameWon, setGameWon] = useState(false);
     const [floatingNumbers, setFloatingNumbers] = useState([]);
     const [isShaking, setIsShaking] = useState(false);
     const [floatingHeals, setFloatingHeals] = useState([]);
+    const [isHealing, setIsHealing] = useState(false);
     const gemButtonRef = useRef(null);
+
+    const currentBoss = bosses[gameState.currentBossIndex];
+    const bossStage = `stage${Math.min(gameState.currentBossIndex + 1, 3)}`;
+    const currentUpgrades = classUpgrades[bossStage]?.[gameState.playerClass] || [];
 
     useEffect(() => {
         localStorage.setItem(SAVE_GAME_KEY, JSON.stringify(gameState));
     }, [gameState]);
 
     useEffect(() => {
-        if (gamePhase !== 'clicking') return;
+        if (gamePhase !== GAME_PHASES.CLICKING || isHealing) return;
         const interval = setInterval(() => {
             setGameState(prev => ({ ...prev, score: prev.score + prev.pointsPerSecond }));
         }, 1000);
         return () => clearInterval(interval);
-    }, [gameState.pointsPerSecond, gamePhase]);
+    }, [gameState.pointsPerSecond, gamePhase, isHealing]);
 
-    const currentBoss = bosses[gameState.currentBossIndex];
-
-    // ✨ UPDATED: This useEffect now ONLY checks if a boss is defeated! ✨
     useEffect(() => {
-        if (!currentBoss) return;
+        if (!currentBoss || gamePhase !== GAME_PHASES.CLICKING || isHealing) return;
         
-        if (gameState.clicksOnCurrentBoss >= currentBoss.clickThreshold && gamePhase === 'clicking') {
+        if (gameState.clicksOnCurrentBoss >= currentBoss.clickThreshold) {
             new Audio(currentBoss.breakSound).play();
             if (gameState.currentBossIndex === bosses.length - 1) {
                 setGameWon(true);
-                setGamePhase('finished');
+                setGamePhase(GAME_PHASES.FINISHED);
             } else {
-                // We just set the phase, and the other useEffect will handle the timer!
-                setGamePhase('transitioning');
+                if (currentBoss.id === 'oryx3') {
+                    handleEnterPortal(); 
+                } else {
+                    setGamePhase(GAME_PHASES.TRANSITIONING);
+                }
             }
         }
-    }, [gameState.clicksOnCurrentBoss, gameState.currentBossIndex, currentBoss, gamePhase]);
+    }, [gameState.clicksOnCurrentBoss, gameState.currentBossIndex, currentBoss, gamePhase, isHealing]);
 
-    // ✨ NEW: This useEffect's ONLY job is to handle the 4-second portal timer! ✨
     useEffect(() => {
-        if (gamePhase === 'transitioning') {
+        if (gamePhase === GAME_PHASES.TRANSITIONING) {
             const timer = setTimeout(() => {
-                setGamePhase('portal');
-            }, 4000); // 4 seconds for the fade-out animation
-            
-            return () => clearTimeout(timer); // Cleanup the timer
+                setGamePhase(GAME_PHASES.PORTAL);
+            }, 4000);
+            return () => clearTimeout(timer);
         }
-    }, [gamePhase]); // This only runs when gamePhase changes!
+    }, [gamePhase]);
+
+    useEffect(() => {
+        if (!currentBoss || !currentBoss.healThresholds || gamePhase !== GAME_PHASES.CLICKING || isHealing) {
+            return;
+        }
+
+        const currentHealthPercent = 100 - (gameState.clicksOnCurrentBoss / currentBoss.clickThreshold) * 100;
+        const triggeredHealsForBoss = gameState.triggeredHeals[currentBoss.id] || [];
+
+        for (const heal of currentBoss.healThresholds) {
+            if (currentHealthPercent <= heal.percent && !triggeredHealsForBoss.includes(heal.percent)) {
+                setGameState(prev => ({
+                    ...prev,
+                    triggeredHeals: { ...prev.triggeredHeals, [currentBoss.id]: [...triggeredHealsForBoss, heal.percent] }
+                }));
+
+                setIsHealing(true);
+                let amountHealed = 0;
+                const healPerIncrement = 2500;
+                const healInterval = setInterval(() => {
+                    const healThisTick = Math.min(healPerIncrement, heal.amount - amountHealed);
+                    amountHealed += healThisTick;
+                    
+                    setGameState(prev => ({ ...prev, clicksOnCurrentBoss: Math.max(0, prev.clicksOnCurrentBoss - healThisTick) }));
+
+                    if (gemButtonRef.current) {
+                        const rect = gemButtonRef.current.getBoundingClientRect();
+                        setFloatingHeals(current => [...current, {
+                            id: uuidv4(), value: healThisTick,
+                            x: rect.left + rect.width / 2 + (Math.random() * 80 - 40),
+                            y: rect.top + (Math.random() * 20 - 10),
+                        }]);
+                    }
+
+                    if (amountHealed >= heal.amount) {
+                        clearInterval(healInterval);
+                        setIsHealing(false);
+                    }
+                }, 200);
+                
+                break;
+            }
+        }
+    }, [gameState.clicksOnCurrentBoss, currentBoss, gamePhase, isHealing, gameState.triggeredHeals]);
 
     const handleClassSelect = (className) => {
         setGameState(prev => ({ ...prev, playerClass: className }));
-        setGamePhase('clicking');
+        setGamePhase(GAME_PHASES.CLICKING);
     };
-
+    
     const calculateDamageRange = () => {
         let minDamage = 1;
         let maxDamage = 1;
-        const currentUpgrades = classUpgrades[gameState.playerClass] || [];
+        
         currentUpgrades.forEach(upgrade => {
             const owned = gameState.upgradesOwned[upgrade.id] || 0;
             if (owned > 0) {
-                if (upgrade.type === 'perClick') {
-                    const bonus = Math.floor(Math.pow(owned, 0.9));
-                    minDamage += upgrade.minBonus * bonus;
-                    maxDamage += upgrade.maxBonus * bonus;
+                 const bonus = Math.floor(Math.pow(owned, 0.9));
+                 if (upgrade.type === 'perClick') {
+                    minDamage += (upgrade.minBonus || 0) * bonus;
+                    maxDamage += (upgrade.maxBonus || 0) * bonus;
                 } else if (upgrade.type === 'perSecond' && upgrade.clickBonus) {
-                    const bonus = Math.floor(Math.pow(owned, 0.9));
                     minDamage += upgrade.clickBonus * bonus;
                     maxDamage += upgrade.clickBonus * bonus;
                 }
@@ -160,21 +271,21 @@ function PixelClickerGame() {
     };
 
     const handleGemClick = (event) => {
-        if (gamePhase !== 'clicking' || !currentBoss) return;
+        if (gamePhase !== GAME_PHASES.CLICKING || !currentBoss || isHealing) return;
         new Audio(currentBoss.clickSound).play();
         const { minDamage, maxDamage } = calculateDamageRange();
         const damageDealt = Math.floor(Math.random() * (maxDamage - minDamage + 1)) + minDamage;
         const rect = event.currentTarget.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        const topY = rect.top;
+        
         setFloatingNumbers(current => [...current, {
-            id: uuidv4(),
-            value: damageDealt,
-            x: centerX + (Math.random() * 80 - 40),
-            y: topY + (Math.random() * 20 - 10),
+            id: uuidv4(), value: damageDealt,
+            x: rect.left + rect.width / 2 + (Math.random() * 80 - 40),
+            y: rect.top + (Math.random() * 20 - 10),
         }]);
+        
         setIsShaking(true);
         setTimeout(() => setIsShaking(false), 150);
+        
         setGameState(prev => ({
             ...prev,
             score: prev.score + damageDealt,
@@ -188,7 +299,7 @@ function PixelClickerGame() {
             currentBossIndex: prev.currentBossIndex + 1,
             clicksOnCurrentBoss: 0,
         }));
-        setGamePhase('clicking');
+        setGamePhase(GAME_PHASES.CLICKING);
     };
 
     const calculateUpgradeCost = (upgrade) => {
@@ -199,18 +310,6 @@ function PixelClickerGame() {
     const handleBuyUpgrade = (upgrade) => {
         const currentCost = calculateUpgradeCost(upgrade);
         if (gameState.score >= currentCost) {
-            const healAmount = Math.floor(currentCost * (Math.random() * 0.25 + 0.25));
-            if (gemButtonRef.current) {
-                const rect = gemButtonRef.current.getBoundingClientRect();
-                const centerX = rect.left + rect.width / 2;
-                const topY = rect.top;
-                setFloatingHeals(current => [...current, {
-                    id: uuidv4(),
-                    value: healAmount,
-                    x: centerX + (Math.random() * 80 - 40),
-                    y: topY + (Math.random() * 20 - 10),
-                }]);
-            }
             setGameState(prev => {
                 const newOwned = { ...prev.upgradesOwned, [upgrade.id]: (prev.upgradesOwned[upgrade.id] || 0) + 1 };
                 let newPps = prev.pointsPerSecond;
@@ -222,7 +321,6 @@ function PixelClickerGame() {
                     score: prev.score - currentCost,
                     pointsPerSecond: newPps,
                     upgradesOwned: newOwned,
-                    clicksOnCurrentBoss: Math.max(0, prev.clicksOnCurrentBoss - healAmount),
                 };
             });
         } else {
@@ -248,7 +346,7 @@ function PixelClickerGame() {
         return 100 - percent;
     };
     
-    if (gamePhase === 'classSelection') {
+    if (gamePhase === GAME_PHASES.CLASS_SELECTION) {
         return (
             <div className="card">
                 <div className="clicker-container">
@@ -270,33 +368,25 @@ function PixelClickerGame() {
         return <div className="card"><p>Loading game...</p></div>;
     }
     
-    const currentUpgrades = classUpgrades[gameState.playerClass] || [];
-
     return (
         <div className="card">
             {floatingNumbers.map(num => (
-                <span
-                    key={num.id}
-                    className="floating-number"
-                    style={{ left: num.x, top: num.y }}
-                    onAnimationEnd={() => setFloatingNumbers(current => current.filter(n => n.id !== num.id))}
-                >
+                <span key={num.id} className="floating-number" style={{ left: num.x, top: num.y }} onAnimationEnd={() => setFloatingNumbers(current => current.filter(n => n.id !== num.id))}>
                     -{num.value}
                 </span>
             ))}
             {floatingHeals.map(num => (
-                <span
-                    key={num.id}
-                    className="floating-number heal"
-                    style={{ left: num.x, top: num.y }}
-                    onAnimationEnd={() => setFloatingHeals(current => current.filter(n => n.id !== num.id))}
-                >
+                <span key={num.id} className="floating-number heal" style={{ left: num.x, top: num.y }} onAnimationEnd={() => setFloatingHeals(current => current.filter(n => n.id !== num.id))}>
                     +{num.value}
                 </span>
             ))}
-            <h3>{gameWon ? 'You Did It!' : currentBoss.name}</h3>
             
-            {(gamePhase === 'clicking' || gamePhase === 'transitioning') && (
+            <h3>
+              {gameWon ? 'You Did It!' : currentBoss.name}
+              {isHealing && <span className="healing-indicator"> HEALING...</span>}
+            </h3>
+            
+            {(gamePhase === GAME_PHASES.CLICKING || gamePhase === GAME_PHASES.TRANSITIONING) && (
                 <div className="health-bar-container">
                     <div className="health-bar-inner" style={{ width: `${getHealthPercent()}%` }}></div>
                     <span className="health-bar-text">{Math.max(0, Math.floor(currentBoss.clickThreshold - gameState.clicksOnCurrentBoss))} / {currentBoss.clickThreshold}</span>
@@ -305,16 +395,12 @@ function PixelClickerGame() {
             
             <div className="clicker-container">
                 <h2>{Math.floor(gameState.score)} Sparkles ✨</h2>
-                {gamePhase === 'clicking' && (
+                {gamePhase === GAME_PHASES.CLICKING && (
                     <p>{gameState.pointsPerSecond} sparkles per second / {calculateDamageRange().minDamage}-{calculateDamageRange().maxDamage} per click</p>
                 )}
 
-                <div className="gem-button" ref={gemButtonRef} onClick={handleGemClick}>
-                    <img
-                        src={getCurrentImage()}
-                        alt={currentBoss.name}
-                        className={`${gamePhase === 'transitioning' ? 'fading-out' : ''} ${isShaking ? 'shake' : ''}`}
-                    />
+                <div className={`gem-button ${isHealing ? 'disabled' : ''}`} ref={gemButtonRef} onClick={handleGemClick}>
+                    <img src={getCurrentImage()} alt={currentBoss.name} className={`${gamePhase === GAME_PHASES.TRANSITIONING ? 'fading-out' : ''} ${isShaking ? 'shake' : ''}`} />
                 </div>
 
                 {gameWon && (
@@ -322,26 +408,23 @@ function PixelClickerGame() {
                         <h4>Congratulations, cutie! You beat the game! 💖</h4>
                     </div>
                 )}
-                {gamePhase === 'portal' && (
+
+                {gamePhase === GAME_PHASES.PORTAL && (
                     <div className="portal-prompt">
-                        <img src="/winecellar.png" alt="The Wine Cellar" className="portal-image" />
+                        <img src={currentBoss.portalImage} alt="A mysterious portal" className="portal-image" />
                         <h4>A portal has opened! Do you enter?</h4>
                         <button onClick={handleEnterPortal}>Enter!~</button>
                     </div>
                 )}
-                {gamePhase === 'clicking' && (
+
+                {gamePhase === GAME_PHASES.CLICKING && (
                     <div className="upgrades-shop">
                         <h4>{gameState.playerClass}'s Upgrades!~</h4>
                         <div className="upgrades-grid">
                             {currentUpgrades.map(up => {
                                 const cost = calculateUpgradeCost(up);
                                 return (
-                                    <button
-                                        key={up.id}
-                                        onClick={() => handleBuyUpgrade(up)}
-                                        className="btn-upgrade"
-                                        disabled={gameState.score < cost}
-                                    >
+                                    <button key={up.id} onClick={() => handleBuyUpgrade(up)} className="btn-upgrade" disabled={gameState.score < cost || isHealing}>
                                         <img src={up.image} alt={up.name} className="upgrade-image" />
                                         <span className="upgrade-name">{up.name}</span>
                                         <small>Cost: {cost}</small>
