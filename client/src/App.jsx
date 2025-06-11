@@ -44,8 +44,8 @@ function App() {
         
         <Route element={<ProtectedRoute />}>
             {/* This is the nested dashboard route structure */}
-            <Route path="/dashboard" element={<UserDashboardPage />}>
-              {/*<Route index element={<Navigate to="orders" replace />} />
+          {/*<Route path="/dashboard" element={<UserDashboardPage />}>
+              <Route index element={<Navigate to="orders" replace />} />
               <Route path="orders" element={<MyOrders />} />
               <Route path="settings"element={<ProfileSettings />} />
               <Route path="payments" element={<PaymentMethods />} />
