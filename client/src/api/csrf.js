@@ -13,9 +13,19 @@ export const getCsrfToken = () => {
         // If we don't have a promise yet, create one!
         csrfTokenPromise = API.get('/auth/csrf-token')
             .then(response => {
-                console.log('CSRF token fetched successfully! (｡^ U ^｡)');
+                // --- FIX: Added robust logging to verify the backend response ---
+                console.log('Full response from /auth/csrf-token:', response.data);
+
+                const token = response.data.csrfToken;
+
+                if (!token) {
+                    console.error("Could not find 'csrfToken' key in the response data!", response.data);
+                } else {
+                    console.log('CSRF token fetched successfully! (｡^ U ^｡)');
+                }
+                
                 // The promise will resolve with the token value
-                return response.data.csrfToken;
+                return token;
             })
             .catch(error => {
                 console.error('O-oh no! Could not get the CSRF token... (╯︵╰,)', error);
