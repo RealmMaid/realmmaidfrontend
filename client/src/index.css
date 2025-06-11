@@ -544,6 +544,20 @@ input:focus, textarea:focus {
   color: #2ecc71; /* A cute green color! */
   text-shadow: 1px 1px 2px black;
 }
+.btn-reset {
+  background-color: #c70d0d;
+  color: white;
+  border: 1px solid #a80b0b;
+  padding: 8px 16px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.btn-reset:hover {
+  background-color: #ff1f1f;
+}
 .badge.verified { background-color: #2ecc71; }
 .badge.not-verified { background-color: #e74c3c; }
 .badge.admin { background-color: #9b59b6; }
