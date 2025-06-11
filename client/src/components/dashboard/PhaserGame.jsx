@@ -1,20 +1,20 @@
 import React, { useEffect, useRef } from 'react';
 import Phaser from 'phaser';
 
+// Constants are the same!
+const GAME_WIDTH = 800;
+const GAME_HEIGHT = 600;
+
 function PhaserGame() {
-    // This ref will hold our game instance.
     const gameRef = useRef(null);
 
-    // This is where all the Phaser magic happens!
     useEffect(() => {
-        // The game configuration object. This is like the settings menu!
         const config = {
-            type: Phaser.AUTO, // Automatically chooses WebGL or Canvas
+            type: Phaser.AUTO,
             width: 800,
             height: 600,
-            parent: 'phaser-container', // The ID of the div our game will live in
+            parent: 'phaser-container',
             backgroundColor: '#000000',
-            // A scene is like a single screen or level in a game.
             scene: {
                 preload: preload,
                 create: create,
@@ -22,39 +22,33 @@ function PhaserGame() {
             }
         };
 
-        // Create the new Phaser Game instance!
         gameRef.current = new Phaser.Game(config);
 
-        // This is the heart of our game!
-        // preload() is for loading assets like images and sounds.
+        // ✨ UPDATED: The preload function! ✨
         function preload() {
-            // We'll load our images here later!
+            // We tell Phaser to load our image and give it a cute nickname, 'player'!
+            this.load.image('player', '/Warrior.png'); // Make sure this path is correct!
         }
 
-        // create() runs once at the beginning to set up the game world.
+        // ✨ UPDATED: The create function! ✨
         function create() {
-            // Let's add some cute text to make sure it's working!
-            // 'this' refers to the Scene object.
-            this.add.text(400, 300, 'Our Phaser Game is ALIVE! uwu', { 
-                fontSize: '32px', 
-                fill: '#ff69b4' // A hot pink color, of course!
-            }).setOrigin(0.5); // This centers the text on its coordinates.
+            // We're creating a "sprite" at the bottom-center of the screen
+            // using the image we nicknamed 'player'!
+            const playerX = GAME_WIDTH / 2;
+            const playerY = GAME_HEIGHT - 60;
+            this.add.sprite(playerX, playerY, 'player');
         }
 
-        // update() is the game loop! It runs over and over.
         function update() {
-            // We'll make our characters move in here later!
+            // The game loop is still empty for now!
         }
 
-        // This is a super important cleanup function!
-        // It destroys the game when the component unmounts to prevent memory leaks.
         return () => {
             gameRef.current.destroy(true);
         };
 
-    }, []); // The empty array makes sure this effect only runs once!
+    }, []);
 
-    // Our component just renders a single div for the game to attach to.
     return <div id="phaser-container" />;
 }
 
