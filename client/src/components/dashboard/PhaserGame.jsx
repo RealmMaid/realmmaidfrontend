@@ -4,7 +4,7 @@ import Phaser from 'phaser';
 // Constants are the same!
 const GAME_WIDTH = 800;
 const GAME_HEIGHT = 600;
-const BOSS_SPEED = 150; // Let's define the boss's speed up here!
+const BOSS_SPEED = 150;
 
 function PhaserGame() {
     const gameRef = useRef(null);
@@ -34,7 +34,6 @@ function PhaserGame() {
 
         function preload() {
             this.load.image('player', '/wizard.png');
-            // ✨ NEW: Loading our boss image! ✨
             this.load.image('boss', '/oryx.png');
         }
 
@@ -44,17 +43,19 @@ function PhaserGame() {
             const playerY = GAME_HEIGHT - 60;
             this.player = this.physics.add.sprite(playerX, playerY, 'player');
             this.player.setCollideWorldBounds(true);
-            this.player.setScale(0.5);
+
+            // ✨ UPDATED: Making our little wizard even smaller! ✨
+            this.player.setScale(0.4); // Changed from 0.5 to 0.4!
             
             // Create the keyboard listeners
             this.cursors = this.input.keyboard.createCursorKeys();
             this.keyA = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
             this.keyD = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
 
-            // ✨ NEW: Create the boss sprite! ✨
-            this.boss = this.physics.add.sprite(100, 80, 'boss'); // Start him near the top-left
-            this.boss.setCollideWorldBounds(true); // He also can't leave the screen!
-            this.boss.setVelocityX(BOSS_SPEED); // Give him a little push to the right to start!
+            // Create the boss
+            this.boss = this.physics.add.sprite(100, 80, 'boss');
+            this.boss.setCollideWorldBounds(true);
+            this.boss.setVelocityX(BOSS_SPEED);
         }
 
         function update() {
@@ -69,13 +70,13 @@ function PhaserGame() {
                 this.player.setVelocityX(0);
             }
 
-            // ✨ NEW: Boss bouncing logic! ✨
-            // Phaser's physics body tells us if it's touching a wall!
-            if (this.boss.body.touching.right) {
-                // If he touches the right wall, reverse his velocity to go left.
+            // ✨ UPDATED: Boss bouncing logic is now more reliable! ✨
+            // We check if the physics body is "blocked" by the world bounds.
+            if (this.boss.body.blocked.right) {
+                // If he's blocked on the right, move left.
                 this.boss.setVelocityX(-BOSS_SPEED);
-            } else if (this.boss.body.touching.left) {
-                // If he touches the left wall, reverse his velocity to go right.
+            } else if (this.boss.body.blocked.left) {
+                // If he's blocked on the left, move right.
                 this.boss.setVelocityX(BOSS_SPEED);
             }
         }
