@@ -874,8 +874,13 @@ function PixelClickerGame() {
       toast.error("Ability is on cooldown!");
       return;
     }
+
     switch (abilityId) {
       case "slam": {
+        if (gameState.pointsPerSecond <= 0) {
+          toast.error("Slam would have no effect with 0 DPS!");
+          return;
+        }
         const bonuses = calculateAchievementBonuses();
         let dps = gameState.pointsPerSecond;
         if (activeBuffs["arcane_power"]) dps *= 2;
@@ -935,6 +940,11 @@ function PixelClickerGame() {
         [abilityId]: now + ability.cooldown * 1000,
       },
     }));
+  };
+
+  const calculateUpgradeCost = (upgrade) => {
+    const owned = gameState.upgradesOwned[upgrade.id] || 0;
+    return Math.floor(upgrade.cost * Math.pow(1.15, owned));
   };
 
   const handleGemClick = (event) => {
@@ -1019,10 +1029,6 @@ function PixelClickerGame() {
       abilityCooldowns: {},
     }));
     setGamePhase(GAME_PHASES.CLICKING);
-  };
-  const calculateUpgradeCost = (upgrade) => {
-    const owned = gameState.upgradesOwned[upgrade.id] || 0;
-    return Math.floor(upgrade.cost * Math.pow(1.15, owned));
   };
   const handleBuyUpgrade = (upgrade) => {
     const currentCost = calculateUpgradeCost(upgrade);
