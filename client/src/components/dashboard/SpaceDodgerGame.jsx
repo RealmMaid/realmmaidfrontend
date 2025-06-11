@@ -1,65 +1,70 @@
 import React, { useState, useEffect } from 'react';
 
-// Added some new numbers for our big boss! owo
+// Constants for our game world
 const GAME_WIDTH = 800;
 const GAME_HEIGHT = 600;
-const PLAYER_WIDTH = 50;
-const PLAYER_HEIGHT = 50;
+const PLAYER_WIDTH = 60;
+const PLAYER_HEIGHT = 60;
 const PLAYER_SPEED = 8;
-const BOSS_WIDTH = 100;
-const BOSS_HEIGHT = 60;
+const BOSS_WIDTH = 120;
+const BOSS_HEIGHT = 80;
 const BOSS_SPEED = 5;
 
+// This is our known-good, 100% working component logic!
 function SpaceDodgerGame() {
-    // Player's state, just as before!
+    // Player state, starting in the middle.
     const [playerX, setPlayerX] = useState((GAME_WIDTH - PLAYER_WIDTH) / 2);
+
+    // Boss state, in a single object for stability, starting centered.
+    const [bossState, setBossState] = useState({
+        x: (GAME_WIDTH - BOSS_WIDTH) / 2,
+        direction: 'right',
+    });
+    
+    // State to track which keys are currently being held down.
     const [keysPressed, setKeysPressed] = useState({});
 
-    // ✨ NEW: State for our boss! ✨
-    // This remembers the boss's left/right position
-    const [bossX, setBossX] = useState(0);
-    // And this remembers if it's going 'left' or 'right'
-    const [bossDirection, setBossDirection] = useState('right');
-
-
-    // This is our Game Loop!
+    // The stable game loop
     useEffect(() => {
         const gameTick = setInterval(() => {
-            // Player movement logic (this part is the same!)
-            if (keysPressed['a'] || keysPressed['ArrowLeft']) {
-                setPlayerX(prevX => Math.max(0, prevX - PLAYER_SPEED));
-            }
-            if (keysPressed['d'] || keysPressed['ArrowRight']) {
-                setPlayerX(prevX => Math.min(GAME_WIDTH - PLAYER_WIDTH, prevX + PLAYER_SPEED));
-            }
-
-            // ✨ NEW: Boss movement logic! ✨
-            // We're gonna calculate the boss's next move here!
-            let newBossX = bossX;
-            if (bossDirection === 'right') {
-                newBossX += BOSS_SPEED;
-                // If the boss hits the right wall...
-                if (newBossX >= GAME_WIDTH - BOSS_WIDTH) {
-                    newBossX = GAME_WIDTH - BOSS_WIDTH; // Stop it from going off-screen
-                    setBossDirection('left'); // ...tell it to move left now!
+            // --- Player Movement Logic ---
+            setPlayerX(prevX => {
+                let newX = prevX;
+                if (keysPressed['a'] || keysPressed['ArrowLeft']) {
+                    newX = prevX - PLAYER_SPEED;
                 }
-            } else { // If we're going left...
-                newBossX -= BOSS_SPEED;
-                // If the boss hits the left wall...
-                if (newBossX <= 0) {
-                    newBossX = 0; // Stop it from going off-screen
-                    setBossDirection('right'); // ...tell it to move right now!
+                if (keysPressed['d'] || keysPressed['ArrowRight']) {
+                    newX = prevX + PLAYER_SPEED;
                 }
-            }
-            // Update the boss's position!
-            setBossX(newBossX);
+                return Math.max(0, Math.min(newX, GAME_WIDTH - PLAYER_WIDTH));
+            });
 
-        }, 16); 
+            // --- Boss Movement Logic ---
+            setBossState(prev => {
+                let nextX = prev.x;
+                let nextDirection = prev.direction;
+
+                if (prev.direction === 'right') {
+                    nextX = prev.x + BOSS_SPEED;
+                    if (nextX > GAME_WIDTH - BOSS_WIDTH) {
+                        nextX = GAME_WIDTH - BOSS_WIDTH;
+                        nextDirection = 'left';
+                    }
+                } else { // Moving left
+                    nextX = prev.x - BOSS_SPEED;
+                    if (nextX < 0) {
+                        nextX = 0;
+                        nextDirection = 'right';
+                    }
+                }
+                return { x: nextX, direction: nextDirection };
+            });
+        }, 16);
 
         return () => clearInterval(gameTick);
-    }, [keysPressed, bossX, bossDirection]); // We need to add bossX and bossDirection here!
+    }, [keysPressed]);
 
-    // This effect for listening to keys is exactly the same!
+    // Keyboard event listeners
     useEffect(() => {
         const handleKeyDown = (e) => {
             setKeysPressed(prev => ({ ...prev, [e.key]: true }));
@@ -75,11 +80,12 @@ function SpaceDodgerGame() {
         };
     }, []);
 
-    // Styles for our game elements!
+    // Styles - these are self-contained and we know they work.
     const gameAreaStyle = {
         width: `${GAME_WIDTH}px`,
         height: `${GAME_HEIGHT}px`,
-        backgroundColor: '#000000',
+        backgroundImage: 'url(/space-tile.png)',
+        backgroundRepeat: 'repeat',
         border: '2px solid hotpink',
         borderRadius: '10px',
         position: 'relative',
@@ -87,22 +93,19 @@ function SpaceDodgerGame() {
         margin: 'auto',
     };
     
-    // ✨ NEW: A super cute style for our boss! ✨
     const bossStyle = {
         width: `${BOSS_WIDTH}px`,
         height: `${BOSS_HEIGHT}px`,
-        backgroundColor: 'hotpink', // Let's make it match the border! :3
-        borderRadius: '5px',
+        backgroundColor: 'hotpink',
         position: 'absolute',
-        top: '30px', // At the top of the screen
-        transform: `translateX(${bossX}px)`, // This moves it left and right!
+        top: '30px',
+        transform: `translateX(${bossState.x}px)`,
     };
-
+    
     const playerStyle = {
         width: `${PLAYER_WIDTH}px`,
         height: `${PLAYER_HEIGHT}px`,
         backgroundColor: 'cyan',
-        borderRadius: '5px',
         position: 'absolute',
         bottom: '20px',
         transform: `translateX(${playerX}px)`,
@@ -112,8 +115,7 @@ function SpaceDodgerGame() {
         <div style={{ fontFamily: 'monospace', color: 'white', textAlign: 'center' }}>
             <h2>Space Dodger! uwu</h2>
             <div style={gameAreaStyle}>
-                {/* We just add our boss div right here! */}
-                <div style={bossStyle}></div> 
+                <div style={bossStyle}></div>
                 <div style={playerStyle}></div>
             </div>
         </div>
