@@ -37,7 +37,7 @@ function PhaserGame() {
             this.load.image('player', '/wizard.png');
             this.load.image('boss', '/oryx.png');
             // ✨ NEW: Let's load a little image for our laser! ✨
-            this.load.image('laser', '/laser.png'); // You'll need to create a small image for this!
+            this.load.image('laser', '/beamslash.png'); // You'll need to create a small image for this!
         }
 
         function create() {
