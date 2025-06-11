@@ -2,11 +2,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useWebSocketActions } from '../contexts/WebSocketProvider.jsx';
 import { useChatStore } from '../hooks/useChatStore.js';
 import { useAuth } from '../hooks/useAuth.jsx';
-// We are removing this import because we're moving its logic inside the component
-// import { useReadReceipts } from '../hooks/useReadReceipts.js';
 
 const ChatWidgetStyles = () => (
     <style>{`
+        /* All your beautiful CSS styles remain unchanged */
         .chat-resume-message {
             text-align: center;
             padding: 1rem 0;
@@ -197,45 +196,23 @@ const ChatWidget = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [newMessage, setNewMessage] = useState('');
     const { user: currentUser } = useAuth();
-
+    
+    // Get the stable actions object from the context provider.
     const { sendCustomerMessage, emitStartTyping, emitStopTyping } = useWebSocketActions();
     
-    // ✨ We need to get the 'markMessageAsRead' action from our store! ✨
-    const { isConnected, customerChat, typingPeers, markMessageAsRead } = useChatStore(state => ({
-        isConnected: state.isConnected,
-        customerChat: state.customerChat,
-        typingPeers: state.typingPeers,
-        markMessageAsRead: state.markMessageAsRead,
-    }));
+    // Select each piece of state individually to ensure stability and prevent loops.
+    const isConnected = useChatStore(state => state.isConnected);
+    const customerChat = useChatStore(state => state.customerChat);
+    const typingPeers = useChatStore(state => state.typingPeers);
 
     const { sessionId, messages } = customerChat;
     
     const [isResumedSession, setIsResumedSession] = useState(false);
-    // ✨ This is where the old, buggy ref was. We are replacing it! ✨
-    // const messageRef = useReadReceipts(messages, sessionId); 
     const messagesEndRef = useRef(null);
     const typingTimeoutRef = useRef(null);
 
-    // ✨ NEW READ RECEIPT LOGIC TO FIX THE BUG! ✨
-    const observer = useRef();
-    const lastAdminMessageRef = useCallback(node => {
-        if (observer.current) observer.current.disconnect();
-        
-        observer.current = new IntersectionObserver(entries => {
-            if (entries[0].isIntersecting) {
-                const messageId = entries[0].target.dataset.messageId;
-                const message = messages.find(m => m.id === messageId);
-                if (message && message.sender_type === 'admin' && !message.read_at && sessionId) {
-                    markMessageAsRead(sessionId, messageId);
-                }
-            }
-        });
-        
-        if (node) observer.current.observe(node);
-    }, [messages, sessionId, markMessageAsRead]);
-
     useEffect(() => {
-        if (messages && messages.length > 0 && !isResumedSession) {
+        if (messages?.length > 0 && !isResumedSession) {
             setIsResumedSession(true);
         }
     }, [messages, isResumedSession]);
@@ -264,10 +241,11 @@ const ChatWidget = () => {
 
     const handleSend = (e) => {
         e.preventDefault();
-        if (newMessage.trim() && isConnected && sessionId) {
-            emitStopTyping(sessionId);
+        if (newMessage.trim()) {
+            if (sessionId) emitStopTyping(sessionId);
             clearTimeout(typingTimeoutRef.current);
             typingTimeoutRef.current = null;
+            
             sendCustomerMessage({ text: newMessage.trim(), sessionId });
             setNewMessage('');
         }
@@ -277,9 +255,8 @@ const ChatWidget = () => {
         if (String(msg.id).startsWith('local-')) return 'sending';
         if (msg.read_at) return 'read';
         return 'sent';
-    }
+    };
 
-    const isChatReady = isConnected;
     const peerIsTyping = sessionId && typingPeers[sessionId];
 
     return (
@@ -310,34 +287,29 @@ const ChatWidget = () => {
                     )}
 
                     {messages.map((msg, index) => {
-                        if (!msg || !msg.id) return null;
-                        const isAdminMessage = msg.sender_type === 'admin';
-                        let isMyMessage = !isAdminMessage;
-                        let senderName = isMyMessage ? 'You' : 'Admin';
-                        const messageStatus = isMyMessage ? getMessageStatus(msg) : null;
-
-                        // We find the VERY LAST admin message to watch for reads
-                        const lastAdminMessageIndex = messages.findLastIndex(m => m.sender_type === 'admin');
-
-                        return (
-                            <div 
-                                // ✨ UPDATED: The ref is now ONLY attached to the last admin message! ✨
-                                ref={index === lastAdminMessageIndex ? lastAdminMessageRef : null} 
-                                data-message-id={msg.id} 
-                                key={msg.id} 
-                                className={`chat-message-item-wrapper ${isMyMessage ? 'user-message' : 'admin-message'}`}
-                                style={{ opacity: messageStatus === 'sending' ? 0.7 : 1 }}
-                            >
-                                <span className="msg-sender-name">{senderName}</span>
-                                <div className={`chat-message ${isMyMessage ? 'user' : 'admin'}`}>
-                                    {msg.message_text}
-                                    <span className="msg-timestamp">
-                                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        {isMyMessage && <span className={`read-receipt ${messageStatus}`}>✓✓</span>}
-                                    </span>
-                                </div>
-                            </div>
-                        );
+                         if (!msg || !msg.id) return null;
+                         const isAdminMessage = msg.sender_type === 'admin';
+                         let isMyMessage = !isAdminMessage;
+                         let senderName = isMyMessage ? 'You' : (currentUser?.isAdmin ? 'Admin' : 'Support');
+                         const messageStatus = isMyMessage ? getMessageStatus(msg) : null;
+ 
+                         return (
+                             <div 
+                                 data-message-id={msg.id} 
+                                 key={msg.id} 
+                                 className={`chat-message-item-wrapper ${isMyMessage ? 'user-message' : 'admin-message'}`}
+                                 style={{ opacity: messageStatus === 'sending' ? 0.7 : 1 }}
+                             >
+                                 <span className="msg-sender-name">{senderName}</span>
+                                 <div className={`chat-message ${isMyMessage ? 'user' : 'admin'}`}>
+                                     {msg.message_text}
+                                     <span className="msg-timestamp">
+                                         {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                         {isMyMessage && <span className={`read-receipt ${messageStatus}`}>✓✓</span>}
+                                     </span>
+                                 </div>
+                             </div>
+                         );
                     })}
                     <div ref={messagesEndRef} />
                 </div>
@@ -346,8 +318,8 @@ const ChatWidget = () => {
                 </div>
                 <div className="chat-input-area">
                     <form onSubmit={handleSend}>
-                        <input type="text" className="selectable" placeholder={isChatReady ? "Type a message..." : "Please wait..."} value={newMessage} onChange={handleTyping} disabled={!isChatReady} autoFocus />
-                        <button type="submit" className="btn btn-primary" disabled={!isChatReady || !newMessage.trim()}>Send</button>
+                        <input type="text" className="selectable" placeholder="Type a message..." value={newMessage} onChange={handleTyping} autoFocus />
+                        <button type="submit" className="btn btn-primary" disabled={!newMessage.trim()}>Send</button>
                     </form>
                 </div>
             </div>
