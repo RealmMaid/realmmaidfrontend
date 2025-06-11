@@ -4,6 +4,7 @@ import Phaser from 'phaser';
 // All our constants can live outside the component
 const GAME_WIDTH = 800;
 const GAME_HEIGHT = 600;
+const PLAYER_MAP_SPEED = 200;
 const BOSS_SPEED = 150;
 const BOSS_INITIAL_HEALTH = 1000;
 const PROJECTILE_SPEED = 400;
@@ -11,46 +12,39 @@ const PLAYER_INITIAL_HEALTH = 200;
 const PROJECTILE_DAMAGE = 10;
 const PLAYER_PROJECTILE_SPEED = -600;
 
-// ✨ SCENE 1: The Map Scene Blueprint ✨
-class MapScene extends Phaser.Scene {
-    constructor() {
-        super({ key: 'MapScene' });
-    }
-
-    create() {
-        this.cameras.main.setBackgroundColor('#3d874b');
-        this.add.text(400, 250, 'You are on the World Map!', { fontSize: '32px', fill: '#ffffff' }).setOrigin(0.5);
-        const enterCombatText = this.add.text(400, 350, 'Enter the Boss Dungeon! >:3', { fontSize: '24px', fill: '#ffffff' }).setOrigin(0.5).setInteractive();
-        
-        enterCombatText.on('pointerdown', () => {
-            // This tells Phaser to stop this scene and start the other one!
-            this.scene.start('CombatScene');
-        });
-    }
-}
-
-// ✨ SCENE 2: The Combat Scene Blueprint ✨
-// This is all our working game logic, now inside its own class!
-class CombatScene extends Phaser.Scene {
-    constructor() {
-        super({ key: 'CombatScene' });
-    }
-
-    init() { /* ... unchanged ... */ }
-    preload() { /* ... unchanged ... */ }
-    create() { /* ... unchanged ... */ }
-    update() { /* ... unchanged ... */ }
-    playerHit(player, laser) { /* ... unchanged ... */ }
-    bossHit(boss, laser) { /* ... unchanged ... */ }
-    // ... all our helper functions will be here ...
-}
-
-
 function PhaserGame() {
     const gameRef = useRef(null);
 
     useEffect(() => {
-        // ✨ UPDATED: We put our whole Combat Scene logic inside the class definition! ✨
+        // ✨ SCENE 1: The Map Scene Blueprint ✨
+        class MapScene extends Phaser.Scene {
+            constructor() { super({ key: 'MapScene' }); }
+            preload() { this.load.image('player', '/wizard.png'); }
+            create() {
+                this.cameras.main.setBackgroundColor('#3d874b');
+                this.player = this.physics.add.sprite(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'player');
+                this.player.setScale(0.4);
+                this.add.text(400, 50, 'Walk into the evil portal to fight the boss! >:3', { fontSize: '20px', fill: '#ffffff' }).setOrigin(0.5);
+                const combatTrigger = this.add.zone(400, 300).setSize(100, 100);
+                this.physics.world.enable(combatTrigger);
+                this.physics.add.overlap(this.player, combatTrigger, () => { this.scene.start('CombatScene'); });
+                this.cursors = this.input.keyboard.createCursorKeys();
+                this.keyW = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W);
+                this.keyA = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
+                this.keyS = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S);
+                this.keyD = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
+            }
+            update() {
+                this.player.setVelocity(0);
+                if (this.cursors.left.isDown || this.keyA.isDown) { this.player.setVelocityX(-PLAYER_MAP_SPEED); }
+                else if (this.cursors.right.isDown || this.keyD.isDown) { this.player.setVelocityX(PLAYER_MAP_SPEED); }
+                if (this.cursors.up.isDown || this.keyW.isDown) { this.player.setVelocityY(-PLAYER_MAP_SPEED); }
+                else if (this.cursors.down.isDown || this.keyS.isDown) { this.player.setVelocityY(PLAYER_MAP_SPEED); }
+                this.player.body.velocity.normalize().scale(PLAYER_MAP_SPEED);
+            }
+        }
+
+        // ✨ SCENE 2: The Combat Scene Blueprint (Full Version!) ✨
         class CombatScene extends Phaser.Scene {
             constructor() { super({ key: 'CombatScene' }); }
             init() {
@@ -67,6 +61,7 @@ function PhaserGame() {
                 this.player = this.physics.add.sprite(GAME_WIDTH / 2, GAME_HEIGHT - 60, 'player');
                 this.player.setCollideWorldBounds(true).setScale(0.4);
                 this.player.body.setSize(this.player.width * 0.5, this.player.height * 0.8);
+                this.player.isInvincible = false;
                 this.cursors = this.input.keyboard.createCursorKeys();
                 this.keyA = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
                 this.keyD = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
@@ -134,17 +129,13 @@ function PhaserGame() {
             }
         }
 
+        // The main Phaser config
         const config = {
             type: Phaser.AUTO,
             width: 800,
             height: 600,
             parent: 'phaser-container',
-            physics: {
-                default: 'arcade',
-                arcade: {
-                    gravity: { y: 0 }
-                }
-            },
+            physics: { default: 'arcade', arcade: { gravity: { y: 0 } } },
             scene: [MapScene, CombatScene]
         };
         gameRef.current = new Phaser.Game(config);
