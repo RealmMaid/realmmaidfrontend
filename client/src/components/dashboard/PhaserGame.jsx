@@ -9,12 +9,21 @@ function PhaserGame() {
     const gameRef = useRef(null);
 
     useEffect(() => {
+        // ✨ UPDATED: The config object now has physics! ✨
         const config = {
             type: Phaser.AUTO,
             width: 800,
             height: 600,
             parent: 'phaser-container',
             backgroundColor: '#000000',
+            // We add this new physics property to turn on the engine!
+            physics: {
+                default: 'arcade',
+                arcade: {
+                    gravity: { y: 0 }, // We don't need things falling down, hehe
+                    debug: false
+                }
+            },
             scene: {
                 preload: preload,
                 create: create,
@@ -24,23 +33,48 @@ function PhaserGame() {
 
         gameRef.current = new Phaser.Game(config);
 
-        // ✨ UPDATED: The preload function! ✨
+        // A variable to hold our player so we can access it in `update`
+        let player;
+        // A variable for our keyboard cursors
+        let cursors;
+
         function preload() {
-            // We tell Phaser to load our image and give it a cute nickname, 'player'!
-            this.load.image('player', '/wizard.png'); // Make sure this path is correct!
+            this.load.image('player', '/wizard.png');
         }
 
-        // ✨ UPDATED: The create function! ✨
+        // ✨ UPDATED: The create function now sets up a physics sprite! ✨
         function create() {
-            // We're creating a "sprite" at the bottom-center of the screen
-            // using the image we nicknamed 'player'!
             const playerX = GAME_WIDTH / 2;
             const playerY = GAME_HEIGHT - 60;
-            this.add.sprite(playerX, playerY, 'player');
+
+            // Instead of .add.sprite, we use .physics.add.sprite!
+            // This creates a player that can move and collide with things.
+            player = this.physics.add.sprite(playerX, playerY, 'player');
+
+            // This is like an invisible force field! It stops the player from leaving the screen.
+            player.setCollideWorldBounds(true);
+            
+            // This is Phaser's super easy way to listen for the arrow keys!
+            cursors = this.input.keyboard.createCursorKeys();
         }
 
+        // ✨ UPDATED: The update loop now handles movement! ✨
         function update() {
-            // The game loop is still empty for now!
+            // If the left arrow key is being held down...
+            if (cursors.left.isDown) {
+                // ...give the player a negative horizontal velocity to move left.
+                player.setVelocityX(-300); // You can change this number to make him faster or slower!
+            }
+            // If the right arrow key is being held down...
+            else if (cursors.right.isDown) {
+                // ...give the player a positive horizontal velocity to move right.
+                player.setVelocityX(300);
+            }
+            // If no movement keys are pressed...
+            else {
+                // ...stop the player completely!
+                player.setVelocityX(0);
+            }
         }
 
         return () => {
