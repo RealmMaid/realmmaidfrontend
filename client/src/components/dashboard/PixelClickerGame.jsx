@@ -26,7 +26,7 @@ const classUpgrades = {
     Sorcerer: [
       { id: 'item1', name: 'Wand of Ancient Warning', image: '/woaw.png', cost: 50, minBonus: 3, maxBonus: 3, type: 'perClick' },
       { id: 'item2', name: 'Scepter of Skybolts', image: '/sos.png', cost: 250, value: 2, type: 'perSecond', clickBonus: 1 },
-      { id: 'item3', name: 'Ring of Exalted Wisdom', image: '/ringofexalteddexterity.png', cost: 750, value: 4, type: 'perSecond', clickBonus: 3 },
+      { id: 'item3', name: 'Ring of Exalted Attack', image: '/ringofexaltedattack.png', cost: 750, value: 4, type: 'perSecond', clickBonus: 3 },
     ],
   },
   // Stage 2: For Oryx 2
