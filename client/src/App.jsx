@@ -23,6 +23,7 @@ import PaymentMethods from './components/dashboard/PaymentMethods.jsx';
 import MyWishlist from './components/dashboard/MyWishlist.jsx';
 // --- CHANGE: Added the import for the game component ---
 import PixelClickerGame from './components/dashboard/PixelClickerGame.jsx';
+import SpaceDodgerGame from './components/dashboard/SpaceDodgerGame.jsx';
 
 
 function App() {
@@ -51,6 +52,7 @@ function App() {
               <Route path="wishlist" element={<MyWishlist />} />
               {/* --- CHANGE: Added the route for your game --- */}
               <Route path="game" element={<PixelClickerGame />} />
+              <Route path="spacedodgegame" element={<SpaceDodgerGame />} />
             </Route>
             <Route path="/checkout" element={<CheckoutPage />} />
         </Route>
