@@ -23,6 +23,9 @@ class MainScene extends Phaser.Scene {
     }
 
     create() {
+        // ✨ DEBUGGING LOG ADDED HERE ✨
+        console.log(`%cPhaser Scene is using EventBus with ID: ${EventBus.id}`, 'font-weight: bold; color: #00ff00;');
+
         const bossImage = this.add.image(400, 300, 'oryx1');
         bossImage.setInteractive({ useHandCursor: true });
 
@@ -30,12 +33,9 @@ class MainScene extends Phaser.Scene {
             const { minDamage, maxDamage } = this.calculateDamageRange();
             let damageDealt = Phaser.Math.Between(minDamage, maxDamage);
             const fameEarned = damageDealt;
-
             this.gameState.score += fameEarned;
             
             EventBus.emit('scoreUpdated', this.gameState.score);
-            // ✨ DEBUGGING LOG ADDED HERE ✨
-            console.log(`%cPhaser: Emitted scoreUpdated on click. New score: ${this.gameState.score}`, 'color: #00ff00');
             
             if (!this.tweens.isTweening(bossImage)) {
                 this.tweens.add({ targets: bossImage, scale: 0.9, duration: 50, yoyo: true, ease: 'Power1' });
@@ -56,8 +56,6 @@ class MainScene extends Phaser.Scene {
         if (this.gameState.pointsPerSecond <= 0) return;
         this.gameState.score += this.gameState.pointsPerSecond;
         EventBus.emit('scoreUpdated', this.gameState.score);
-        // ✨ DEBUGGING LOG ADDED HERE ✨
-        console.log(`%cPhaser: Emitted scoreUpdated from DPS. New score: ${this.gameState.score}`, 'color: #00ff00');
     }
     
     calculateDamageRange() {
