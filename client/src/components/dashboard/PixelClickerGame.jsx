@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useGameStore } from '../../stores/gameStore.jsx';
 import { Toaster } from 'react-hot-toast';
 
-// 1. Import the new utility function
 import { calculateOfflineProgress } from '../../utils/calculationUtils.js';
 
 import { ClassSelection } from './clicker/ClassSelection';
@@ -13,24 +12,37 @@ import { TransitionalScreen } from './clicker/TransitionalScreen';
 import { WelcomeBackModal } from './clicker/WelcomeBackModal';
 
 function PixelClickerGame() {
-    const gamePhase = useGameStore(state => state.gamePhase);
+    // Subscribe to both the gamePhase and our new hydration flag
+    const { gamePhase, hasHydrated } = useGameStore(state => ({
+        gamePhase: state.gamePhase,
+        hasHydrated: state._hasHydrated,
+    }));
+    
     const [offlineProgress, setOfflineProgress] = useState(null);
 
+    // This useEffect hook runs only ONCE when the component first mounts.
     useEffect(() => {
-        // 2. Get the entire current state from the store
-        const currentState = useGameStore.getState();
-        const { applyOfflineProgress } = currentState;
-
-        // 3. Pass the state to our external, pure function
-        const progress = calculateOfflineProgress(currentState);
+        // Get the specific functions we need from the store's static getState method.
+        const { applyOfflineProgress } = useGameStore.getState();
+        // We pass the entire state to our external utility function.
+        const progress = calculateOfflineProgress(useGameStore.getState());
         
         if (progress && progress.offlineEarnings > 0) {
-            // 4. Call the simple action to update the store
+            // Call the simple action to update the store's state.
             applyOfflineProgress(progress.offlineEarnings);
+            // And then set the local state to show the modal.
             setOfflineProgress(progress);
         }
     }, []);
+
+    // THE HYDRATION GATE:
+    // If the store has not finished rehydrating, we show a loading message
+    // and prevent any game components from rendering and being interacted with.
+    if (!hasHydrated) {
+        return <div>Loading Game...</div>;
+    }
     
+    // This part of the component will only ever run AFTER hydration is complete.
     const renderGamePhase = () => {
         switch (gamePhase) {
             case 'classSelection':
@@ -45,6 +57,7 @@ function PixelClickerGame() {
             case 'finished':
                 return <VictoryScreen />;
             default:
+                // As a fallback, we show the main game container.
                 return <GameContainer />;
         }
     };
@@ -52,10 +65,12 @@ function PixelClickerGame() {
     return (
         <>
             <Toaster position="top-right" reverseOrder={false} />
+            
             <WelcomeBackModal
                 offlineProgress={offlineProgress}
                 onClose={() => setOfflineProgress(null)}
             />
+
             <div className="game-wrapper">
                 {renderGamePhase()}
             </div>
