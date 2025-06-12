@@ -15,7 +15,8 @@ import { abilities } from '../data/abilities';
  */
 const defaultState = {
     score: 0,
-    famePerSecond: 0, 
+    famePerSecond: 0,
+    pointsPerSecond: 0, // Represents auto-damage dealt to the boss
     gamePhase: 'classSelection',
     gameWon: false,
     playerClass: null,
@@ -76,10 +77,11 @@ export const useGameStore = create(
 
             gameTick: (delta) => {
                 const state = get();
+                const deltaSeconds = delta / 1000;
 
                 // --- Handle Healing ---
                 if (state.isHealing) {
-                    const healAmount = (bosses[state.currentBossIndex].healThresholds[0].amount / 5) * (delta / 1000);
+                    const healAmount = (bosses[state.currentBossIndex].healThresholds[0].amount / 5) * deltaSeconds;
                     set(s => ({
                         clicksOnCurrentBoss: Math.max(0, s.clicksOnCurrentBoss - healAmount),
                         healTimer: s.healTimer - delta,
@@ -87,34 +89,37 @@ export const useGameStore = create(
                     if (state.healTimer <= 0) {
                         set({ isHealing: false, isInvulnerable: false });
                     }
-                    return; // Don't apply DPS during healing
+                    return; // Stop all other processing during healing
                 }
 
                 // --- Handle time-based passive income and damage ---
-                const fameFromFps = Math.floor(state.famePerSecond * (delta / 1000) * state.calculateAchievementBonuses().fameMultiplier);
-                const poisonDps = state.poison.stacks * (1 + Math.floor(state.currentBossIndex * 1.5)) * (delta / 1000);
+                const fameFromFps = Math.floor(state.famePerSecond * deltaSeconds * state.calculateAchievementBonuses().fameMultiplier);
+                const damageFromDps = state.pointsPerSecond * deltaSeconds;
+                const poisonDps = state.poison.stacks * (1 + Math.floor(state.currentBossIndex * 1.5)) * deltaSeconds;
 
                 set(s => ({
                     score: s.score + fameFromFps,
                     totalFameEarned: s.totalFameEarned + fameFromFps,
-                    clicksOnCurrentBoss: s.clicksOnCurrentBoss + poisonDps,
+                    clicksOnCurrentBoss: s.clicksOnCurrentBoss + damageFromDps + poisonDps,
                 }));
 
                 // --- Check for Boss Heal Phase Trigger ---
                 const currentBoss = bosses[state.currentBossIndex];
-                const healthPercent = 1 - (state.clicksOnCurrentBoss / currentBoss.clickThreshold);
+                if(currentBoss) {
+                    const healthPercent = 1 - (state.clicksOnCurrentBoss / currentBoss.clickThreshold);
 
-                for (let i = 0; i < currentBoss.healThresholds.length; i++) {
-                    const threshold = currentBoss.healThresholds[i];
-                    if (!state.triggeredHeals[i] && healthPercent * 100 <= threshold.percent) {
-                        set(s => ({
-                            isHealing: true,
-                            isInvulnerable: true,
-                            healTimer: 5000, // 5 seconds
-                            triggeredHeals: { ...s.triggeredHeals, [i]: true },
-                        }));
-                        toast.error(`${currentBoss.name} is healing!`, { icon: '💔' });
-                        break; 
+                    for (let i = 0; i < currentBoss.healThresholds.length; i++) {
+                        const threshold = currentBoss.healThresholds[i];
+                        if (!state.triggeredHeals[i] && healthPercent * 100 <= threshold.percent) {
+                            set(s => ({
+                                isHealing: true,
+                                isInvulnerable: true,
+                                healTimer: 5000, // 5 seconds
+                                triggeredHeals: { ...s.triggeredHeals, [i]: true },
+                            }));
+                            toast.error(`${currentBoss.name} is healing!`, { icon: '💔' });
+                            break; 
+                        }
                     }
                 }
 
@@ -184,12 +189,11 @@ export const useGameStore = create(
             
                 switch (abilityId) {
                     case 'slam': {
-                        if (state.famePerSecond <= 0) { // Should check famePerSecond now
-                            toast.error("Slam would have no effect with 0 FPS!");
+                        if (state.pointsPerSecond <= 0) {
+                            toast.error("Slam would have no effect with 0 DPS!");
                             return;
                         }
-                        const dpsForSlam = state.famePerSecond; // Base it on fame generation
-                        const slamDamage = Math.floor(dpsForSlam * 30);
+                        const slamDamage = Math.floor(state.pointsPerSecond * 30);
                         const fameFromSlam = Math.floor(slamDamage * state.calculateAchievementBonuses().fameMultiplier);
                         set(s => ({
                             score: s.score + fameFromSlam,
@@ -246,10 +250,24 @@ export const useGameStore = create(
                 const cost = Math.floor(upgrade.cost * Math.pow(1.15, owned));
 
                 if (state.score >= cost) {
+                    let fameBonus = 0;
+                    let dpsBonus = 0;
+
+                    // All upgrades give some fame per second to feel good
+                    if (upgrade.type === 'perSecond') {
+                        fameBonus += upgrade.value;
+                        // FPS upgrades also grant some auto-damage, about 25% of their fame value
+                        dpsBonus += (upgrade.value * 0.25);
+                    } else if (upgrade.type === 'perClick') {
+                        // Click upgrades grant a smaller amount of passive fame, about 10% of their max damage bonus
+                        fameBonus += ((upgrade.maxBonus || upgrade.clickBonus || 0) * 0.1);
+                    }
+
                     set(s => ({
                         score: s.score - cost,
                         upgradesOwned: { ...s.upgradesOwned, [upgrade.id]: owned + 1 },
-                        famePerSecond: upgrade.type === 'perSecond' ? s.famePerSecond + upgrade.value : s.famePerSecond,
+                        famePerSecond: s.famePerSecond + fameBonus,
+                        pointsPerSecond: s.pointsPerSecond + dpsBonus,
                     }));
                 } else { 
                     toast.error("Not enough Fame!"); 
@@ -310,8 +328,13 @@ export const useGameStore = create(
                 currentUpgrades.forEach(up => {
                     const owned = state.upgradesOwned[up.id] || 0;
                     if (owned > 0) {
-                        if (up.type === 'perClick') { minDamage += (up.minBonus || 0) * owned; maxDamage += (up.maxBonus || 0) * owned; }
-                        else if (up.clickBonus) { minDamage += up.clickBonus * owned; maxDamage += up.clickBonus * owned; }
+                        if (up.type === 'perClick') { 
+                            minDamage += (up.minBonus || 0) * owned; 
+                            maxDamage += (up.maxBonus || 0) * owned; 
+                        } else if (up.clickBonus) { // For hybrid items
+                            minDamage += up.clickBonus * owned; 
+                            maxDamage += up.clickBonus * owned; 
+                        }
                     }
                 });
                 
