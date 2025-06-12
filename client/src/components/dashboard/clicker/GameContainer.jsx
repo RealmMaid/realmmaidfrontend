@@ -18,39 +18,41 @@ export function GameContainer() {
         currentBossIndex: state.currentBossIndex,
     }));
 
-    const currentBoss = bosses[currentBossIndex];
-
-    // This single useEffect runs ONCE when the component mounts.
-    // It sets up a "game tick" that handles all time-based logic internally.
+    // This single useEffect runs ONCE on mount and handles all time-based game logic.
     useEffect(() => {
         const gameTickInterval = setInterval(() => {
             // Get the FRESHEST state directly from the store inside the loop.
-            // This is the key to preventing infinite re-renders.
             const state = useGameStore.getState();
+            const currentBoss = bosses[state.currentBossIndex];
 
-            // --- DPS Logic ---
-            if (state.gamePhase === 'clicking' && !state.isHealing && state.pointsPerSecond > 0) {
-                state.applyDpsFame(state.pointsPerSecond);
-            }
-
-            // --- Poison Logic ---
-            if (state.equippedWeapon === 'stacking_vipers' && state.poison.stacks > 0) {
-                const poisonDps = state.poison.stacks * (1 + Math.floor(state.currentBossIndex * 1.5));
-                state.applyPoisonDamage(poisonDps);
-                if (Date.now() - state.poison.lastApplied > 3000) {
-                    state.setPoison({ ...state.poison, stacks: Math.max(0, state.poison.stacks - 1) });
-                }
+            // If there's no boss or the game isn't in the clicking phase, do nothing.
+            if (!currentBoss || state.gamePhase !== 'clicking') {
+                return;
             }
             
-            // --- Boss Healing Logic ---
-            const bossForHealing = bosses[state.currentBossIndex];
-            if (bossForHealing && bossForHealing.healThresholds && state.gamePhase === 'clicking' && !state.isHealing) {
-                const healthPercent = 100 - (state.clicksOnCurrentBoss / bossForHealing.clickThreshold) * 100;
-                const triggered = state.triggeredHeals[bossForHealing.id] || [];
-                for (const heal of bossForHealing.healThresholds) {
+            // --- Boss Defeat Check (runs every tick) ---
+            if (state.clicksOnCurrentBoss >= currentBoss.clickThreshold) {
+                state.playSound(currentBoss.breakSound);
+                if (currentBoss.id === 'oryx3') {
+                    state.setGamePhase('exalted_transition');
+                } else if (state.currentBossIndex >= bosses.length - 1) {
+                    state.setGameWon(true);
+                    state.setGamePhase('finished');
+                } else {
+                    state.setGamePhase('transitioning');
+                }
+                return; // Stop further processing this tick
+            }
+            
+            // --- Boss Healing Check (runs every tick) ---
+            if (!state.isHealing && currentBoss.healThresholds) {
+                const healthPercent = 100 - (state.clicksOnCurrentBoss / currentBoss.clickThreshold) * 100;
+                const triggered = state.triggeredHeals[currentBoss.id] || [];
+
+                for (const heal of currentBoss.healThresholds) {
                     if (healthPercent <= heal.percent && !triggered.includes(heal.percent)) {
-                        state.setTriggeredHeal(bossForHealing.id, heal.percent);
-                        state.setIsHealing(true); // This will pause other logic that checks for isHealing
+                        state.setTriggeredHeal(currentBoss.id, heal.percent);
+                        state.setIsHealing(true);
                         
                         let amountHealed = 0;
                         const healInterval = setInterval(() => {
@@ -62,7 +64,23 @@ export function GameContainer() {
                                 useGameStore.getState().setIsHealing(false);
                             }
                         }, 200);
-                        break; // Only trigger one heal at a time
+                        break; // Trigger only one heal at a time
+                    }
+                }
+            }
+
+            // --- DPS and Poison Logic (only runs if not healing) ---
+            if (!state.isHealing) {
+                // Core DPS
+                if (state.pointsPerSecond > 0) {
+                    state.applyDpsFame(state.pointsPerSecond);
+                }
+                // Poison
+                if (state.equippedWeapon === 'stacking_vipers' && state.poison.stacks > 0) {
+                    const poisonDps = state.poison.stacks * (1 + Math.floor(state.currentBossIndex * 1.5));
+                    state.applyPoisonDamage(poisonDps);
+                    if (Date.now() - state.poison.lastApplied > 3000) {
+                        state.setPoison({ ...state.poison, stacks: Math.max(0, state.poison.stacks - 1) });
                     }
                 }
             }
@@ -71,46 +89,29 @@ export function GameContainer() {
 
         // Cleanup function to clear the interval when the component unmounts
         return () => clearInterval(gameTickInterval);
-    }, []); // The empty `[]` dependency array ensures this setup runs only ONCE.
-
-    
-    // This separate useEffect handles BOSS DEFEAT logic.
-    // It runs ONLY when the number of clicks changes.
-    useEffect(() => {
-        const boss = bosses[currentBossIndex];
-        const { setGamePhase, setGameWon, playSound } = useGameStore.getState();
-        if (boss && useGameStore.getState().clicksOnCurrentBoss >= boss.clickThreshold && useGameStore.getState().gamePhase === 'clicking') {
-            playSound(boss.breakSound);
-            if (boss.id === 'oryx3') {
-                setGamePhase('exalted_transition');
-            } else if (currentBossIndex >= bosses.length - 1) {
-                setGameWon(true);
-                setGamePhase('finished');
-            } else {
-                setGamePhase('transitioning');
-            }
-        }
-    }, [useGameStore(state => state.clicksOnCurrentBoss), currentBossIndex]);
+    }, []); // The empty `[]` dependency array is KEY. It ensures this setup runs only ONCE.
 
 
-    // This useEffect handles the timed transitions between game phases.
+    // This useEffect ONLY handles the timed transitions between phases. It is safe.
     useEffect(() => {
         let timer;
-        const { setGamePhase, advanceToNextBoss, setIsInvulnerable } = useGameStore.getState();
-        if (gamePhase === 'transitioning') {
-            timer = setTimeout(() => setGamePhase('portal'), 4000);
-        } else if (gamePhase === 'exalted_transition') {
+        if (gamePhase === 'transitioning' || gamePhase === 'exalted_transition') {
+            const { setGamePhase, advanceToNextBoss, setIsInvulnerable } = useGameStore.getState();
+            const duration = gamePhase === 'transitioning' ? 4000 : 3000;
+            
             timer = setTimeout(() => {
-                advanceToNextBoss(false);
-                setIsInvulnerable(true);
-                const invulnTimer = setTimeout(() => setIsInvulnerable(false), 2000);
-                setGamePhase('clicking');
-                return () => clearTimeout(invulnTimer);
-            }, 3000);
+                if (gamePhase === 'transitioning') setGamePhase('portal');
+                if (gamePhase === 'exalted_transition') {
+                    advanceToNextBoss(false);
+                    setIsInvulnerable(true);
+                    const invulnTimer = setTimeout(() => setIsInvulnerable(false), 2000);
+                    setGamePhase('clicking');
+                    return () => clearTimeout(invulnTimer);
+                }
+            }, duration);
         }
         return () => clearTimeout(timer);
     }, [gamePhase]);
-
 
     // === RENDER LOGIC ===
     if (!currentBoss && gamePhase !== 'finished') {
