@@ -1,3 +1,5 @@
+import React, { useEffect, useRef } from 'react';
+import Phaser from 'phaser';
 // --- PHASER SCENE DEFINITION ---
 class MainScene extends Phaser.Scene {
     constructor() {
