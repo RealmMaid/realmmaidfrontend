@@ -18,9 +18,10 @@ export default function PixelClickerGame() {
     const [isLoaded, setIsLoaded] = useState(useGameStore.persist.hasHydrated);
 
     useEffect(() => {
+        // ✨ DEBUGGING LOG ADDED HERE ✨
+        console.log(`%cReact Component is using EventBus with ID: ${EventBus.id}`, 'font-weight: bold; color: #ffa500;');
+        
         const onScoreUpdate = (newScore) => {
-            // ✨ DEBUGGING LOG ADDED HERE ✨
-            console.log(`%cReact: Heard scoreUpdated event! New score: ${newScore}`, 'color: #ffa500');
             setScore(newScore);
         };
 
