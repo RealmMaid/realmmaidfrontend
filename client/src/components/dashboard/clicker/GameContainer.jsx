@@ -23,38 +23,40 @@ export function GameContainer() {
 
     // Main game loop
     useEffect(() => {
-        // ✨ NEW: This guard makes our loop much safer!
-        // It ensures the game logic only runs when we are in the main 'clicking' phase.
+        // This guard ensures the game logic only runs when we are in the main 'clicking' phase.
         if (gamePhase !== 'clicking') {
             return; // Do nothing if we're not in the right phase.
         }
 
         let animationFrameId;
         const loop = (currentTime) => {
-            // We reset the time reference when the loop starts to avoid a huge deltaTime jump.
             if (!lastTimeRef.current) {
                 lastTimeRef.current = currentTime;
             }
             const deltaTime = currentTime - lastTimeRef.current;
             lastTimeRef.current = currentTime;
             
-            // Only call the core game logic if we are in the clicking phase
             gameTick(deltaTime);
             checkBossDefeat();
 
             animationFrameId = requestAnimationFrame(loop);
         };
         
-        // Reset the timer ref and start the loop
-        lastTimeRef.current = null;
-        animationFrameId = requestAnimationFrame(loop);
+        // ✨ NEW: We use a setTimeout to delay the start of the loop by one frame.
+        // This gives React time to finish its render and prevents a race condition.
+        const timeoutId = setTimeout(() => {
+            lastTimeRef.current = null; // Reset timer to prevent a large initial jump
+            animationFrameId = requestAnimationFrame(loop);
+        }, 0);
+
 
         // The cleanup function will stop the loop when the component unmounts
         // or when the gamePhase changes, preventing the error.
         return () => {
+            clearTimeout(timeoutId); // Also clear the timeout on cleanup
             cancelAnimationFrame(animationFrameId);
         };
-    }, [gamePhase, gameTick, checkBossDefeat]); // ✨ Reruns the effect when gamePhase changes
+    }, [gamePhase, gameTick, checkBossDefeat]); // Reruns the effect when gamePhase changes
 
     const renderGamePhase = () => {
         switch (gamePhase) {
