@@ -15,9 +15,8 @@ import { abilities } from '../data/abilities';
  */
 const defaultState = {
     score: 0,
-    pointsPerSecond: 0,
-    famePerSecond: 0, // ✨ NEW: State to track passive fame generation!
-    gamePhase: 'classSelection', // Can be: classSelection, clicking, transitioning, exalted_transition, finished
+    famePerSecond: 0, 
+    gamePhase: 'classSelection',
     gameWon: false,
     playerClass: null,
     upgradesOwned: {},
@@ -27,12 +26,14 @@ const defaultState = {
     triggeredHeals: {},
     isHealing: false,
     isInvulnerable: false,
+    healTimer: 0,
     exaltedShards: 0,
     prestigeUpgradesOwned: {},
     unlockedWeapons: {},
     equippedWeapon: 'default',
     abilityCooldowns: {},
     activeBuffs: {},
+    activeDebuffs: {}, // For tracking boss debuffs like armor break!
     poison: { stacks: 0, lastApplied: null },
     totalClicks: 0,
     totalFameEarned: 0,
@@ -53,67 +54,97 @@ export const useGameStore = create(
             // Main Game Actions
             // =======================================
 
-            /**
-             * Selects the player's class and starts the game.
-             * @param {string} className - The ID of the class to select.
-             */
             handleClassSelect: (className) => {
                 set({ playerClass: className, gamePhase: 'clicking' });
             },
 
-            /**
-             * Applies damage and fame from a user's click.
-             * @param {number} damageDealt - The amount of damage to deal to the boss.
-             * @param {number} fameEarned - The amount of fame to award the player.
-             */
             applyClick: (damageDealt, fameEarned) => {
+                let finalFame = fameEarned;
+                // Check for vulnerable debuff!
+                if (get().activeDebuffs.vulnerable) {
+                    finalFame *= 1.5;
+                }
+
                 set(state => ({
-                    score: state.score + fameEarned,
-                    totalFameEarned: state.totalFameEarned + fameEarned,
+                    score: state.score + finalFame,
+                    totalFameEarned: state.totalFameEarned + finalFame,
                     clicksOnCurrentBoss: state.clicksOnCurrentBoss + damageDealt,
                     totalClicks: state.totalClicks + 1,
                 }));
-                get().checkAchievements(); // Check for new achievements after every click
+                get().checkAchievements();
             },
-            
-            /**
-             * Applies damage and fame from the player's DPS/FPS every second.
-             */
-            applyDps: () => {
+
+            gameTick: (delta) => {
                 const state = get();
-                if ((state.pointsPerSecond <= 0 && state.famePerSecond <= 0) || state.isHealing || state.gamePhase !== 'clicking') return;
 
-                let dps = state.pointsPerSecond;
-                let fps = state.famePerSecond; // Get our new fame per second value
+                // --- Handle Healing ---
+                if (state.isHealing) {
+                    const healAmount = (bosses[state.currentBossIndex].healThresholds[0].amount / 5) * (delta / 1000);
+                    set(s => ({
+                        clicksOnCurrentBoss: Math.max(0, s.clicksOnCurrentBoss - healAmount),
+                        healTimer: s.healTimer - delta,
+                    }));
+                    if (state.healTimer <= 0) {
+                        set({ isHealing: false, isInvulnerable: false });
+                    }
+                    return; // Don't apply DPS during healing
+                }
 
-                // Apply modifiers
-                if (state.equippedWeapon === 'executioners_axe') dps *= 0.5;
-                if (state.activeBuffs['arcane_power']) dps *= 2;
-
-                const bonuses = get().calculateAchievementBonuses();
-                // ✨ UPDATED: Fame from FPS is now calculated separately
-                const fameFromFps = Math.floor(fps * bonuses.fameMultiplier);
-                
-                const poisonDps = state.poison.stacks * (1 + Math.floor(state.currentBossIndex * 1.5));
+                // --- Handle time-based passive income and damage ---
+                const fameFromFps = Math.floor(state.famePerSecond * (delta / 1000) * state.calculateAchievementBonuses().fameMultiplier);
+                const poisonDps = state.poison.stacks * (1 + Math.floor(state.currentBossIndex * 1.5)) * (delta / 1000);
 
                 set(s => ({
-                    // ✨ UPDATED: Add our passive fame gain to the score
                     score: s.score + fameFromFps,
                     totalFameEarned: s.totalFameEarned + fameFromFps,
-                    // DPS and Poison still damage the boss
-                    clicksOnCurrentBoss: s.clicksOnCurrentBoss + dps + poisonDps,
+                    clicksOnCurrentBoss: s.clicksOnCurrentBoss + poisonDps,
                 }));
+
+                // --- Check for Boss Heal Phase Trigger ---
+                const currentBoss = bosses[state.currentBossIndex];
+                const healthPercent = 1 - (state.clicksOnCurrentBoss / currentBoss.clickThreshold);
+
+                for (let i = 0; i < currentBoss.healThresholds.length; i++) {
+                    const threshold = currentBoss.healThresholds[i];
+                    if (!state.triggeredHeals[i] && healthPercent * 100 <= threshold.percent) {
+                        set(s => ({
+                            isHealing: true,
+                            isInvulnerable: true,
+                            healTimer: 5000, // 5 seconds
+                            triggeredHeals: { ...s.triggeredHeals, [i]: true },
+                        }));
+                        toast.error(`${currentBoss.name} is healing!`, { icon: '💔' });
+                        break; 
+                    }
+                }
+
+                // --- Clean up expired buffs and debuffs ---
+                const now = Date.now();
+                const activeBuffs = { ...state.activeBuffs };
+                const activeDebuffs = { ...state.activeDebuffs };
+                let buffsChanged = false;
+                let debuffsChanged = false;
+                for (const key in activeBuffs) {
+                    if (activeBuffs[key].expiresAt <= now) {
+                        delete activeBuffs[key];
+                        buffsChanged = true;
+                    }
+                }
+                for (const key in activeDebuffs) {
+                    if (activeDebuffs[key].expiresAt <= now) {
+                        delete activeDebuffs[key];
+                        debuffsChanged = true;
+                    }
+                }
+                if (buffsChanged) set({ activeBuffs });
+                if (debuffsChanged) set({ activeDebuffs });
             },
 
-            /**
-             * Checks if the current boss has been defeated and updates the game phase.
-             */
             checkBossDefeat: () => {
                 const state = get();
                 const currentBoss = bosses[state.currentBossIndex];
                 if (!currentBoss || state.gamePhase !== 'clicking' || state.clicksOnCurrentBoss < currentBoss.clickThreshold) return;
 
-                // Update defeat count and transition
                 set(s => ({ bossesDefeated: { ...s.bossesDefeated, [currentBoss.id]: (s.bossesDefeated[currentBoss.id] || 0) + 1 } }));
                 
                 if (currentBoss.id === 'oryx3') { 
@@ -126,9 +157,6 @@ export const useGameStore = create(
                 get().checkAchievements();
             },
 
-            /**
-             * Advances the game to the next boss after a transition screen.
-             */
             handleTransitionEnd: () => {
                 const state = get();
                 const newBossIndex = state.gamePhase === 'exalted_transition' ? 3 : state.currentBossIndex + 1;
@@ -136,18 +164,82 @@ export const useGameStore = create(
                     currentBossIndex: newBossIndex,
                     clicksOnCurrentBoss: 0,
                     gamePhase: 'clicking',
-                    temporaryUpgradesOwned: {}, // Reset temp upgrades for the new boss
+                    temporaryUpgradesOwned: {},
+                    triggeredHeals: {}, // Reset heal triggers for new boss
                 });
+            },
+            
+            // =======================================
+            // Abilities
+            // =======================================
+            handleUseAbility: (abilityId) => {
+                const now = Date.now();
+                const state = get();
+                const ability = abilities.find(a => a.id === abilityId);
+            
+                if (!ability || (state.abilityCooldowns[abilityId] || 0) > now) {
+                    toast.error('Ability is on cooldown!');
+                    return;
+                }
+            
+                switch (abilityId) {
+                    case 'slam': {
+                        if (state.famePerSecond <= 0) { // Should check famePerSecond now
+                            toast.error("Slam would have no effect with 0 FPS!");
+                            return;
+                        }
+                        const dpsForSlam = state.famePerSecond; // Base it on fame generation
+                        const slamDamage = Math.floor(dpsForSlam * 30);
+                        const fameFromSlam = Math.floor(slamDamage * state.calculateAchievementBonuses().fameMultiplier);
+                        set(s => ({
+                            score: s.score + fameFromSlam,
+                            clicksOnCurrentBoss: s.clicksOnCurrentBoss + slamDamage
+                        }));
+                        toast.success('SLAM!', { icon: '💥' });
+                        break;
+                    }
+                    case 'arcane_power': {
+                        set(s => ({
+                            activeBuffs: { ...s.activeBuffs, [ability.id]: { expiresAt: now + 10000 } }
+                        }));
+                        toast('Arcane Power surges!', { icon: '✨' });
+                        break;
+                    }
+                    case 'armor_break': { 
+                        set(s => ({
+                            activeDebuffs: { ...s.activeDebuffs, vulnerable: { expiresAt: now + 5000 } }
+                        }));
+                        toast.success('Armor Broken!', { icon: '🛡️' });
+                        break;
+                    }
+                    case 'virulent_outbreak': {
+                        if (state.equippedWeapon === 'stacking_vipers') {
+                            set(s => ({
+                                poison: { stacks: s.poison.stacks + 50, lastApplied: now }
+                            }));
+                            toast('Poison surges!', { icon: '☠️' });
+                        } else {
+                            const flatDamage = 5000 * (state.currentBossIndex + 1);
+                            const fameFromAbility = Math.floor(flatDamage * state.calculateAchievementBonuses().fameMultiplier);
+                            set(s => ({
+                                score: s.score + fameFromAbility,
+                                clicksOnCurrentBoss: s.clicksOnCurrentBoss + flatDamage
+                            }));
+                            toast.success('Affliction strikes!', { icon: '☣️' });
+                        }
+                        break;
+                    }
+                }
+            
+                set(s => ({
+                    abilityCooldowns: { ...s.abilityCooldowns, [abilityId]: now + ability.cooldown * 1000 }
+                }));
             },
 
             // =======================================
             // Upgrade & Shop Actions
             // =======================================
 
-            /**
-             * Handles the purchase of a standard class upgrade.
-             * @param {object} upgrade - The upgrade object from the data files.
-             */
             handleBuyUpgrade: (upgrade) => {
                 const state = get();
                 const owned = state.upgradesOwned[upgrade.id] || 0;
@@ -157,19 +249,13 @@ export const useGameStore = create(
                     set(s => ({
                         score: s.score - cost,
                         upgradesOwned: { ...s.upgradesOwned, [upgrade.id]: owned + 1 },
-                        // ✨ UPDATED: Logic now checks the upgrade type!
                         famePerSecond: upgrade.type === 'perSecond' ? s.famePerSecond + upgrade.value : s.famePerSecond,
-                        // We can leave pointsPerSecond for things that ONLY add DPS in the future
                     }));
                 } else { 
                     toast.error("Not enough Fame!"); 
                 }
             },
 
-            /**
-             * Handles the purchase of a temporary upgrade for the current boss.
-             * @param {object} upgrade - The temporary upgrade object from the boss data.
-             */
             handleBuyTemporaryUpgrade: (upgrade) => {
                 const state = get();
                 const owned = state.temporaryUpgradesOwned[upgrade.id] || 0;
@@ -184,10 +270,6 @@ export const useGameStore = create(
                 }
             },
             
-            /**
-             * Handles the purchase of a permanent prestige upgrade.
-             * @param {object} upgrade - The prestige upgrade object.
-             */
             handleBuyPrestigeUpgrade: (upgrade) => {
                 const state = get();
                 const owned = state.prestigeUpgradesOwned[upgrade.id] || 0;
@@ -202,10 +284,6 @@ export const useGameStore = create(
                 }
             },
 
-            /**
-             * Unlocks a weapon from the prestige shop.
-             * @param {object} weapon - The weapon object to unlock.
-             */
             handleUnlockWeapon: (weapon) => {
                 const state = get();
                 if (state.exaltedShards >= weapon.cost) {
@@ -223,17 +301,12 @@ export const useGameStore = create(
             // Calculation Functions (Read-only)
             // =======================================
 
-            /**
-             * Calculates the player's current min and max click damage.
-             * @returns {{minDamage: number, maxDamage: number}}
-             */
             calculateDamageRange: () => {
                 const state = get();
                 let minDamage = 1, maxDamage = 1;
                 const bonuses = state.calculateAchievementBonuses();
                 const currentUpgrades = classUpgrades[`stage${Math.min(state.currentBossIndex + 1, 3)}`]?.[state.playerClass] || [];
                 
-                // Add damage from permanent upgrades
                 currentUpgrades.forEach(up => {
                     const owned = state.upgradesOwned[up.id] || 0;
                     if (owned > 0) {
@@ -242,7 +315,6 @@ export const useGameStore = create(
                     }
                 });
                 
-                // Add damage from temporary upgrades
                 const currentBoss = bosses[state.currentBossIndex];
                 if (currentBoss?.temporaryUpgrades) {
                     currentBoss.temporaryUpgrades.forEach(tmpUp => {
@@ -251,30 +323,28 @@ export const useGameStore = create(
                     });
                 }
                 
-                // Apply weapon modifiers
                 switch (state.equippedWeapon) {
                      case 'executioners_axe': minDamage *= 0.75; maxDamage *= 0.75; break;
                      case 'golden_rapier': minDamage *= 0.80; maxDamage *= 0.80; break;
                      case 'stacking_vipers': minDamage *= 0.20; maxDamage *= 0.20; break;
                 }
 
-                // Apply flat and percentage bonuses
                 minDamage += bonuses.clickDamageFlat;
                 maxDamage += bonuses.clickDamageFlat;
                 const damageMultiplier = 1 + ((state.prestigeUpgradesOwned['permanentDamage'] || 0) * 0.10);
                 minDamage *= damageMultiplier * bonuses.clickDamageMultiplier;
                 maxDamage *= damageMultiplier * bonuses.clickDamageMultiplier;
                 
-                // Apply active buffs
                 if (state.activeBuffs['arcane_power']) { minDamage *= 2; maxDamage *= 2; }
                 
+                if (state.activeDebuffs.vulnerable) {
+                    minDamage *= 1.5;
+                    maxDamage *= 1.5;
+                }
+
                 return { minDamage: Math.floor(minDamage), maxDamage: Math.floor(maxDamage) };
             },
             
-            /**
-             * Calculates all bonuses granted by unlocked achievements.
-             * @returns {object} An object containing all bonus multipliers and flat values.
-             */
             calculateAchievementBonuses: () => {
                 const state = get();
                 const unlocked = state.unlockedAchievements;
@@ -299,9 +369,6 @@ export const useGameStore = create(
                 return bonuses;
             },
 
-            /**
-             * Iterates through achievements and unlocks any that meet their criteria.
-             */
             checkAchievements: () => {
                 const state = get();
                 achievements.forEach(ach => {
@@ -309,7 +376,7 @@ export const useGameStore = create(
                         set(s => ({ unlockedAchievements: { ...s.unlockedAchievements, [ach.id]: true } }));
                         toast.custom(t => (
                             <div className={`achievement-alert ${t.visible ? 'animate-enter' : 'animate-leave'}`} onClick={() => toast.dismiss(t.id)}>
-                                <strong>Achievement Unlocked!</strong>
+                                <strong>🏆 Achievement Unlocked!</strong>
                                 <p>{ach.name}</p>
                             </div>
                         ), { duration: 4000 });
@@ -320,17 +387,8 @@ export const useGameStore = create(
             // =======================================
             // Utility Actions
             // =======================================
-
-            /**
-             * Toggles the game's sound on or off.
-             */
             toggleMute: () => set(state => ({ isMuted: !state.isMuted })),
 
-            /**
-             * Plays a sound effect if the game is not muted.
-             * @param {string} soundUrl - The path to the sound file.
-             * @param {number} volume - The volume to play the sound at (0.0 to 1.0).
-             */
             playSound: (soundUrl, volume = 1.0) => {
                 if (get().isMuted) return;
                 try {
@@ -341,17 +399,12 @@ export const useGameStore = create(
                     console.error("Could not play sound:", e);
                 }
             },
-
-            /**
-             * Updates the poison state on the boss.
-             * @param {object} newPoisonState - The new state for the poison object.
-             */
+            
             setPoison: (newPoisonState) => set({ poison: newPoisonState }),
         }),
         {
-            name: 'realmmaid-clicker-save', // The key for localStorage
+            name: 'realmmaid-clicker-save',
             onRehydrate: (state) => {
-                // You can add logic here that runs when the state is loaded
                 console.log("Game state has been rehydrated from storage!");
             },
         }
