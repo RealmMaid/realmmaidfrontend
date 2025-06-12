@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 
 // We will create these components in the next steps!
-// It's okay that they don't exist yet.
+// It's okay that they don't exist yet for now.
 import { UpgradesShop } from './UpgradesShop';
 import { PrestigeShop } from './PrestigeShop';
 import { AchievementsList } from './AchievementsList';
 import { Armory } from './Armory';
 
 export function ShopArea() {
-    // This local state only controls the UI, so it belongs here, not in the global store.
+    // This local state only controls which tab is active in the UI.
+    // It belongs here, not in the global store.
     const [activeShop, setActiveShop] = useState('upgrades');
 
     return (
@@ -40,7 +41,7 @@ export function ShopArea() {
                 </button>
             </div>
 
-            {/* Conditionally render the correct shop component based on the active tab */}
+            {/* Here we conditionally render the correct shop component */}
             <div className="shop-content">
                 {activeShop === 'upgrades' && <UpgradesShop />}
                 {activeShop === 'prestige' && <PrestigeShop />}
