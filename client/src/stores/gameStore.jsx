@@ -11,13 +11,12 @@ import { abilities } from '../data/abilities';
 
 /**
  * The default state for the game.
- * Used for initialization and for resetting on prestige.
  */
 const defaultState = {
     score: 0,
-    uncollectedFame: 0.0, // To track fractional fame between ticks!
+    uncollectedFame: 0.0,
     famePerSecond: 0,
-    pointsPerSecond: 0, // Represents auto-damage dealt to the boss
+    pointsPerSecond: 0,
     gamePhase: 'classSelection',
     gameWon: false,
     playerClass: null,
@@ -37,9 +36,14 @@ const defaultState = {
     activeBuffs: {},
     activeDebuffs: {},
     poison: { stacks: 0, lastApplied: null },
+    // --- Stats Tracking ---
     totalClicks: 0,
     totalFameEarned: 0,
     bossesDefeated: {},
+    highestCriticalHit: 0,
+    weaponUsageTime: {},
+    lastWeaponEquipTimestamp: null,
+    // --- End Stats Tracking ---
     unlockedAchievements: {},
     hasPrestiged: false,
     lastSavedTimestamp: null,
@@ -59,7 +63,7 @@ export const useGameStore = create(
             handleClassSelect: (className) => {
                 set({ playerClass: className, gamePhase: 'clicking' });
             },
-
+            
             applyClick: (damageDealt, fameEarned) => {
                 let finalFame = fameEarned;
                 if (get().activeDebuffs.vulnerable) {
@@ -74,7 +78,7 @@ export const useGameStore = create(
                 }));
                 get().checkAchievements();
             },
-
+            
             gameTick: (delta) => {
                 const state = get();
                 const deltaSeconds = delta / 1000;
@@ -91,10 +95,14 @@ export const useGameStore = create(
                     return;
                 }
 
-                // Fame calculation logic
                 const fameThisTick = state.famePerSecond * deltaSeconds * state.calculateAchievementBonuses().fameMultiplier;
                 const damageFromDps = state.pointsPerSecond * deltaSeconds;
                 const poisonDps = state.poison.stacks * (1 + Math.floor(state.currentBossIndex * 1.5)) * deltaSeconds;
+                
+                const now = Date.now();
+                const lastTimestamp = state.lastWeaponEquipTimestamp || now;
+                const timeSinceLastTick = (now - lastTimestamp);
+                const currentWeapon = state.equippedWeapon;
                 
                 set(s => {
                     const newUncollectedFame = s.uncollectedFame + fameThisTick;
@@ -106,13 +114,17 @@ export const useGameStore = create(
                         score: s.score + fameToAdd,
                         totalFameEarned: s.totalFameEarned + fameToAdd,
                         clicksOnCurrentBoss: s.clicksOnCurrentBoss + damageFromDps + poisonDps,
+                        weaponUsageTime: {
+                            ...s.weaponUsageTime,
+                            [currentWeapon]: (s.weaponUsageTime[currentWeapon] || 0) + timeSinceLastTick
+                        },
+                        lastWeaponEquipTimestamp: now,
                     };
                 });
 
                 const currentBoss = bosses[state.currentBossIndex];
                 if(currentBoss) {
                     const healthPercent = 1 - (state.clicksOnCurrentBoss / currentBoss.clickThreshold);
-
                     for (let i = 0; i < currentBoss.healThresholds.length; i++) {
                         const threshold = currentBoss.healThresholds[i];
                         if (!state.triggeredHeals[i] && healthPercent * 100 <= threshold.percent) {
@@ -128,22 +140,15 @@ export const useGameStore = create(
                     }
                 }
 
-                const now = Date.now();
                 const activeBuffs = { ...state.activeBuffs };
                 const activeDebuffs = { ...state.activeDebuffs };
                 let buffsChanged = false;
                 let debuffsChanged = false;
                 for (const key in activeBuffs) {
-                    if (activeBuffs[key].expiresAt <= now) {
-                        delete activeBuffs[key];
-                        buffsChanged = true;
-                    }
+                    if (activeBuffs[key].expiresAt <= now) { delete activeBuffs[key]; buffsChanged = true; }
                 }
                 for (const key in activeDebuffs) {
-                    if (activeDebuffs[key].expiresAt <= now) {
-                        delete activeDebuffs[key];
-                        debuffsChanged = true;
-                    }
+                    if (activeDebuffs[key].expiresAt <= now) { delete activeDebuffs[key]; debuffsChanged = true; }
                 }
                 if (buffsChanged) set({ activeBuffs });
                 if (debuffsChanged) set({ activeDebuffs });
@@ -156,31 +161,18 @@ export const useGameStore = create(
 
                 set(s => ({ bossesDefeated: { ...s.bossesDefeated, [currentBoss.id]: (s.bossesDefeated[currentBoss.id] || 0) + 1 } }));
                 
-                if (currentBoss.id === 'oryx3') { 
-                    set({ gamePhase: 'exalted_transition' }); 
-                } else if (state.currentBossIndex === bosses.length - 1) { 
-                    set({ gameWon: true, gamePhase: 'finished' }); 
-                } else { 
-                    set({ gamePhase: 'transitioning' }); 
-                }
+                if (currentBoss.id === 'oryx3') { set({ gamePhase: 'exalted_transition' }); } 
+                else if (state.currentBossIndex === bosses.length - 1) { set({ gameWon: true, gamePhase: 'finished' }); } 
+                else { set({ gamePhase: 'transitioning' }); }
                 get().checkAchievements();
             },
-
+            
             handleTransitionEnd: () => {
                 const state = get();
                 const newBossIndex = state.gamePhase === 'exalted_transition' ? 3 : state.currentBossIndex + 1;
-                set({
-                    currentBossIndex: newBossIndex,
-                    clicksOnCurrentBoss: 0,
-                    gamePhase: 'clicking',
-                    temporaryUpgradesOwned: {},
-                    triggeredHeals: {},
-                });
+                set({ currentBossIndex: newBossIndex, clicksOnCurrentBoss: 0, gamePhase: 'clicking', temporaryUpgradesOwned: {}, triggeredHeals: {} });
             },
-            
-            // =======================================
-            // Abilities
-            // =======================================
+
             handleUseAbility: (abilityId) => {
                 const now = Date.now();
                 const state = get();
@@ -243,11 +235,7 @@ export const useGameStore = create(
                     abilityCooldowns: { ...s.abilityCooldowns, [abilityId]: now + ability.cooldown * 1000 }
                 }));
             },
-
-            // =======================================
-            // Upgrade & Shop Actions
-            // =======================================
-
+            
             handleBuyUpgrade: (upgrade) => {
                 const state = get();
                 const owned = state.upgradesOwned[upgrade.id] || 0;
@@ -259,9 +247,9 @@ export const useGameStore = create(
 
                     if (upgrade.type === 'perSecond') {
                         fameBonus += upgrade.value;
-                        dpsBonus += (upgrade.value * 0.25);
+                        dpsBonus += (upgrade.value * 0.10);
                     } else if (upgrade.type === 'perClick') {
-                        fameBonus += ((upgrade.maxBonus || upgrade.clickBonus || 0) * 0.1);
+                        fameBonus += ((upgrade.maxBonus || upgrade.clickBonus || 0) * 0.05);
                     }
 
                     set(s => ({
@@ -274,8 +262,8 @@ export const useGameStore = create(
                     toast.error("Not enough Fame!"); 
                 }
             },
-
-            handleBuyTemporaryUpgrade: (upgrade) => {
+            
+             handleBuyTemporaryUpgrade: (upgrade) => {
                 const state = get();
                 const owned = state.temporaryUpgradesOwned[upgrade.id] || 0;
                 const cost = Math.floor(upgrade.cost * Math.pow(1.25, owned));
@@ -289,7 +277,7 @@ export const useGameStore = create(
                 }
             },
             
-            handleBuyPrestigeUpgrade: (upgrade) => {
+             handleBuyPrestigeUpgrade: (upgrade) => {
                 const state = get();
                 const owned = state.prestigeUpgradesOwned[upgrade.id] || 0;
                 const cost = Math.floor(upgrade.cost * Math.pow(1.5, owned));
@@ -302,7 +290,7 @@ export const useGameStore = create(
                     toast.error("Not enough Exalted Shards!");
                 }
             },
-
+            
             handleUnlockWeapon: (weapon) => {
                 const state = get();
                 if (state.exaltedShards >= weapon.cost) {
@@ -315,11 +303,7 @@ export const useGameStore = create(
                     toast.error("Not enough Exalted Shards!");
                 }
             },
-
-            // =======================================
-            // Calculation Functions (Read-only)
-            // =======================================
-
+            
             calculateDamageRange: () => {
                 const state = get();
                 let minDamage = 1, maxDamage = 1;
@@ -392,9 +376,9 @@ export const useGameStore = create(
                 });
                 return bonuses;
             },
-
+            
             checkAchievements: () => {
-                const state = get();
+                 const state = get();
                 achievements.forEach(ach => {
                     if (!state.unlockedAchievements[ach.id] && ach.isUnlocked(state)) {
                         set(s => ({ unlockedAchievements: { ...s.unlockedAchievements, [ach.id]: true } }));
@@ -407,14 +391,11 @@ export const useGameStore = create(
                     }
                 });
             },
-
-            // =======================================
-            // Utility Actions
-            // =======================================
+            
             toggleMute: () => set(state => ({ isMuted: !state.isMuted })),
-
+            
             playSound: (soundUrl, volume = 1.0) => {
-                if (get().isMuted) return;
+                 if (get().isMuted) return;
                 try {
                     const audio = new Audio(soundUrl);
                     audio.volume = volume;
