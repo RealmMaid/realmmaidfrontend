@@ -2,6 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { useGameStore } from '../../stores/gameStore.jsx';
 import { Toaster } from 'react-hot-toast';
 
+// 1. Import the new utility function
+import { calculateOfflineProgress } from '../../utils/calculationUtils.js';
+
 import { ClassSelection } from './clicker/ClassSelection';
 import { GameContainer } from './clicker/GameContainer';
 import { VictoryScreen } from './clicker/VictoryScreen';
@@ -11,21 +14,19 @@ import { WelcomeBackModal } from './clicker/WelcomeBackModal';
 
 function PixelClickerGame() {
     const gamePhase = useGameStore(state => state.gamePhase);
-    
     const [offlineProgress, setOfflineProgress] = useState(null);
 
     useEffect(() => {
-        // Get the specific functions we need from the store.
-        const { calculateOfflineProgress, applyOfflineProgress } = useGameStore.getState();
+        // 2. Get the entire current state from the store
+        const currentState = useGameStore.getState();
+        const { applyOfflineProgress } = currentState;
 
-        // 1. First, we call the safe calculation function.
-        const progress = calculateOfflineProgress();
+        // 3. Pass the state to our external, pure function
+        const progress = calculateOfflineProgress(currentState);
         
-        // 2. If there are earnings to apply...
         if (progress && progress.offlineEarnings > 0) {
-            // ...we call the new, safe action to update the store's state.
+            // 4. Call the simple action to update the store
             applyOfflineProgress(progress.offlineEarnings);
-            // ...and then we set the local state to show the modal.
             setOfflineProgress(progress);
         }
     }, []);
@@ -51,12 +52,10 @@ function PixelClickerGame() {
     return (
         <>
             <Toaster position="top-right" reverseOrder={false} />
-            
             <WelcomeBackModal
                 offlineProgress={offlineProgress}
                 onClose={() => setOfflineProgress(null)}
             />
-
             <div className="game-wrapper">
                 {renderGamePhase()}
             </div>
