@@ -4,18 +4,11 @@ import { prestigeUpgrades } from '../../../data/prestigeUpgrades.js';
 import { weapons } from '../../../data/weapons.js';
 
 export function PrestigeShop() {
-    // Get only the DATA needed from the store
-    const {
-        exaltedShards,
-        isHealing,
-        prestigeUpgradesOwned,
-        unlockedWeapons,
-    } = useGameStore(state => ({
-        exaltedShards: state.exaltedShards,
-        isHealing: state.isHealing,
-        prestigeUpgradesOwned: state.prestigeUpgradesOwned,
-        unlockedWeapons: state.unlockedWeapons,
-    }));
+    // Select each piece of DATA individually
+    const exaltedShards = useGameStore(state => state.exaltedShards);
+    const isHealing = useGameStore(state => state.isHealing);
+    const prestigeUpgradesOwned = useGameStore(state => state.prestigeUpgradesOwned);
+    const unlockedWeapons = useGameStore(state => state.unlockedWeapons);
 
     const calculatePrestigeUpgradeCost = (upgrade) => {
         const owned = prestigeUpgradesOwned[upgrade.id] || 0;

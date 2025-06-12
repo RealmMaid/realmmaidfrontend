@@ -3,14 +3,9 @@ import { useGameStore } from '../../../stores/gameStore.jsx';
 import { weapons } from '../../../data/weapons.js';
 
 export function Armory() {
-    // Get the DATA we need to display the UI
-    const {
-        unlockedWeapons,
-        equippedWeapon,
-    } = useGameStore(state => ({
-        unlockedWeapons: state.unlockedWeapons,
-        equippedWeapon: state.equippedWeapon,
-    }));
+    // Select each piece of DATA individually
+    const unlockedWeapons = useGameStore(state => state.unlockedWeapons);
+    const equippedWeapon = useGameStore(state => state.equippedWeapon);
 
     return (
         <div className="upgrades-shop">

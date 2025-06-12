@@ -3,43 +3,29 @@ import { useGameStore } from '../../../stores/gameStore.jsx';
 import { abilities } from '../../../data/abilities.js';
 
 export function AbilityBar() {
-    // We still get DATA from the store using the hook
-    const {
-        playerClass,
-        abilityCooldowns,
-        activeBuffs,
-        poison,
-    } = useGameStore(state => ({
-        playerClass: state.playerClass,
-        abilityCooldowns: state.abilityCooldowns,
-        activeBuffs: state.activeBuffs,
-        poison: state.poison,
-    }));
+    // This component can safely use a single selector because the result is memoized
+    // by Zustand if the underlying values haven't changed. But for consistency, let's separate.
+    const playerClass = useGameStore(state => state.playerClass);
+    const abilityCooldowns = useGameStore(state => state.abilityCooldowns);
+    const activeBuffs = useGameStore(state => state.activeBuffs);
+    const poison = useGameStore(state => state.poison);
 
-    // Find the ability that matches the player's class
     const playerAbility = abilities.find(a => a.classId === playerClass);
-
-    // This local state helps us display a smooth countdown timer
     const [cooldownTimer, setCooldownTimer] = useState(0);
 
     useEffect(() => {
         if (!playerAbility) return;
-
         const timerInterval = setInterval(() => {
             const now = Date.now();
             const cdEnd = abilityCooldowns[playerAbility.id] || 0;
             setCooldownTimer(Math.max(0, Math.ceil((cdEnd - now) / 1000)));
         }, 500);
-
         return () => clearInterval(timerInterval);
     }, [abilityCooldowns, playerAbility]);
 
-    if (!playerAbility) {
-        return null;
-    }
+    if (!playerAbility) return null;
 
     const onAbilityClick = () => {
-        // We call the ACTION directly from getState()
         useGameStore.getState().handleUseAbility(playerAbility.id, {
             activeBuffs,
             poison,

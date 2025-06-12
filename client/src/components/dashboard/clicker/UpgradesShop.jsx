@@ -4,22 +4,13 @@ import { classUpgrades } from '../../../data/classUpgrades.js';
 import { bosses } from '../../../data/bosses.js';
 
 export function UpgradesShop() {
-    // Get only the DATA needed to render the component
-    const {
-        score,
-        isHealing,
-        playerClass,
-        currentBossIndex,
-        upgradesOwned,
-        temporaryUpgradesOwned,
-    } = useGameStore(state => ({
-        score: state.score,
-        isHealing: state.isHealing,
-        playerClass: state.playerClass,
-        currentBossIndex: state.currentBossIndex,
-        upgradesOwned: state.upgradesOwned,
-        temporaryUpgradesOwned: state.temporaryUpgradesOwned,
-    }));
+    // Select each piece of DATA individually
+    const score = useGameStore(state => state.score);
+    const isHealing = useGameStore(state => state.isHealing);
+    const playerClass = useGameStore(state => state.playerClass);
+    const currentBossIndex = useGameStore(state => state.currentBossIndex);
+    const upgradesOwned = useGameStore(state => state.upgradesOwned);
+    const temporaryUpgradesOwned = useGameStore(state => state.temporaryUpgradesOwned);
 
     const currentBoss = bosses[currentBossIndex];
     const bossStage = `stage${Math.min(currentBossIndex + 1, 3)}`;

@@ -1,46 +1,78 @@
-import React, { useEffect, useRef } from 'react';
-import Phaser from 'phaser';
-import { MainScene } from './game/MainScene';
-import { useGameStore } from '../../stores/gameStore';
+import React, { useState, useEffect } from 'react';
+import { useGameStore } from '../../stores/gameStore.jsx';
+import { Toaster } from 'react-hot-toast';
+import { calculateOfflineProgress } from '../../utils/calculationUtils.js';
+import { ClassSelection } from './clicker/ClassSelection';
+import { GameContainer } from './clicker/GameContainer';
+import { VictoryScreen } from './clicker/VictoryScreen';
+import { Portal } from './clicker/Portal';
+import { TransitionalScreen } from './clicker/TransitionalScreen';
+import { WelcomeBackModal } from './clicker/WelcomeBackModal';
 
-function PhaserGame() {
-    const phaserRef = useRef(null);
-    const gameInstanceRef = useRef(null);
+const useHydration = () => {
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    const unsubFinishHydration = useGameStore.persist.onFinishHydration(() => setHydrated(true));
+    setHydrated(useGameStore.persist.hasHydrated());
+    return () => unsubFinishHydration();
+  }, []);
+  return hydrated;
+};
 
-    // Get the whole store instance. We will pass this to Phaser.
-    const store = useGameStore();
+function PixelClickerGame() {
+    const isHydrated = useHydration();
+    // Select only the single piece of state needed here
+    const gamePhase = useGameStore((state) => state.gamePhase);
+    const [offlineProgress, setOfflineProgress] = useState(null);
 
     useEffect(() => {
-        // Do nothing if the component's div isn't rendered yet, or if the store isn't ready.
-        if (!phaserRef.current || !store) return;
-
-        const config = {
-            type: Phaser.AUTO,
-            width: 500,
-            height: 400,
-            parent: phaserRef.current,
-            backgroundColor: 'transparent',
-            scene: [MainScene]
+        const handleClassSelected = (event) => {
+            const classId = event.detail;
+            useGameStore.getState().handleClassSelect(classId);
         };
+        window.addEventListener('class_selected', handleClassSelected);
+        return () => window.removeEventListener('class_selected', handleClassSelected);
+    }, []);
 
-        // Create the game instance only once.
-        if (!gameInstanceRef.current) {
-            gameInstanceRef.current = new Phaser.Game(config);
-            // This is the critical step: we pass the store instance into our scene's `init` method.
-            gameInstanceRef.current.scene.start('MainScene', { store: store });
-        }
-
-        // The cleanup function to destroy the game when the component unmounts.
-        return () => {
-            if (gameInstanceRef.current) {
-                gameInstanceRef.current.destroy(true);
-                gameInstanceRef.current = null;
+    useEffect(() => {
+        if (isHydrated) {
+            const { applyOfflineProgress } = useGameStore.getState();
+            const progress = calculateOfflineProgress(useGameStore.getState());
+            if (progress && progress.offlineEarnings > 0) {
+                applyOfflineProgress(progress.offlineEarnings);
+                setOfflineProgress(progress);
             }
-        };
-    }, [store]); // The dependency array ensures this effect runs only when the store is available.
+        }
+    }, [isHydrated]);
 
-    // This div is where Phaser will mount its canvas.
-    return <div ref={phaserRef} id="phaser-container" />;
+    if (!isHydrated) {
+        return <div>Loading Game...</div>;
+    }
+    
+    const renderGamePhase = () => {
+        switch (gamePhase) {
+            case 'classSelection': return <ClassSelection />;
+            case 'clicking': return <GameContainer />;
+            case 'transitioning': return <TransitionalScreen />;
+            case 'exalted_transition': return <TransitionalScreen />;
+            case 'portal': return <Portal />;
+            case 'finished': return <VictoryScreen />;
+            default: return <GameContainer />;
+        }
+    };
+
+    return (
+        <>
+            <Toaster position="top-right" reverseOrder={false} />
+            <WelcomeBackModal
+                offlineProgress={offlineProgress}
+                onClose={() => setOfflineProgress(null)}
+            />
+            <div className="game-wrapper">
+                {renderGamePhase()}
+            </div>
+        </>
+    );
 }
 
-export default PhaserGame;
+export default PixelClickerGame;
