@@ -49,4 +49,3 @@ const GameLoopManager = {
 };
 
 export default GameLoopManager;
-
