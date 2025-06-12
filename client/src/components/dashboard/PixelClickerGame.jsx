@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../../stores/gameStore.jsx';
 import { Toaster } from 'react-hot-toast';
 
@@ -11,38 +11,57 @@ import { Portal } from './clicker/Portal';
 import { TransitionalScreen } from './clicker/TransitionalScreen';
 import { WelcomeBackModal } from './clicker/WelcomeBackModal';
 
+/**
+ * This is a new, dedicated hook to safely check if the Zustand store has been rehydrated.
+ * It uses the official `persist` middleware API.
+ * It will not cause the React "suspend" error.
+ */
+const useHydration = () => {
+  const [hydrated, setHydrated] = useState(useGameStore.persist.hasHydrated);
+
+  useEffect(() => {
+    const unsubFinishHydration = useGameStore.persist.onFinishHydration(() => {
+      setHydrated(true);
+    });
+
+    setHydrated(useGameStore.persist.hasHydrated());
+
+    return () => {
+      unsubFinishHydration();
+    };
+  }, []);
+
+  return hydrated;
+};
+
+
 function PixelClickerGame() {
-    // Subscribe to both the gamePhase and our new hydration flag
-    const { gamePhase, hasHydrated } = useGameStore(state => ({
-        gamePhase: state.gamePhase,
-        hasHydrated: state._hasHydrated,
-    }));
-    
+    // 1. Call our new safe hook first.
+    const isHydrated = useHydration();
+
+    // 2. We can now safely get the rest of the state.
+    const gamePhase = useGameStore((state) => state.gamePhase);
+
     const [offlineProgress, setOfflineProgress] = useState(null);
-
-    // This useEffect hook runs only ONCE when the component first mounts.
     useEffect(() => {
-        // Get the specific functions we need from the store's static getState method.
-        const { applyOfflineProgress } = useGameStore.getState();
-        // We pass the entire state to our external utility function.
-        const progress = calculateOfflineProgress(useGameStore.getState());
-        
-        if (progress && progress.offlineEarnings > 0) {
-            // Call the simple action to update the store's state.
-            applyOfflineProgress(progress.offlineEarnings);
-            // And then set the local state to show the modal.
-            setOfflineProgress(progress);
+        // This effect should only run AFTER hydration is complete.
+        if (isHydrated) {
+            const currentState = useGameStore.getState();
+            const { applyOfflineProgress } = currentState;
+            const progress = calculateOfflineProgress(currentState);
+            
+            if (progress && progress.offlineEarnings > 0) {
+                applyOfflineProgress(progress.offlineEarnings);
+                setOfflineProgress(progress);
+            }
         }
-    }, []);
+    }, [isHydrated]); // Dependency on `isHydrated` ensures this.
 
-    // THE HYDRATION GATE:
-    // If the store has not finished rehydrating, we show a loading message
-    // and prevent any game components from rendering and being interacted with.
-    if (!hasHydrated) {
+    // 3. Our gate now uses the state from our safe hook.
+    if (!isHydrated) {
         return <div>Loading Game...</div>;
     }
     
-    // This part of the component will only ever run AFTER hydration is complete.
     const renderGamePhase = () => {
         switch (gamePhase) {
             case 'classSelection':
@@ -57,7 +76,6 @@ function PixelClickerGame() {
             case 'finished':
                 return <VictoryScreen />;
             default:
-                // As a fallback, we show the main game container.
                 return <GameContainer />;
         }
     };
@@ -72,7 +90,7 @@ function PixelClickerGame() {
             />
 
             <div className="game-wrapper">
-                {renderGamePhase()}
+                {renderGamePase()}
             </div>
         </>
     );
