@@ -3,9 +3,6 @@ import { useGameStore } from '../../../stores/gameStore.jsx';
 import { classes } from '../../../data/classes.js';
 
 export function ClassSelection() {
-    // We no longer select the function from the hook here.
-    // Instead, we will call it directly in the onClick handler.
-
     return (
         <div className="card">
             <div className="clicker-container">
@@ -15,9 +12,7 @@ export function ClassSelection() {
                         <button
                             key={pClass.id}
                             className="btn-class-select"
-                            // THIS IS THE FIX:
-                            // We call the action directly from the store's `getState()` method.
-                            // This guarantees it has the correct context and can find the `set` function.
+                            // This is the most critical line. Ensure it calls getState().
                             onClick={() => useGameStore.getState().handleClassSelect(pClass.id)}
                         >
                             <img src={pClass.image} alt={pClass.name} />
