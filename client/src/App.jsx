@@ -1,4 +1,4 @@
-import React, { useEffect, Suspense } from 'react';
+import React, { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { getCsrfToken } from './api/csrf';
 import { Toaster } from 'react-hot-toast';
@@ -21,7 +21,6 @@ import MyOrders from './components/dashboard/MyOrders.jsx';
 import ProfileSettings from './components/dashboard/ProfileSettings.jsx';
 import PaymentMethods from './components/dashboard/PaymentMethods.jsx';
 import MyWishlist from './components/dashboard/MyWishlist.jsx';
-// We no longer need to import the old PixelClickerGame here.
 import PixelClickerGame from './components/dashboard/PixelClickerGame.jsx';
 import SpaceDodgerGame from './components/dashboard/SpaceDodgerGame.jsx';
 import PhaserGame from './components/dashboard/PhaserGame';
@@ -35,28 +34,36 @@ function App() {
   return (
     <>
       <Routes>
+        {/* --- ✨ NEW TEST ROUTE ✨ --- */}
+        {/* This route is outside of all layouts and protected routes for testing. */}
+        <Route path="/game-test" element={<PixelClickerGame />} />
+
+
+        {/* --- Your Original Routes --- */}
         <Route path="/" element={<HomePage />} />
+        
         <Route element={<MainLayout />}>
-            <Route path="/products" element={<ProductsPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/please-verify" element={<PleaseVerifyPage />} />
+          <Route path="/products" element={<ProductsPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/please-verify" element={<PleaseVerifyPage />} />
         </Route>
         
-              <Route element={<ProtectedRoute />}>
-    <Route path="/dashboard" element={<UserDashboardPage />}>
-        <Route index element={<Navigate to="orders" replace />} />
-        <Route path="orders" element={<MyOrders />} />
-        <Route path="settings"element={<ProfileSettings />} />
-        <Route path="payments" element={<PaymentMethods />} />
-        <Route path="wishlist" element={<MyWishlist />} />
-        <Route path="game" element={<PixelClickerGame />} />
-    </Route>
-    <Route path="/checkout" element={<CheckoutPage />} />
-</Route>
+        <Route element={<ProtectedRoute />}>
+          <Route path="/dashboard" element={<UserDashboardPage />}>
+            <Route index element={<Navigate to="orders" replace />} />
+            <Route path="orders" element={<MyOrders />} />
+            <Route path="settings"element={<ProfileSettings />} />
+            <Route path="payments" element={<PaymentMethods />} />
+            <Route path="wishlist" element={<MyWishlist />} />
+            {/* The original game route */}
+            <Route path="game" element={<PixelClickerGame />} />
+          </Route>
+          <Route path="/checkout" element={<CheckoutPage />} />
+        </Route>
 
         <Route element={<ProtectedRoute adminOnly={true} />}>
-            <Route path="/admin" element={<AdminDashboardPage />} />
+          <Route path="/admin" element={<AdminDashboardPage />} />
         </Route>
 
         <Route path="/spacedodger" element={<SpaceDodgerGame />} />
