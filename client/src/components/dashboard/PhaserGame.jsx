@@ -1,6 +1,3 @@
-import React, { useEffect, useRef } from 'react';
-import Phaser from 'phaser'; // <-- The missing import is now here! ✨
-
 // --- PHASER SCENE DEFINITION ---
 class MainScene extends Phaser.Scene {
     constructor() {
@@ -20,13 +17,48 @@ class MainScene extends Phaser.Scene {
     preload() {
         console.log("Phaser: Preloading assets...");
         this.load.image('oryx1', '/oryx.png');
+        // Let's also load the hit sound from your original project!
+        this.load.audio('oryx_hit', '/oryxhit.mp3');
     }
 
     create() {
         console.log("Phaser: Create method called!");
         
-        this.add.image(400, 300, 'oryx1');
+        // We need to store the boss image in a variable so we can interact with it
+        const bossImage = this.add.image(400, 300, 'oryx1');
+
+        // ✨ --- NEW: Make the boss interactive --- ✨
+
+        // 1. Enable input events on the boss sprite
+        bossImage.setInteractive({ useHandCursor: true });
+
+        // 2. Set up a listener for the 'pointerdown' event (Phaser's version of a click)
+        bossImage.on('pointerdown', () => {
+            // This code runs every time the boss is clicked!
+
+            // Update the score in our game state
+            this.gameState.score += 1;
+            this.gameState.clicksOnCurrentBoss += 1;
+
+            // Update the score text on the screen to show the new value
+            this.scoreText.setText(`Fame: ${this.gameState.score}`);
+
+            // Play the hit sound for feedback
+            this.sound.play('oryx_hit', { volume: 0.5 });
+
+            // Add a simple "tween" animation for visual feedback
+            // This makes the boss shrink and then pop back to its original size.
+            this.tweens.add({
+                targets: bossImage,
+                scaleX: 0.9,
+                scaleY: 0.9,
+                duration: 50, // Duration of the shrink in milliseconds
+                yoyo: true, // Automatically reverses the animation
+                ease: 'Power1'
+            });
+        });
         
+        // The score text object, same as before
         this.scoreText = this.add.text(50, 50, `Fame: ${this.gameState.score}`, { 
             font: '24px "Press Start 2P"',
             fill: '#ffffff' 
@@ -37,44 +69,3 @@ class MainScene extends Phaser.Scene {
         // The game loop!
     }
 }
-
-
-// --- REACT COMPONENT DEFINITION ---
-export function PhaserGame() {
-    const phaserRef = useRef(null);
-    const gameInstanceRef = useRef(null);
-
-    useEffect(() => {
-        if (!phaserRef.current) {
-            return;
-        }
-
-        const config = {
-            type: Phaser.AUTO,
-            width: 800,
-            height: 600,
-            parent: phaserRef.current,
-            backgroundColor: '#1a0922',
-            scene: [MainScene]
-        };
-
-        if (!gameInstanceRef.current) {
-            console.log("Initializing Phaser game...");
-            gameInstanceRef.current = new Phaser.Game(config);
-        }
-
-        return () => {
-            if (gameInstanceRef.current) {
-                console.log("Destroying Phaser game...");
-                gameInstanceRef.current.destroy(true);
-                gameInstanceRef.current = null;
-            }
-        };
-    }, []);
-
-    return (
-        <div ref={phaserRef} id="phaser-container" />
-    );
-}
-
-export default PhaserGame;
