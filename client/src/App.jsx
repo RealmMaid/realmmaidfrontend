@@ -43,17 +43,17 @@ function App() {
             <Route path="/please-verify" element={<PleaseVerifyPage />} />
         </Route>
         
-        <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard" element={<UserDashboardPage />}>
-                <Route index element={<Navigate to="orders" replace />} />
-                <Route path="orders" element={<MyOrders />} />
-                <Route path="settings"element={<ProfileSettings />} />
-                <Route path="payments" element={<PaymentMethods />} />
-                <Route path="wishlist" element={<MyWishlist />}>
-                <Route path="game" element={<PixelClickerGame />}>
-            </Route>
-            <Route path="/checkout" element={<CheckoutPage />} />
-        </Route>
+              <Route element={<ProtectedRoute />}>
+    <Route path="/dashboard" element={<UserDashboardPage />}>
+        <Route index element={<Navigate to="orders" replace />} />
+        <Route path="orders" element={<MyOrders />} />
+        <Route path="settings"element={<ProfileSettings />} />
+        <Route path="payments" element={<PaymentMethods />} />
+        <Route path="wishlist" element={<MyWishlist />} />
+        <Route path="game" element={<PixelClickerGame />} />
+    </Route>
+    <Route path="/checkout" element={<CheckoutPage />} />
+</Route>
 
         <Route element={<ProtectedRoute adminOnly={true} />}>
             <Route path="/admin" element={<AdminDashboardPage />} />
