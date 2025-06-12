@@ -1,10 +1,10 @@
 import React from 'react';
-import { useGameStore } from '../../../stores/gameStore';
-import { classUpgrades } from '../../../data/classUpgrades';
-import { bosses } from '../../../data/bosses';
+import { useGameStore } from '../../../stores/gameStore.jsx';
+import { classUpgrades } from '../../../data/classUpgrades.js';
+import { bosses } from '../../../data/bosses.js';
 
 export function UpgradesShop() {
-    // Select all the state and actions we need for this component from the store
+    // Get only the DATA needed to render the component
     const {
         score,
         isHealing,
@@ -12,8 +12,6 @@ export function UpgradesShop() {
         currentBossIndex,
         upgradesOwned,
         temporaryUpgradesOwned,
-        handleBuyUpgrade,
-        handleBuyTemporaryUpgrade,
     } = useGameStore(state => ({
         score: state.score,
         isHealing: state.isHealing,
@@ -21,8 +19,6 @@ export function UpgradesShop() {
         currentBossIndex: state.currentBossIndex,
         upgradesOwned: state.upgradesOwned,
         temporaryUpgradesOwned: state.temporaryUpgradesOwned,
-        handleBuyUpgrade: state.handleBuyUpgrade,
-        handleBuyTemporaryUpgrade: state.handleBuyTemporaryUpgrade,
     }));
 
     const currentBoss = bosses[currentBossIndex];
@@ -36,7 +32,6 @@ export function UpgradesShop() {
 
     return (
         <>
-            {/* Temporary Boosts Section */}
             {currentBoss.temporaryUpgrades && (
                 <div className="upgrades-shop temporary-shop">
                     <h4>Temporary Boosts</h4>
@@ -47,7 +42,7 @@ export function UpgradesShop() {
                             return (
                                 <button
                                     key={up.id}
-                                    onClick={() => handleBuyTemporaryUpgrade(up)}
+                                    onClick={() => useGameStore.getState().handleBuyTemporaryUpgrade(up)}
                                     className="btn-upgrade temporary"
                                     disabled={score < cost || isHealing}
                                 >
@@ -62,7 +57,6 @@ export function UpgradesShop() {
                 </div>
             )}
 
-            {/* Permanent Class Upgrades Section */}
             <div className="upgrades-shop">
                 <h4>{playerClass}'s Upgrades!~</h4>
                 <div className="upgrades-grid">
@@ -71,7 +65,7 @@ export function UpgradesShop() {
                         return (
                             <button
                                 key={up.id}
-                                onClick={() => handleBuyUpgrade(up)}
+                                onClick={() => useGameStore.getState().handleBuyUpgrade(up)}
                                 className="btn-upgrade"
                                 disabled={score < cost || isHealing}
                             >
