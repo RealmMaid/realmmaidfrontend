@@ -49,8 +49,8 @@ function App() {
                 <Route path="orders" element={<MyOrders />} />
                 <Route path="settings"element={<ProfileSettings />} />
                 <Route path="payments" element={<PaymentMethods />} />
-                <Route path="wishlist" element={<MyWishlist />} />
-                <Route path="game" element={<PixelClickerGame />}
+                <Route path="wishlist" element={<MyWishlist />}>
+                <Route path="game" element={<PixelClickerGame />}>
             </Route>
             <Route path="/checkout" element={<CheckoutPage />} />
         </Route>
