@@ -32,12 +32,6 @@ function App() {
 
   return (
     <>
-      <Routes>
-        {/* --- ✨ NEW TEST ROUTE ✨ --- */}
-        {/* This route is outside of all layouts and protected routes for testing. */}
-        <Route path="/game-test" element={<PixelClickerGame />} />
-
-
         {/* --- Your Original Routes --- */}
         <Route path="/" element={<HomePage />} />
         
@@ -55,7 +49,6 @@ function App() {
             <Route path="settings"element={<ProfileSettings />} />
             <Route path="payments" element={<PaymentMethods />} />
             <Route path="wishlist" element={<MyWishlist />} />
-            {/* The original game route */}
             <Route path="game" element={<PixelClickerGame />} />
           </Route>
           <Route path="/checkout" element={<CheckoutPage />} />
