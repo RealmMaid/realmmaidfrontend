@@ -9,48 +9,33 @@ import { BossDisplay } from './BossDisplay';
 import { ClassSelection } from './ClassSelection';
 import { TransitionalScreen } from './TransitionalScreen';
 import { VictoryScreen } from './VictoryScreen';
+import { NotificationManager } from './NotificationManager'; // ✨ NEW: Import the manager!
 
 /**
  * GameContainer Component
  * This is the main controller for the clicker game's UI.
- * It renders the correct screen based on gamePhase and runs the main game loop.
  */
 export function GameContainer() {
-    // Get the gamePhase to decide what to show
     const gamePhase = useGameStore(state => state.gamePhase);
-    
-    // Get the gameTick function from the store
     const gameTick = useGameStore(state => state.gameTick);
     const checkBossDefeat = useGameStore(state => state.checkBossDefeat);
     const lastTimeRef = useRef(performance.now());
 
-    // ✨ NEW: This is our game loop! ✨
+    // Main game loop
     useEffect(() => {
         let animationFrameId;
-
-        // The function that runs on every frame
         const loop = (currentTime) => {
             const deltaTime = currentTime - lastTimeRef.current;
             lastTimeRef.current = currentTime;
-            
-            // Call our store's gameTick function with the time that has passed
             gameTick(deltaTime);
-
-            // We can also check for boss defeat here continuously
             checkBossDefeat();
-
-            // Request the next frame
             animationFrameId = requestAnimationFrame(loop);
         };
-
-        // Start the loop
         animationFrameId = requestAnimationFrame(loop);
-
-        // Cleanup function to stop the loop when the component unmounts
         return () => {
             cancelAnimationFrame(animationFrameId);
         };
-    }, [gameTick, checkBossDefeat]); // We include the functions in the dependency array
+    }, [gameTick, checkBossDefeat]);
 
     const renderGamePhase = () => {
         switch (gamePhase) {
@@ -80,6 +65,8 @@ export function GameContainer() {
 
     return (
         <div className="card">
+            {/* ✨ NEW: Add the NotificationManager here! It's always active but invisible. */}
+            <NotificationManager />
             <div className="clicker-container">
                 {renderGamePhase()}
             </div>
