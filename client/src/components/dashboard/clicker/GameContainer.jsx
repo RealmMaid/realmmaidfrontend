@@ -23,40 +23,29 @@ export function GameContainer() {
 
     // Main game loop
     useEffect(() => {
-        // This guard ensures the game logic only runs when we are in the main 'clicking' phase.
-        if (gamePhase !== 'clicking') {
-            return; // Do nothing if we're not in the right phase.
-        }
-
         let animationFrameId;
+
         const loop = (currentTime) => {
-            if (!lastTimeRef.current) {
-                lastTimeRef.current = currentTime;
-            }
             const deltaTime = currentTime - lastTimeRef.current;
             lastTimeRef.current = currentTime;
             
+            // These functions are now "smart" and have internal guards.
+            // It's safe to call them on every frame, regardless of game phase.
             gameTick(deltaTime);
             checkBossDefeat();
 
             animationFrameId = requestAnimationFrame(loop);
         };
         
-        // ✨ NEW: We use a setTimeout to delay the start of the loop by one frame.
-        // This gives React time to finish its render and prevents a race condition.
-        const timeoutId = setTimeout(() => {
-            lastTimeRef.current = null; // Reset timer to prevent a large initial jump
-            animationFrameId = requestAnimationFrame(loop);
-        }, 0);
+        // We start the loop once when the component mounts and let it run.
+        lastTimeRef.current = performance.now();
+        animationFrameId = requestAnimationFrame(loop);
 
-
-        // The cleanup function will stop the loop when the component unmounts
-        // or when the gamePhase changes, preventing the error.
+        // The cleanup function stops the loop when the page is closed or you navigate away.
         return () => {
-            clearTimeout(timeoutId); // Also clear the timeout on cleanup
             cancelAnimationFrame(animationFrameId);
         };
-    }, [gamePhase, gameTick, checkBossDefeat]); // Reruns the effect when gamePhase changes
+    }, [gameTick, checkBossDefeat]); // This dependency array is now static, so the effect only runs once.
 
     const renderGamePhase = () => {
         switch (gamePhase) {
