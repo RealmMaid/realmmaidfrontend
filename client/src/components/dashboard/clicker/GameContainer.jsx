@@ -20,51 +20,54 @@ export function GameContainer() {
     const gameTick = useGameStore(state => state.gameTick);
     const checkBossDefeat = useGameStore(state => state.checkBossDefeat);
     const lastTimeRef = useRef(performance.now());
+    const loopIdRef = useRef(0); // To give each loop a unique ID for logging
 
     // Main game loop
     useEffect(() => {
+        const currentLoopId = ++loopIdRef.current;
+        console.log(`💖 GameContainer useEffect RUNNING (ID: ${currentLoopId}). Current gamePhase: "${gamePhase}"`);
+
         // This guard ensures the game logic only runs when we are in the main 'clicking' phase.
         if (gamePhase !== 'clicking') {
+            console.log(`[ID: ${currentLoopId}] Phase is not 'clicking'. Effect will now return and do nothing.`);
             return; // Do nothing if we're not in the right phase.
         }
 
+        console.log(`[ID: ${currentLoopId}] Phase IS 'clicking'! Setting up the game loop.`);
         let animationFrameId;
+
         const loop = (currentTime) => {
-            // Ensure we don't have a massive jump in deltaTime on the first frame of the loop.
             if (!lastTimeRef.current) {
                 lastTimeRef.current = currentTime;
             }
             const deltaTime = currentTime - lastTimeRef.current;
             lastTimeRef.current = currentTime;
             
-            // Call the core game logic functions from the store.
             gameTick(deltaTime);
             checkBossDefeat();
 
-            // Continue the loop.
             animationFrameId = requestAnimationFrame(loop);
         };
         
-        // The setTimeout trick: this delays the start of our game loop by one browser tick.
-        // This is just enough time for React to finish its current rendering work (like showing
-        // the BossDisplay) before we start making rapid state updates in the loop.
-        // This prevents the race condition that causes error #185.
+        console.log(`[ID: ${currentLoopId}] Setting a timeout to start the loop...`);
         const timeoutId = setTimeout(() => {
-            lastTimeRef.current = null; // Reset timer to start fresh.
+            console.log(`⏰ [ID: ${currentLoopId}] setTimeout has triggered! Starting the animation frame loop NOW.`);
+            lastTimeRef.current = null;
             animationFrameId = requestAnimationFrame(loop);
-        }, 3);
+        }, 0);
 
 
-        // The cleanup function is crucial. It runs when the component unmounts OR when
-        // the gamePhase changes, because gamePhase is in the dependency array.
-        // This ensures we always stop the old loop before starting a new one.
+        // The cleanup function is crucial. Let's log when it runs.
         return () => {
+            console.log(`🧹 GameContainer useEffect CLEANUP running (ID: ${currentLoopId}). Phase was "${gamePhase}". Clearing timeout and animation frame.`);
             clearTimeout(timeoutId);
             cancelAnimationFrame(animationFrameId);
         };
     }, [gamePhase, gameTick, checkBossDefeat]); // The effect re-runs whenever the gamePhase changes.
 
     const renderGamePhase = () => {
+        // Log when we are trying to render a phase
+        console.log(`🎨 Rendering game phase: "${gamePhase}"`);
         switch (gamePhase) {
             case 'classSelection':
                 return <ClassSelection />;
