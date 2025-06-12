@@ -29,27 +29,19 @@ class MainScene extends Phaser.Scene {
         bossImage.on('pointerdown', (pointer) => {
             const { minDamage, maxDamage } = this.calculateDamageRange();
             let damageDealt = Phaser.Math.Between(minDamage, maxDamage);
-            let isCrit = false;
-
-            if (this.gameState.equippedWeapon === 'executioners_axe' && Math.random() < 0.10) {
-                damageDealt *= 10;
-                isCrit = true;
-                this.showFloatingText(pointer.x, pointer.y, `CRITICAL! ${damageDealt.toLocaleString()}`, '#ff3366', 32);
-            }
-            
             const fameEarned = damageDealt;
+
             this.gameState.score += fameEarned;
             
             EventBus.emit('scoreUpdated', this.gameState.score);
+            // ✨ DEBUGGING LOG ADDED HERE ✨
+            console.log(`%cPhaser: Emitted scoreUpdated on click. New score: ${this.gameState.score}`, 'color: #00ff00');
             
             if (!this.tweens.isTweening(bossImage)) {
                 this.tweens.add({ targets: bossImage, scale: 0.9, duration: 50, yoyo: true, ease: 'Power1' });
             }
             this.sound.play('oryx_hit', { volume: 0.5 });
-            
-            if (!isCrit) {
-                 this.showFloatingText(pointer.x, pointer.y, damageDealt.toLocaleString(), '#ffffff');
-            }
+            this.showFloatingText(pointer.x, pointer.y, damageDealt.toLocaleString(), '#ffffff');
         });
 
         this.time.addEvent({
@@ -64,12 +56,13 @@ class MainScene extends Phaser.Scene {
         if (this.gameState.pointsPerSecond <= 0) return;
         this.gameState.score += this.gameState.pointsPerSecond;
         EventBus.emit('scoreUpdated', this.gameState.score);
+        // ✨ DEBUGGING LOG ADDED HERE ✨
+        console.log(`%cPhaser: Emitted scoreUpdated from DPS. New score: ${this.gameState.score}`, 'color: #00ff00');
     }
     
     calculateDamageRange() {
         let minDamage = 1;
         let maxDamage = 5;
-        // This will be expanded later with upgrade logic
         return { minDamage, maxDamage };
     }
 
@@ -129,6 +122,4 @@ function PhaserGame() {
     return <div ref={phaserRef} id="phaser-container" />;
 }
 
-// ✨ THIS IS THE FIX ✨
-// This line makes the PhaserGame component the default export of this file.
 export default PhaserGame;
