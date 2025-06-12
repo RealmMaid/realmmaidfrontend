@@ -15,6 +15,7 @@ import { abilities } from '../data/abilities';
  */
 const defaultState = {
     score: 0,
+    uncollectedFame: 0.0, // To track fractional fame between ticks!
     famePerSecond: 0,
     pointsPerSecond: 0, // Represents auto-damage dealt to the boss
     gamePhase: 'classSelection',
@@ -34,7 +35,7 @@ const defaultState = {
     equippedWeapon: 'default',
     abilityCooldowns: {},
     activeBuffs: {},
-    activeDebuffs: {}, // For tracking boss debuffs like armor break!
+    activeDebuffs: {},
     poison: { stacks: 0, lastApplied: null },
     totalClicks: 0,
     totalFameEarned: 0,
@@ -61,7 +62,6 @@ export const useGameStore = create(
 
             applyClick: (damageDealt, fameEarned) => {
                 let finalFame = fameEarned;
-                // Check for vulnerable debuff!
                 if (get().activeDebuffs.vulnerable) {
                     finalFame *= 1.5;
                 }
@@ -79,7 +79,6 @@ export const useGameStore = create(
                 const state = get();
                 const deltaSeconds = delta / 1000;
 
-                // --- Handle Healing ---
                 if (state.isHealing) {
                     const healAmount = (bosses[state.currentBossIndex].healThresholds[0].amount / 5) * deltaSeconds;
                     set(s => ({
@@ -89,21 +88,27 @@ export const useGameStore = create(
                     if (state.healTimer <= 0) {
                         set({ isHealing: false, isInvulnerable: false });
                     }
-                    return; // Stop all other processing during healing
+                    return;
                 }
 
-                // --- Handle time-based passive income and damage ---
-                const fameFromFps = Math.floor(state.famePerSecond * deltaSeconds * state.calculateAchievementBonuses().fameMultiplier);
+                // Fame calculation logic
+                const fameThisTick = state.famePerSecond * deltaSeconds * state.calculateAchievementBonuses().fameMultiplier;
                 const damageFromDps = state.pointsPerSecond * deltaSeconds;
                 const poisonDps = state.poison.stacks * (1 + Math.floor(state.currentBossIndex * 1.5)) * deltaSeconds;
+                
+                set(s => {
+                    const newUncollectedFame = s.uncollectedFame + fameThisTick;
+                    const fameToAdd = Math.floor(newUncollectedFame);
+                    const remainingUncollectedFame = newUncollectedFame - fameToAdd;
 
-                set(s => ({
-                    score: s.score + fameFromFps,
-                    totalFameEarned: s.totalFameEarned + fameFromFps,
-                    clicksOnCurrentBoss: s.clicksOnCurrentBoss + damageFromDps + poisonDps,
-                }));
+                    return {
+                        uncollectedFame: remainingUncollectedFame,
+                        score: s.score + fameToAdd,
+                        totalFameEarned: s.totalFameEarned + fameToAdd,
+                        clicksOnCurrentBoss: s.clicksOnCurrentBoss + damageFromDps + poisonDps,
+                    };
+                });
 
-                // --- Check for Boss Heal Phase Trigger ---
                 const currentBoss = bosses[state.currentBossIndex];
                 if(currentBoss) {
                     const healthPercent = 1 - (state.clicksOnCurrentBoss / currentBoss.clickThreshold);
@@ -114,7 +119,7 @@ export const useGameStore = create(
                             set(s => ({
                                 isHealing: true,
                                 isInvulnerable: true,
-                                healTimer: 5000, // 5 seconds
+                                healTimer: 5000,
                                 triggeredHeals: { ...s.triggeredHeals, [i]: true },
                             }));
                             toast.error(`${currentBoss.name} is healing!`, { icon: '💔' });
@@ -123,7 +128,6 @@ export const useGameStore = create(
                     }
                 }
 
-                // --- Clean up expired buffs and debuffs ---
                 const now = Date.now();
                 const activeBuffs = { ...state.activeBuffs };
                 const activeDebuffs = { ...state.activeDebuffs };
@@ -170,7 +174,7 @@ export const useGameStore = create(
                     clicksOnCurrentBoss: 0,
                     gamePhase: 'clicking',
                     temporaryUpgradesOwned: {},
-                    triggeredHeals: {}, // Reset heal triggers for new boss
+                    triggeredHeals: {},
                 });
             },
             
@@ -253,13 +257,10 @@ export const useGameStore = create(
                     let fameBonus = 0;
                     let dpsBonus = 0;
 
-                    // All upgrades give some fame per second to feel good
                     if (upgrade.type === 'perSecond') {
                         fameBonus += upgrade.value;
-                        // FPS upgrades also grant some auto-damage, about 25% of their fame value
                         dpsBonus += (upgrade.value * 0.25);
                     } else if (upgrade.type === 'perClick') {
-                        // Click upgrades grant a smaller amount of passive fame, about 10% of their max damage bonus
                         fameBonus += ((upgrade.maxBonus || upgrade.clickBonus || 0) * 0.1);
                     }
 
@@ -331,7 +332,7 @@ export const useGameStore = create(
                         if (up.type === 'perClick') { 
                             minDamage += (up.minBonus || 0) * owned; 
                             maxDamage += (up.maxBonus || 0) * owned; 
-                        } else if (up.clickBonus) { // For hybrid items
+                        } else if (up.clickBonus) {
                             minDamage += up.clickBonus * owned; 
                             maxDamage += up.clickBonus * owned; 
                         }
