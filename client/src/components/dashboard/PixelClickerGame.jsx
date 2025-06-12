@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useGameStore } from '../../stores/gameStore';
+import { useGameStore } from '../../stores/gameStore.jsx';
 import { Toaster } from 'react-hot-toast';
 
 // Import all the different 'screens' or 'views' that our game can be in.
