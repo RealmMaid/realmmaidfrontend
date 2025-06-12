@@ -50,9 +50,6 @@ const defaultState = {
     // System
     lastSavedTimestamp: null,
     isMuted: false,
-
-    // --- THIS IS THE NEW FLAG ---
-    _hasHydrated: false,
 };
 
 // Using Immer for safe and easy state mutation
@@ -63,13 +60,7 @@ export const useGameStore = create(
         immerSet((set, get) => ({
             ...defaultState,
 
-            // --- THIS IS THE NEW ACTION ---
-            setHasHydrated: () => {
-                set({
-                  _hasHydrated: true
-                });
-            },
-
+            // Simple action to apply offline earnings.
             applyOfflineProgress: (offlineEarnings) => {
                 set(state => {
                     state.score += offlineEarnings;
@@ -225,7 +216,6 @@ export const useGameStore = create(
 
                         Object.assign(state, {
                             ...defaultState,
-                            _hasHydrated: true, // Make sure hydration status isn't lost
                             playerClass: state.playerClass,
                             exaltedShards: state.exaltedShards + shardsToAward,
                             prestigeUpgradesOwned: state.prestigeUpgradesOwned,
@@ -337,11 +327,7 @@ export const useGameStore = create(
         })),
         {
             name: 'realmmaid-clicker-save',
-            onRehydrateStorage: () => {
-                return () => {
-                    useGameStore.getState().setHasHydrated();
-                }
-            }
+            // We no longer need the onRehydrateStorage option here.
         }
     )
 );
