@@ -90,7 +90,8 @@ function PixelClickerGame() {
             />
 
             <div className="game-wrapper">
-                {renderGamePase()}
+                {/* THIS IS THE FIX: Corrected spelling from renderGamePase to renderGamePhase */}
+                {renderGamePhase()}
             </div>
         </>
     );
