@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import toast from 'react-hot-toast';
 
-// Import all game data
+// Data Imports
 import { abilities } from '../data/abilities';
 import { achievements } from '../data/achievements';
 import { weapons } from '../data/weapons';
@@ -66,7 +66,6 @@ export const useGameStore = create(
                 const bossStage = `stage${Math.min(currentBossIndex + 1, 3)}`;
                 const currentClassUpgradesForDamage = classUpgrades[bossStage]?.[playerClass] || [];
                 const currentBossForDamage = bosses[currentBossIndex];
-
                 let minDamage = 1;
                 let maxDamage = 1;
 
@@ -121,7 +120,6 @@ export const useGameStore = create(
             setIsInvulnerable: (invulnerable) => set({ isInvulnerable: invulnerable }),
             setPoison: (newPoisonState) => set({ poison: newPoisonState }),
             setActiveBuffs: (buffs) => set({ activeBuffs: buffs }),
-            
             handleClassSelect: (className) => set({ playerClass: className, gamePhase: 'clicking' }),
             
             advanceToNextBoss: (isPortal) => {
@@ -150,25 +148,20 @@ export const useGameStore = create(
             toggleMute: () => set(state => ({ isMuted: !state.isMuted })),
             
             playSound: (soundFile, volume = 1) => {
-                if (!get().isMuted) {
-                    try {
-                        const audio = new Audio(soundFile);
-                        audio.volume = volume;
-                        audio.play().catch(() => {});
-                    } catch (e) {}
-                }
+                if (!get().isMuted) { try { const audio = new Audio(soundFile); audio.volume = volume; audio.play().catch(() => {}); } catch (e) {} }
             },
 
             resetSave: () => {
                 if (window.confirm("Are you sure? This will erase everything.")) {
-                    set(defaultState);
-                    set({ gamePhase: 'classSelection' });
+                    const currentMuteState = get().isMuted;
+                    set({ ...defaultState, isMuted: currentMuteState, gamePhase: 'classSelection', playerClass: null });
                 }
             },
             
             handleEquipWeapon: (weaponId) => {
+                const weapon = weapons.find(w => w.id === weaponId);
                 set({ equippedWeapon: weaponId });
-                toast.success(`Equipped ${weapons.find(w => w.id === weaponId)?.name || 'Default Sword'}!`);
+                toast.success(`Equipped ${weapon?.name || 'Default Sword'}!`);
             },
             
             applyClick: (damage, fame) => {
@@ -194,26 +187,15 @@ export const useGameStore = create(
             
             setTriggeredHeal: (bossId, percent) => {
                 set(state => ({
-                    triggeredHeals: {
-                        ...state.triggeredHeals,
-                        [bossId]: [...(state.triggeredHeals[bossId] || []), percent]
-                    }
+                    triggeredHeals: { ...state.triggeredHeals, [bossId]: [...(state.triggeredHeals[bossId] || []), percent] }
                 }));
             },
 
             checkForAchievementUnlocks: () => {
-                const { unlockedAchievements } = get();
                 for (const ach of achievements) {
-                    if (!unlockedAchievements[ach.id] && ach.isUnlocked(get())) {
-                        set(state => ({
-                            unlockedAchievements: { ...state.unlockedAchievements, [ach.id]: true }
-                        }));
-                        toast.custom((t) => (
-                            <div className={`achievement-alert ${t.visible ? 'animate-enter' : 'animate-leave'}`} onClick={() => toast.dismiss(t.id)}>
-                                <strong>🏆 Achievement Unlocked!</strong>
-                                <p>{ach.name}</p>
-                            </div>
-                        ));
+                    if (!get().unlockedAchievements[ach.id] && ach.isUnlocked(get())) {
+                        set(state => ({ unlockedAchievements: { ...state.unlockedAchievements, [ach.id]: true } }));
+                        toast.custom((t) => ( <div className={'achievement-alert'} onClick={() => toast.dismiss(t.id)}> <strong>🏆 Achievement Unlocked!</strong> <p>{ach.name}</p> </div> ));
                     }
                 }
             },
@@ -286,7 +268,9 @@ export const useGameStore = create(
                             toast.error("Slam would have no effect with 0 DPS!");
                             return;
                         }
-                        const slamDamage = Math.floor(get().pointsPerSecond * 30);
+                        let dps = get().pointsPerSecond;
+                        if(get().activeBuffs['arcane_power']) dps *= 2;
+                        const slamDamage = Math.floor(dps * 30);
                         const fameFromSlam = Math.floor(slamDamage * get().calculateAchievementBonuses().fameMultiplier);
                         get().applyClick(slamDamage, fameFromSlam);
                         toast.success('SLAM!', { icon: '💥' });
@@ -333,16 +317,11 @@ export const useGameStore = create(
 
                     set({
                         ...defaultState,
-                        playerClass,
-                        isMuted,
-                        unlockedWeapons,
+                        playerClass, isMuted, unlockedWeapons,
                         exaltedShards: get().exaltedShards + shardsToAward,
                         prestigeUpgradesOwned,
-                        score: startingScore,
-                        pointsPerSecond: startingPps,
-                        totalClicks,
-                        totalFameEarned,
-                        unlockedAchievements,
+                        score: startingScore, pointsPerSecond: startingPps,
+                        totalClicks, totalFameEarned, unlockedAchievements,
                         hasPrestiged: true,
                     });
                     get().setGameWon(false);
@@ -354,6 +333,10 @@ export const useGameStore = create(
         }),
         {
             name: 'pixel-clicker-save',
+            merge: (persistedState, currentState) => ({
+                ...currentState,
+                ...persistedState,
+            }),
         }
     )
 );
@@ -363,8 +346,8 @@ export const getOfflineProgress = () => {
     if (!lastUpdated || !pointsPerSecond) return { fameEarned: 0, timeOffline: 0 };
     const now = Date.now();
     const timeOfflineInSeconds = Math.floor((now - lastUpdated) / 1000);
-    const maxOfflineTime = 2 * 24 * 60 * 60; // 48 hours
+    const maxOfflineTime = 2 * 24 * 60 * 60;
     const effectiveTimeOffline = Math.min(timeOfflineInSeconds, maxOfflineTime);
-    const fameEarned = Math.floor(effectiveTimeOffline * pointsPerSecond * 0.50); // 50% offline efficiency
+    const fameEarned = Math.floor(effectiveTimeOffline * pointsPerSecond * 0.50);
     return { fameEarned, timeOffline: effectiveTimeOffline };
 };
