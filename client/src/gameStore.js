@@ -44,8 +44,7 @@ export const useGameStore = create(
     persist(
         (set, get) => ({
             ...defaultState,
-
-            // === Getters / Calculators ===
+            setScore: (newScore) => set({ score: newScore });
             calculateAchievementBonuses: () => {
                 const { unlockedAchievements } = get();
                 const bonuses = { fameMultiplier: 1, shardMultiplier: 1 };
