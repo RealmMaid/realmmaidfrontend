@@ -22,7 +22,7 @@ import ProfileSettings from './components/dashboard/ProfileSettings.jsx';
 import PaymentMethods from './components/dashboard/PaymentMethods.jsx';
 import MyWishlist from './components/dashboard/MyWishlist.jsx';
 // We no longer need to import the old PixelClickerGame here.
-// import PixelClickerGame from './components/dashboard/PixelClickerGame.jsx';
+import PixelClickerGame from './components/dashboard/PixelClickerGame.jsx';
 import SpaceDodgerGame from './components/dashboard/SpaceDodgerGame.jsx';
 import PhaserGame from './components/dashboard/PhaserGame';
 
@@ -50,13 +50,7 @@ function App() {
                 <Route path="settings"element={<ProfileSettings />} />
                 <Route path="payments" element={<PaymentMethods />} />
                 <Route path="wishlist" element={<MyWishlist />} />
-                
-                {/* ✨ THIS IS THE CHANGE ✨ */}
-                {/* The "/game" route now loads our stable PhaserGame component */}
-                <Route path="game" element={<PhaserGame />} />
-                
-                {/* We can keep this route for testing or remove it later */}
-                <Route path="phasergame" element={<PhaserGame />} />
+                <Route path="game" element={<PixelClickerGame />}
             </Route>
             <Route path="/checkout" element={<CheckoutPage />} />
         </Route>
