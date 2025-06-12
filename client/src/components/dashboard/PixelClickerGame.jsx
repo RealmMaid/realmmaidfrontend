@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useGameStore } from '../../../stores/gameStore';
+import { useGameStore } from 'client/src/stores/gameStore';
 import { Toaster } from 'react-hot-toast';
 
 // Step 1: We import all the small, single-purpose components we created.
