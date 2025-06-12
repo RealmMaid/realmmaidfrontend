@@ -12,9 +12,8 @@ import { TransitionalScreen } from './clicker/TransitionalScreen';
 import { WelcomeBackModal } from './clicker/WelcomeBackModal';
 
 /**
- * This is a new, dedicated hook to safely check if the Zustand store has been rehydrated.
- * It uses the official `persist` middleware API.
- * It will not cause the React "suspend" error.
+ * A dedicated hook to safely check if the Zustand store has been rehydrated.
+ * It uses the official `persist` middleware API and will not cause a suspend error.
  */
 const useHydration = () => {
   const [hydrated, setHydrated] = useState(useGameStore.persist.hasHydrated);
@@ -36,15 +35,33 @@ const useHydration = () => {
 
 
 function PixelClickerGame() {
-    // 1. Call our new safe hook first.
     const isHydrated = useHydration();
-
-    // 2. We can now safely get the rest of the state.
     const gamePhase = useGameStore((state) => state.gamePhase);
-
     const [offlineProgress, setOfflineProgress] = useState(null);
+
+    // This useEffect hook sets up the listener for our custom event.
     useEffect(() => {
-        // This effect should only run AFTER hydration is complete.
+        // This is the function that will run when the 'class_selected' event is heard.
+        const handleClassSelected = (event) => {
+            // Get the classId from the event's 'detail' property.
+            const classId = event.detail;
+            // Now, we can safely call the store action using the reliable getState() method.
+            useGameStore.getState().handleClassSelect(classId);
+        };
+
+        // Add the event listener to the main window object.
+        window.addEventListener('class_selected', handleClassSelected);
+
+        // This is a crucial cleanup step to prevent memory leaks.
+        // It removes the listener when the component is no longer on the screen.
+        return () => {
+            window.removeEventListener('class_selected', handleClassSelected);
+        };
+    }, []); // The empty array ensures this listener is set up only once.
+
+    // This useEffect hook handles the offline progress calculation.
+    // It depends on `isHydrated` to make sure it only runs after the store is ready.
+    useEffect(() => {
         if (isHydrated) {
             const currentState = useGameStore.getState();
             const { applyOfflineProgress } = currentState;
@@ -55,13 +72,14 @@ function PixelClickerGame() {
                 setOfflineProgress(progress);
             }
         }
-    }, [isHydrated]); // Dependency on `isHydrated` ensures this.
+    }, [isHydrated]);
 
-    // 3. Our gate now uses the state from our safe hook.
+    // This is our "hydration gate" that prevents interaction until the store is loaded.
     if (!isHydrated) {
         return <div>Loading Game...</div>;
     }
     
+    // This function decides which main component to show based on the game's current phase.
     const renderGamePhase = () => {
         switch (gamePhase) {
             case 'classSelection':
@@ -90,7 +108,6 @@ function PixelClickerGame() {
             />
 
             <div className="game-wrapper">
-                {/* THIS IS THE FIX: Corrected spelling from renderGamePase to renderGamePhase */}
                 {renderGamePhase()}
             </div>
         </>
