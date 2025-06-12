@@ -16,6 +16,7 @@ import { abilities } from '../data/abilities';
 const defaultState = {
     score: 0,
     pointsPerSecond: 0,
+    famePerSecond: 0, // ✨ NEW: State to track passive fame generation!
     gamePhase: 'classSelection', // Can be: classSelection, clicking, transitioning, exalted_transition, finished
     gameWon: false,
     playerClass: null,
@@ -76,25 +77,30 @@ export const useGameStore = create(
             },
             
             /**
-             * Applies damage from the player's DPS every second.
+             * Applies damage and fame from the player's DPS/FPS every second.
              */
             applyDps: () => {
                 const state = get();
-                if (state.pointsPerSecond <= 0 || state.isHealing || state.gamePhase !== 'clicking') return;
+                if ((state.pointsPerSecond <= 0 && state.famePerSecond <= 0) || state.isHealing || state.gamePhase !== 'clicking') return;
 
                 let dps = state.pointsPerSecond;
+                let fps = state.famePerSecond; // Get our new fame per second value
+
+                // Apply modifiers
                 if (state.equippedWeapon === 'executioners_axe') dps *= 0.5;
                 if (state.activeBuffs['arcane_power']) dps *= 2;
 
                 const bonuses = get().calculateAchievementBonuses();
-                const fameFromDps = Math.floor(dps * bonuses.fameMultiplier);
+                // ✨ UPDATED: Fame from FPS is now calculated separately
+                const fameFromFps = Math.floor(fps * bonuses.fameMultiplier);
                 
-                // Poison is separate and deals direct health damage
                 const poisonDps = state.poison.stacks * (1 + Math.floor(state.currentBossIndex * 1.5));
 
                 set(s => ({
-                    score: s.score + fameFromDps,
-                    totalFameEarned: s.totalFameEarned + fameFromDps,
+                    // ✨ UPDATED: Add our passive fame gain to the score
+                    score: s.score + fameFromFps,
+                    totalFameEarned: s.totalFameEarned + fameFromFps,
+                    // DPS and Poison still damage the boss
                     clicksOnCurrentBoss: s.clicksOnCurrentBoss + dps + poisonDps,
                 }));
             },
@@ -151,7 +157,9 @@ export const useGameStore = create(
                     set(s => ({
                         score: s.score - cost,
                         upgradesOwned: { ...s.upgradesOwned, [upgrade.id]: owned + 1 },
-                        pointsPerSecond: upgrade.type === 'perSecond' ? s.pointsPerSecond + upgrade.value : s.pointsPerSecond,
+                        // ✨ UPDATED: Logic now checks the upgrade type!
+                        famePerSecond: upgrade.type === 'perSecond' ? s.famePerSecond + upgrade.value : s.famePerSecond,
+                        // We can leave pointsPerSecond for things that ONLY add DPS in the future
                     }));
                 } else { 
                     toast.error("Not enough Fame!"); 
