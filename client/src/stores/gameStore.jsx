@@ -44,7 +44,7 @@ const defaultState = {
     weaponUsageTime: {}, // Time is stored in milliseconds
     // --- End Stats Tracking ---
     unlockedAchievements: {},
-    lastUnlockedAchievement: null, // ✨ NEW: For safely triggering notifications
+    lastUnlockedAchievement: null,
     hasPrestiged: false,
     lastSavedTimestamp: null,
     isMuted: false,
@@ -81,6 +81,12 @@ export const useGameStore = create(
             
             gameTick: (delta) => {
                 const state = get();
+
+                // This guard makes the whole loop safe!
+                if (state.gamePhase !== 'clicking') {
+                    return; // Do nothing if we're not in the main game.
+                }
+
                 const deltaSeconds = delta / 1000;
 
                 if (state.isHealing) {
@@ -153,8 +159,10 @@ export const useGameStore = create(
 
             checkBossDefeat: () => {
                 const state = get();
+                if (state.gamePhase !== 'clicking') return; // Guard for safety
+                
                 const currentBoss = bosses[state.currentBossIndex];
-                if (!currentBoss || state.gamePhase !== 'clicking' || state.clicksOnCurrentBoss < currentBoss.clickThreshold) return;
+                if (!currentBoss || state.clicksOnCurrentBoss < currentBoss.clickThreshold) return;
 
                 set(s => ({ bossesDefeated: { ...s.bossesDefeated, [currentBoss.id]: (s.bossesDefeated[currentBoss.id] || 0) + 1 } }));
                 
@@ -389,12 +397,10 @@ export const useGameStore = create(
                 return bonuses;
             },
             
-            // ✨ UPDATED: This function is now safe!
             checkAchievements: () => {
                  const state = get();
                 achievements.forEach(ach => {
                     if (!state.unlockedAchievements[ach.id] && ach.isUnlocked(state)) {
-                        // It no longer calls toast, just sets the state.
                         set(s => ({ 
                             unlockedAchievements: { ...s.unlockedAchievements, [ach.id]: true },
                             lastUnlockedAchievement: ach.id,
@@ -403,7 +409,6 @@ export const useGameStore = create(
                 });
             },
             
-            // ✨ NEW: An action to clear the notification after it has been shown
             acknowledgeAchievement: () => {
                 set({ lastUnlockedAchievement: null });
             },
