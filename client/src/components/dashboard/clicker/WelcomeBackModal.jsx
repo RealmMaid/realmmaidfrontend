@@ -1,5 +1,5 @@
 import React from 'react';
-import { useGameStore } from '../../stores/gameStore';
+import { useGameStore } from '../../../stores/gameStore';
 
 // This is a helper function to make the time readable.
 function formatTime(totalSeconds) {
