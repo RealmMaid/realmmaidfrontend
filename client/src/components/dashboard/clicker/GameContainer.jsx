@@ -9,7 +9,7 @@ import { BossDisplay } from './BossDisplay';
 import { ClassSelection } from './ClassSelection';
 import { TransitionalScreen } from './TransitionalScreen';
 import { VictoryScreen } from './VictoryScreen';
-import { NotificationManager } from './NotificationManager'; // ✨ NEW: Import the manager!
+import { NotificationManager } from './NotificationManager';
 
 /**
  * GameContainer Component
@@ -23,19 +23,38 @@ export function GameContainer() {
 
     // Main game loop
     useEffect(() => {
+        // ✨ NEW: This guard makes our loop much safer!
+        // It ensures the game logic only runs when we are in the main 'clicking' phase.
+        if (gamePhase !== 'clicking') {
+            return; // Do nothing if we're not in the right phase.
+        }
+
         let animationFrameId;
         const loop = (currentTime) => {
+            // We reset the time reference when the loop starts to avoid a huge deltaTime jump.
+            if (!lastTimeRef.current) {
+                lastTimeRef.current = currentTime;
+            }
             const deltaTime = currentTime - lastTimeRef.current;
             lastTimeRef.current = currentTime;
+            
+            // Only call the core game logic if we are in the clicking phase
             gameTick(deltaTime);
             checkBossDefeat();
+
             animationFrameId = requestAnimationFrame(loop);
         };
+        
+        // Reset the timer ref and start the loop
+        lastTimeRef.current = null;
         animationFrameId = requestAnimationFrame(loop);
+
+        // The cleanup function will stop the loop when the component unmounts
+        // or when the gamePhase changes, preventing the error.
         return () => {
             cancelAnimationFrame(animationFrameId);
         };
-    }, [gameTick, checkBossDefeat]);
+    }, [gamePhase, gameTick, checkBossDefeat]); // ✨ Reruns the effect when gamePhase changes
 
     const renderGamePhase = () => {
         switch (gamePhase) {
@@ -65,7 +84,6 @@ export function GameContainer() {
 
     return (
         <div className="card">
-            {/* ✨ NEW: Add the NotificationManager here! It's always active but invisible. */}
             <NotificationManager />
             <div className="clicker-container">
                 {renderGamePhase()}
