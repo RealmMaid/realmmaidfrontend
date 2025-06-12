@@ -23,29 +23,46 @@ export function GameContainer() {
 
     // Main game loop
     useEffect(() => {
-        let animationFrameId;
+        // This guard ensures the game logic only runs when we are in the main 'clicking' phase.
+        if (gamePhase !== 'clicking') {
+            return; // Do nothing if we're not in the right phase.
+        }
 
+        let animationFrameId;
         const loop = (currentTime) => {
+            // Ensure we don't have a massive jump in deltaTime on the first frame of the loop.
+            if (!lastTimeRef.current) {
+                lastTimeRef.current = currentTime;
+            }
             const deltaTime = currentTime - lastTimeRef.current;
             lastTimeRef.current = currentTime;
             
-            // These functions are now "smart" and have internal guards.
-            // It's safe to call them on every frame, regardless of game phase.
+            // Call the core game logic functions from the store.
             gameTick(deltaTime);
             checkBossDefeat();
 
+            // Continue the loop.
             animationFrameId = requestAnimationFrame(loop);
         };
         
-        // We start the loop once when the component mounts and let it run.
-        lastTimeRef.current = performance.now();
-        animationFrameId = requestAnimationFrame(loop);
+        // The setTimeout trick: this delays the start of our game loop by one browser tick.
+        // This is just enough time for React to finish its current rendering work (like showing
+        // the BossDisplay) before we start making rapid state updates in the loop.
+        // This prevents the race condition that causes error #185.
+        const timeoutId = setTimeout(() => {
+            lastTimeRef.current = null; // Reset timer to start fresh.
+            animationFrameId = requestAnimationFrame(loop);
+        }, 0);
 
-        // The cleanup function stops the loop when the page is closed or you navigate away.
+
+        // The cleanup function is crucial. It runs when the component unmounts OR when
+        // the gamePhase changes, because gamePhase is in the dependency array.
+        // This ensures we always stop the old loop before starting a new one.
         return () => {
+            clearTimeout(timeoutId);
             cancelAnimationFrame(animationFrameId);
         };
-    }, [gameTick, checkBossDefeat]); // This dependency array is now static, so the effect only runs once.
+    }, [gamePhase, gameTick, checkBossDefeat]); // The effect re-runs whenever the gamePhase changes.
 
     const renderGamePhase = () => {
         switch (gamePhase) {
