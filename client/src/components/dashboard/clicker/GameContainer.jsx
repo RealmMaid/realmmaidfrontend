@@ -12,23 +12,27 @@ import { VictoryScreen } from './VictoryScreen';
 import { TransitionalScreen } from './TransitionalScreen';
 
 export function GameContainer() {
-    // Select state needed for the component's top-level render logic.
+    // Select state needed for the component's top-level render logic ONLY.
+    // This component will only re-render if the gamePhase changes.
     const gamePhase = useGameStore(state => state.gamePhase);
 
-    // This single useEffect runs ONCE on mount and sets up the master game loop.
+    // This single useEffect runs ONCE when the component mounts.
+    // It sets up a "game tick" that handles all continuous logic internally.
     useEffect(() => {
+        console.log("Master Game Loop Initializing...");
+
         const gameTickInterval = setInterval(() => {
             // Get the FRESHEST state directly from the store inside the loop.
+            // This is the key to preventing infinite re-renders.
             const state = useGameStore.getState();
             const currentBoss = bosses[state.currentBossIndex];
 
-            // If there's no boss or the game isn't in the clicking phase, do nothing.
+            // If there's no boss or the game isn't in the clicking phase, do nothing this tick.
             if (!currentBoss || state.gamePhase !== 'clicking') {
                 return;
             }
             
             // --- Boss Defeat Check ---
-            // This now runs safely inside the master loop.
             if (state.clicksOnCurrentBoss >= currentBoss.clickThreshold) {
                 state.playSound(currentBoss.breakSound);
                 if (currentBoss.id === 'oryx3') {
@@ -43,7 +47,6 @@ export function GameContainer() {
             }
             
             // --- Boss Healing Check ---
-            // This also runs safely inside the master loop.
             if (!state.isHealing && currentBoss.healThresholds) {
                 const healthPercent = 100 - (state.clicksOnCurrentBoss / currentBoss.clickThreshold) * 100;
                 const triggered = state.triggeredHeals[currentBoss.id] || [];
@@ -57,7 +60,6 @@ export function GameContainer() {
                         const healInterval = setInterval(() => {
                             const healThisTick = Math.min(2500, heal.amount - amountHealed);
                             amountHealed += healThisTick;
-                            // Use a separate getState call inside this async interval to ensure freshness
                             useGameStore.getState().applyHealing(healThisTick);
                             if (amountHealed >= heal.amount) {
                                 clearInterval(healInterval);
@@ -71,9 +73,8 @@ export function GameContainer() {
 
             // --- DPS and Poison Logic (only runs if not healing) ---
             if (!state.isHealing) {
-                if (state.pointsPerSecond > 0) {
-                    state.applyDpsFame(state.pointsPerSecond);
-                }
+                if (state.pointsPerSecond > 0) state.applyDpsFame(state.pointsPerSecond);
+                
                 if (state.equippedWeapon === 'stacking_vipers' && state.poison.stacks > 0) {
                     const poisonDps = state.poison.stacks * (1 + Math.floor(state.currentBossIndex * 1.5));
                     state.applyPoisonDamage(poisonDps);
@@ -85,8 +86,11 @@ export function GameContainer() {
         }, 1000); // The master game tick runs every second.
 
         // Cleanup function to clear the interval when the component unmounts
-        return () => clearInterval(gameTickInterval);
-    }, []); // The empty `[]` ensures this setup runs only ONCE, preventing loops.
+        return () => {
+            console.log("Master Game Loop Cleaning Up...");
+            clearInterval(gameTickInterval);
+        };
+    }, []); // The empty `[]` dependency array ensures this setup runs only ONCE.
 
     // This separate useEffect ONLY handles the timed transitions between phases. It is safe.
     useEffect(() => {
