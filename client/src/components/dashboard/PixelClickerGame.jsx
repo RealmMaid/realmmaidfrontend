@@ -1,79 +1,25 @@
-import React, { useEffect, useState } from 'react';
-import { useGameStore } from '../../stores/gameStore';
-import { Toaster } from 'react-hot-toast';
-import EventBus from '../../EventBus';
+import React, { useEffect } from 'react';
 
-// Import your REAL components from their separate files.
-import { GameContainer } from './clicker/GameContainer';
-import { ClassSelection } from './clicker/ClassSelection';
-import { WelcomeBackModal } from './clicker/WelcomeBackModal';
-
+// This is a simplified version for debugging purposes.
 export default function PixelClickerGame() {
-    const { playerClass, setScore } = useGameStore(state => ({
-        playerClass: state.playerClass,
-        setScore: state.setScore,
-    }));
-
-    const [offlineProgress, setOfflineProgress] = useState(null);
-    const [isLoaded, setIsLoaded] = useState(useGameStore.persist.hasHydrated);
 
     useEffect(() => {
-        // ✨ DEBUGGING LOG ADDED HERE ✨
-        console.log(`%cReact Component is using EventBus with ID: ${EventBus.id}`, 'font-weight: bold; color: #ffa500;');
-        
-        const onScoreUpdate = (newScore) => {
-            setScore(newScore);
-        };
-
-        EventBus.on('scoreUpdated', onScoreUpdate);
-
-        return () => {
-            EventBus.off('scoreUpdated', onScoreUpdate);
-        };
-    }, [setScore]);
-
-    useEffect(() => {
-        const handleRehydration = () => {
-            const getOfflineProgress = () => { 
-                const { lastUpdated, pointsPerSecond } = useGameStore.getState();
-                if (!lastUpdated || !pointsPerSecond) return { fameEarned: 0, timeOffline: 0 };
-                const now = Date.now();
-                const timeOfflineInSeconds = Math.floor((now - lastUpdated) / 1000);
-                const maxOfflineTime = 2 * 24 * 60 * 60;
-                const effectiveTimeOffline = Math.min(timeOfflineInSeconds, maxOfflineTime);
-                const fameEarned = Math.floor(effectiveTimeOffline * pointsPerSecond * 0.50);
-                return { fameEarned, timeOffline: effectiveTimeOffline };
-            };
-            const progress = getOfflineProgress();
-            
-            if (progress && progress.fameEarned > 0) {
-                setOfflineProgress(progress);
-            }
-            setIsLoaded(true);
-        };
-
-        if (useGameStore.persist.hasHydrated()) {
-            handleRehydration();
-        } else {
-            const unsubscribe = useGameStore.persist.onFinishRehydration(handleRehydration);
-            return unsubscribe;
-        }
-    }, []);
-
-    if (!isLoaded) {
-        return <div className="loading-screen">Loading Your Game...</div>;
-    }
+        // If this component mounts correctly, we will see this message.
+        console.log(
+            '%cPixelClickerGame Component Mounted!', 
+            'color: #ff00ff; font-size: 24px; font-weight: bold;'
+        );
+    }, []); // Empty dependency array means this runs only once on mount.
 
     return (
-        <>
-            <Toaster position="top-right" />
-            
-            <WelcomeBackModal
-                offlineProgress={offlineProgress}
-                onClose={() => setOfflineProgress(null)}
-            />
-
-            {playerClass ? <GameContainer /> : <ClassSelection />}
-        </>
+        <div style={{ padding: '2rem', border: '5px solid hotpink', color: 'white' }}>
+            <h1>Pixel Clicker Game Component</h1>
+            <p>
+                If you can see this pink box, the component is rendering successfully.
+            </p>
+            <p>
+                Please check the console for a bright pink "Mounted!" message.
+            </p>
+        </div>
     );
 }
