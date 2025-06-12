@@ -3,10 +3,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import toast from 'react-hot-toast';
-import { v4 as uuidv4 } from 'uuid';
 
-// Import all our game data
-import { classes } from '../data/classes';
+// Import all our game data so the store can use it
 import { abilities } from '../data/abilities';
 import { achievements } from '../data/achievements';
 import { weapons } from '../data/weapons';
@@ -34,24 +32,136 @@ const defaultState = {
     unlockedAchievements: {},
     hasPrestiged: false,
     isMuted: false,
-    // We no longer need lastSavedTimestamp because persist middleware handles it
 };
 
 export const useGameStore = create(
     persist(
         (set, get) => ({
+            // ====================================================================
+            // STATE PROPERTIES
+            // ====================================================================
             ...defaultState,
 
             // ====================================================================
             // ACTIONS (LOGIC THAT MODIFIES STATE)
             // ====================================================================
 
-            handleClassSelect: (className) => {
-                set({ playerClass: className });
+            playSound: (soundFile, volume = 1) => {
+                if (!get().isMuted) {
+                    try {
+                        const audio = new Audio(soundFile);
+                        audio.volume = volume;
+                        audio.play().catch(e => console.error("Audio play failed:", e));
+                    } catch (e) {
+                        console.error("Audio creation failed:", e);
+                    }
+                }
             },
 
+            calculateAchievementBonuses: () => {
+                const bonuses = { clickDamageMultiplier: 1, fameMultiplier: 1, clickDamageFlat: 0, shardMultiplier: 1, };
+                for (const ach of achievements) {
+                    if (get().unlockedAchievements[ach.id]) {
+                        switch (ach.reward.type) {
+                            case 'CLICK_DAMAGE_MULTIPLIER': bonuses.clickDamageMultiplier += ach.reward.value; break;
+                            case 'FAME_MULTIPLIER': bonuses.fameMultiplier += ach.reward.value; break;
+                            case 'CLICK_DAMAGE_FLAT': bonuses.clickDamageFlat += ach.reward.value; break;
+                            case 'SHARD_MULTIPLIER': bonuses.shardMultiplier += ach.reward.value; break;
+                            default: break;
+                        }
+                    }
+                }
+                return bonuses;
+            },
+
+            calculateDamageRange: () => {
+                let minDamage = 1; let maxDamage = 1;
+                const { upgradesOwned, temporaryUpgradesOwned, currentBossIndex, prestigeUpgradesOwned, equippedWeapon } = get();
+                const bonuses = get().calculateAchievementBonuses();
+                const currentBoss = bosses[currentBossIndex];
+                const bossStage = `stage${Math.min(currentBossIndex + 1, 3)}`;
+                const currentUpgrades = classUpgrades[bossStage]?.[get().playerClass] || [];
+
+                currentUpgrades.forEach(upgrade => {
+                    const owned = upgradesOwned[upgrade.id] || 0;
+                    if (owned > 0) {
+                        const bonus = Math.floor(Math.pow(owned, 0.9));
+                        if (upgrade.type === 'perClick') {
+                            minDamage += (upgrade.minBonus || 0) * bonus;
+                            maxDamage += (upgrade.maxBonus || 0) * bonus;
+                        } else if (upgrade.type === 'perSecond' && upgrade.clickBonus) {
+                            minDamage += upgrade.clickBonus * bonus;
+                            maxDamage += upgrade.clickBonus * bonus;
+                        }
+                    }
+                });
+
+                if (currentBoss.temporaryUpgrades) {
+                    currentBoss.temporaryUpgrades.forEach(tempUpgrade => {
+                        const owned = temporaryUpgradesOwned[tempUpgrade.id] || 0;
+                        if (owned > 0) {
+                            const bonus = tempUpgrade.clickBonus * owned;
+                            minDamage += bonus;
+                            maxDamage += bonus;
+                        }
+                    });
+                }
+
+                switch (equippedWeapon) {
+                    case 'executioners_axe': minDamage *= 0.75; maxDamage *= 0.75; break;
+                    case 'golden_rapier': minDamage *= 0.80; maxDamage *= 0.80; break;
+                    case 'stacking_vipers': minDamage *= 0.20; maxDamage *= 0.20; break;
+                    default: break;
+                }
+
+                minDamage += bonuses.clickDamageFlat;
+                maxDamage += bonuses.clickDamageFlat;
+
+                const prestigeDamageBonus = prestigeUpgradesOwned['permanentDamage'] || 0;
+                const damageMultiplier = 1 + (prestigeDamageBonus * 0.10);
+
+                minDamage = minDamage * damageMultiplier * bonuses.clickDamageMultiplier;
+                maxDamage = maxDamage * damageMultiplier * bonuses.clickDamageMultiplier;
+
+                // This part now needs to be passed the activeBuffs from the component
+                // For now, we omit it from the store calculation, it will be added in the component
+                return { minDamage: Math.floor(minDamage), maxDamage: Math.floor(maxDamage) };
+            },
+
+            applyClick: (damageDealt, fameEarned) => {
+                set(state => ({
+                    score: state.score + fameEarned,
+                    clicksOnCurrentBoss: state.clicksOnCurrentBoss + damageDealt,
+                    totalClicks: state.totalClicks + 1,
+                    totalFameEarned: state.totalFameEarned + fameEarned,
+                }));
+            },
+
+            applyDps: (dps, fameMultiplier) => {
+                const fameFromDps = Math.floor(dps * fameMultiplier);
+                set(state => ({
+                    score: state.score + fameFromDps,
+                    totalFameEarned: state.totalFameEarned + fameFromDps,
+                }));
+            },
+
+            applyPoison: (poisonStacks, currentBossIndex) => {
+                const poisonDps = poisonStacks * (1 + Math.floor(currentBossIndex * 1.5));
+                set(state => ({
+                    clicksOnCurrentBoss: state.clicksOnCurrentBoss + poisonDps
+                }));
+            },
+
+            applyHealing: (amount) => {
+                set(state => ({
+                    clicksOnCurrentBoss: Math.max(0, state.clicksOnCurrentBoss - amount)
+                }));
+            },
+
+            handleClassSelect: (className) => set({ playerClass: className }),
+
             handleBuyUpgrade: (upgrade) => {
-                const { score, upgradesOwned, pointsPerSecond } = get();
+                const { score, upgradesOwned } = get();
                 const owned = upgradesOwned[upgrade.id] || 0;
                 const cost = Math.floor(upgrade.cost * Math.pow(1.15, owned));
 
@@ -59,53 +169,43 @@ export const useGameStore = create(
                     set(state => ({
                         score: state.score - cost,
                         pointsPerSecond: upgrade.type === 'perSecond' ? state.pointsPerSecond + upgrade.value : state.pointsPerSecond,
-                        upgradesOwned: {
-                            ...state.upgradesOwned,
-                            [upgrade.id]: (state.upgradesOwned[upgrade.id] || 0) + 1,
-                        },
+                        upgradesOwned: { ...state.upgradesOwned, [upgrade.id]: owned + 1 },
                     }));
                 } else {
-                    toast.error("Oopsie! Not enough points, cutie!");
+                    toast.error("Not enough points!");
                 }
             },
 
             handleBuyTemporaryUpgrade: (upgrade) => {
                 const { score, temporaryUpgradesOwned } = get();
-                const cost = Math.floor(upgrade.cost * Math.pow(1.25, temporaryUpgradesOwned[upgrade.id] || 0));
+                const owned = temporaryUpgradesOwned[upgrade.id] || 0;
+                const cost = Math.floor(upgrade.cost * Math.pow(1.25, owned));
                 if (score >= cost) {
                     set(state => ({
                         score: state.score - cost,
-                        temporaryUpgradesOwned: {
-                            ...state.temporaryUpgradesOwned,
-                            [upgrade.id]: (state.temporaryUpgradesOwned[upgrade.id] || 0) + 1,
-                        }
+                        temporaryUpgradesOwned: { ...state.temporaryUpgradesOwned, [upgrade.id]: owned + 1, }
                     }));
                 } else {
-                    toast.error("Not enough Fame for that boost!");
+                    toast.error("Not enough Fame!");
                 }
             },
-            
+
             handleBuyPrestigeUpgrade: (upgrade) => {
                 const { exaltedShards, prestigeUpgradesOwned } = get();
                 const owned = prestigeUpgradesOwned[upgrade.id] || 0;
                 const cost = Math.floor(upgrade.cost * Math.pow(1.5, owned));
-
                 if (exaltedShards >= cost) {
                     set(state => ({
                         exaltedShards: state.exaltedShards - cost,
-                        prestigeUpgradesOwned: {
-                            ...state.prestigeUpgradesOwned,
-                            [upgrade.id]: (state.prestigeUpgradesOwned[upgrade.id] || 0) + 1
-                        }
+                        prestigeUpgradesOwned: { ...state.prestigeUpgradesOwned, [upgrade.id]: owned + 1 }
                     }));
                 } else {
-                    toast.error("Not enough Exalted Shards!");
+                    toast.error("Not enough Shards!");
                 }
             },
-            
+
             handleUnlockWeapon: (weapon) => {
-                const { exaltedShards } = get();
-                if (exaltedShards >= weapon.cost) {
+                if (get().exaltedShards >= weapon.cost) {
                     set(state => ({
                         exaltedShards: state.exaltedShards - weapon.cost,
                         unlockedWeapons: { ...state.unlockedWeapons, [weapon.id]: true }
@@ -122,79 +222,23 @@ export const useGameStore = create(
                 toast.success(`Equipped ${weaponName}!`);
             },
             
-            handleUseAbility: (abilityId, activeBuffs, fameMultiplier) => {
-                const now = Date.now();
-                const { abilityCooldowns, pointsPerSecond, equippedWeapon, currentBossIndex } = get();
-                const ability = abilities.find(a => a.id === abilityId);
-
-                if (!ability || (abilityCooldowns[abilityId] || 0) > now) {
-                    toast.error('Ability is on cooldown!');
-                    return;
-                }
-        
-                switch (abilityId) {
-                    case 'slam': {
-                        if (pointsPerSecond <= 0) {
-                            toast.error("Slam would have no effect with 0 DPS!");
-                            return; // Exit without using cooldown
-                        }
-                        let dps = pointsPerSecond;
-                        if(activeBuffs['arcane_power']) dps *= 2;
-                        const slamDamage = Math.floor(dps * 30);
-                        const fameFromSlam = Math.floor(slamDamage * fameMultiplier);
-                        set(state => ({
-                            score: state.score + fameFromSlam,
-                            clicksOnCurrentBoss: state.clicksOnCurrentBoss + slamDamage
-                        }));
-                        toast.success('SLAM!', { icon: '💥' });
-                        break;
-                    }
-                    case 'arcane_power': {
-                        // The buff logic will be handled in the component via useEffect
-                        toast('Arcane Power surges through you!', { icon: '✨' });
-                        break;
-                    }
-                    case 'virulent_outbreak': {
-                        if (equippedWeapon === 'stacking_vipers') {
-                            toast('Poison surges!', { icon: '🧪' });
-                            // This action now returns the effect to be set in the component
-                            return { type: 'SET_POISON', payload: { stacks: get().poison.stacks + 50, lastApplied: now } };
-                        } else {
-                            const flatDamage = 5000 * (currentBossIndex + 1);
-                            const fameFromAbility = Math.floor(flatDamage * fameMultiplier);
-                            set(state => ({
-                                score: state.score + fameFromAbility,
-                                clicksOnCurrentBoss: state.clicksOnCurrentBoss + flatDamage
-                            }));
-                            toast.success('Affliction strikes!', { icon: '💀' });
-                        }
-                        break;
-                    }
-                    default: break;
-                }
-
-                // Set the new cooldown
-                set(state => ({
-                    abilityCooldowns: { ...state.abilityCooldowns, [abilityId]: now + ability.cooldown * 1000 }
-                }));
-            },
-
-            handlePrestige: (fameMultiplier, shardMultiplier) => {
+            handlePrestige: () => {
                 const { score, prestigeUpgradesOwned, playerClass, isMuted, unlockedWeapons } = get();
+                const shardMultiplier = get().calculateAchievementBonuses().shardMultiplier;
                 const shardsToAward = Math.floor((score / 2500000) * shardMultiplier);
 
                 if (shardsToAward < 1) {
-                    alert("You need a higher score to prestige! Try reaching at least 2,500,000 Fame.");
+                    alert("You need a higher score to prestige!");
                     return false;
                 }
-                const isConfirmed = window.confirm(`Are you sure you want to prestige? You will earn ${shardsToAward} Exalted Shards?`);
-                
-                if (isConfirmed) {
+                if (window.confirm(`Are you sure you want to prestige for ${shardsToAward} Exalted Shards?`)) {
                     const startingFameLevel = prestigeUpgradesOwned['permanentFame'] || 0;
                     const startingPpsLevel = prestigeUpgradesOwned['permanentPPS'] || 0;
                     set({
                         ...defaultState,
-                        playerClass: playerClass,
+                        playerClass,
+                        isMuted,
+                        unlockedWeapons,
                         exaltedShards: get().exaltedShards + shardsToAward,
                         prestigeUpgradesOwned: prestigeUpgradesOwned,
                         score: startingFameLevel * 1000,
@@ -203,34 +247,59 @@ export const useGameStore = create(
                         totalFameEarned: get().totalFameEarned,
                         unlockedAchievements: get().unlockedAchievements,
                         hasPrestiged: true,
-                        isMuted: isMuted,
-                        unlockedWeapons: unlockedWeapons,
                     });
                     return true;
                 }
                 return false;
             },
-            
-            toggleMute: () => set(state => ({ isMuted: !state.isMuted })),
 
-            // We can add many more actions here...
-            applyDamage: (damage, fame) => {
+            setAbilityCooldown: (abilityId, cooldown) => {
+                const now = Date.now();
                 set(state => ({
-                    score: state.score + fame,
-                    clicksOnCurrentBoss: state.clicksOnCurrentBoss + damage,
-                    totalClicks: state.totalClicks + 1,
-                    totalFameEarned: state.totalFameEarned + fame,
+                    abilityCooldowns: { ...state.abilityCooldowns, [abilityId]: now + cooldown * 1000 }
                 }));
             },
 
+            checkForAchievementUnlocks: () => {
+                const { unlockedAchievements } = get();
+                for (const ach of achievements) {
+                    if (!unlockedAchievements[ach.id] && ach.isUnlocked(get())) {
+                        set(state => ({
+                            unlockedAchievements: { ...state.unlockedAchievements, [ach.id]: true }
+                        }));
+                        toast.custom((t) => (
+                            <div className={`achievement-alert ${t.visible ? 'animate-enter' : 'animate-leave'}`} onClick={() => toast(ach.rewardDescription, { icon: '🏆' })}>
+                                <strong>🏆 Achievement Unlocked!</strong>
+                                <p>{ach.name}</p>
+                                <small>Click to see reward!</small>
+                            </div>
+                        ));
+                    }
+                }
+            },
+
+            advanceToNextBoss: (isPortal) => {
+                set(state => ({
+                    currentBossIndex: state.currentBossIndex + 1,
+                    clicksOnCurrentBoss: 0,
+                    temporaryUpgradesOwned: {},
+                    abilityCooldowns: isPortal ? {} : state.abilityCooldowns, // Reset CDs on portal entry
+                }));
+            },
+            
+            toggleMute: () => set(state => ({ isMuted: !state.isMuted })),
+
             resetSave: () => {
-                if (window.confirm("Are you sure you want to reset all your progress?")) {
+                if (window.confirm("Are you sure? This will erase everything.")) {
                     set(defaultState);
+                    // This is a utility to clear the persisted state if needed
+                    // It's often good practice to also call localStorage.clear() or removeItem
+                    localStorage.removeItem('pixel-clicker-save');
                 }
             },
         }),
         {
-            name: 'pixel-clicker-game-save', // This is the key in localStorage
+            name: 'pixel-clicker-save',
         }
     )
 );
