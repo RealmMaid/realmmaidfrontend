@@ -52,7 +52,7 @@ export function GameContainer() {
         const timeoutId = setTimeout(() => {
             lastTimeRef.current = null; // Reset timer to start fresh.
             animationFrameId = requestAnimationFrame(loop);
-        }, 0);
+        }, .75);
 
 
         // The cleanup function is crucial. It runs when the component unmounts OR when
