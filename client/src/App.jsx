@@ -22,7 +22,10 @@ import ProfileSettings from './components/dashboard/ProfileSettings.jsx';
 import PaymentMethods from './components/dashboard/PaymentMethods.jsx';
 import MyWishlist from './components/dashboard/MyWishlist.jsx';
 import SpaceDodgerGame from './components/dashboard/SpaceDodgerGame.jsx';
-import PhaserGame from './components/dashboard/PhaserGame'; // Note: You imported this but used PixelClickerGame
+
+// --- THIS IS THE IMPORTANT PART ---
+// Import the main game controller component, not the PhaserGame canvas component.
+import PixelClickerGame from './components/dashboard/PixelClickerGame';
 
 function App() {
   useEffect(() => {
@@ -31,8 +34,7 @@ function App() {
 
   return (
     <>
-      <Routes> {/* FIX 1: Added the opening <Routes> tag */}
-        {/* --- Your Original Routes --- */}
+      <Routes>
         <Route path="/" element={<HomePage />} />
         
         <Route element={<MainLayout />}>
@@ -49,8 +51,10 @@ function App() {
             <Route path="settings"element={<ProfileSettings />} />
             <Route path="payments" element={<PaymentMethods />} />
             <Route path="wishlist" element={<MyWishlist />} />
-            {/* I noticed PixelClickerGame wasn't imported, changed to PhaserGame */}
-            <Route path="game" element={<PhaserGame />} />
+            
+            {/* This route now correctly loads our main controller component for the game. */}
+            <Route path="game" element={<PixelClickerGame />} />
+
           </Route>
           <Route path="/checkout" element={<CheckoutPage />} />
         </Route>
@@ -63,7 +67,6 @@ function App() {
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
 
-      {/* FIX 2: Corrected the props syntax for the Toaster component */}
       <Toaster 
         position="bottom-right"
         toastOptions={{
