@@ -3,13 +3,16 @@ import { useGameStore } from '../../stores/gameStore';
 import EventBus from '../../EventBus';
 import { Toaster } from 'react-hot-toast';
 
-// Import the UI and the Game component
-import { Hud } from './clicker/Hud';
-import PhaserGame from './PhaserGame'; // Note the direct import
+// Import the two main views this component will switch between
+import { GameContainer } from './clicker/GameContainer';
+import { ClassSelection } from './clicker/ClassSelection';
 
 export default function PixelClickerGame() {
-    // Get the `setScore` action from our store
-    const setScore = useGameStore(state => state.setScore);
+    // Get the state and actions needed for this controller
+    const { playerClass, setScore } = useGameStore(state => ({
+        playerClass: state.playerClass,
+        setScore: state.setScore,
+    }));
 
     // This useEffect hook sets up the listener that connects Phaser to our React store
     useEffect(() => {
@@ -29,19 +32,14 @@ export default function PixelClickerGame() {
     }, [setScore]); // The dependency array ensures this setup only runs once
 
     return (
-        <div className="card">
-            <div className="clicker-container">
-                {/* 1. We render our React HUD component here */}
-                <Hud />
-
-                <hr style={{ margin: '1rem 0', borderColor: '#4a1566' }} />
-
-                {/* 2. We render our Phaser Game component here */}
-                <div style={{ display: 'flex', justifyContent: 'center' }}>
-                    <PhaserGame />
-                </div>
-            </div>
+        <>
             <Toaster position="top-right" />
-        </div>
+            
+            {/* This is the main logic for the page.
+              If a player class hasn't been chosen, show the ClassSelection component.
+              Otherwise, show the main GameContainer.
+            */}
+            {playerClass ? <GameContainer /> : <ClassSelection />}
+        </>
     );
 }
