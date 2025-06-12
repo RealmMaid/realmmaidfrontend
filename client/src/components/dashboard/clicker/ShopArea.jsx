@@ -1,15 +1,13 @@
 import React, { useState } from 'react';
 
-// We will create these components in the next steps!
-// It's okay that they don't exist yet for now.
+// Import all our shop area components
 import { UpgradesShop } from './UpgradesShop';
 import { PrestigeShop } from './PrestigeShop';
 import { AchievementsList } from './AchievementsList';
 import { Armory } from './Armory';
+import { StatsPage } from './StatsPage'; // ✨ NEW: Import the Stats Page
 
 export function ShopArea() {
-    // This local state only controls which tab is active in the UI.
-    // It belongs here, not in the global store.
     const [activeShop, setActiveShop] = useState('upgrades');
 
     return (
@@ -39,14 +37,22 @@ export function ShopArea() {
                 >
                     Armory
                 </button>
+                {/* ✨ NEW: Add the Stats tab button */}
+                <button
+                    className={`btn-toggle ${activeShop === 'stats' ? 'active' : ''}`}
+                    onClick={() => setActiveShop('stats')}
+                >
+                    Stats
+                </button>
             </div>
 
-            {/* Here we conditionally render the correct shop component */}
             <div className="shop-content">
                 {activeShop === 'upgrades' && <UpgradesShop />}
                 {activeShop === 'prestige' && <PrestigeShop />}
                 {activeShop === 'achievements' && <AchievementsList />}
                 {activeShop === 'armory' && <Armory />}
+                {/* ✨ NEW: Render the Stats Page when the tab is active */}
+                {activeShop === 'stats' && <StatsPage />}
             </div>
         </>
     );
