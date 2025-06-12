@@ -1,59 +1,46 @@
 import React, { useEffect, useState } from 'react';
-import { useGameStore, getOfflineProgress } from '../../stores/gameStore';
+import { useGameStore } from '../../stores/gameStore';
 import { Toaster } from 'react-hot-toast';
+import EventBus from '../../EventBus'; // ✨ NEW: Import our Event Bus
 
-// Import your REAL components from their separate files.
-// This path to GameContainer is now correct and will resolve the build error.
+// Import your components
 import { GameContainer } from './clicker/GameContainer';
-import { ClassSelection } from './clicker/ClassSelection';
-import { WelcomeBackModal } from './clicker/WelcomeBackModal';
+import { ClassSelection } from './ClassSelection';
+// ... other imports
 
-// This is the main parent component for the game. Its only job is to
-// manage loading and decide which major screen to show.
 export default function PixelClickerGame() {
-    // Select the necessary state to decide what to render
-    const playerClass = useGameStore(state => state.playerClass);
+    const { playerClass, setScore } = useGameStore(state => ({
+        playerClass: state.playerClass,
+        setScore: state.setScore, // ✨ NEW: Get the setScore action
+    }));
 
-    // This local state manages the offline progress modal
-    const [offlineProgress, setOfflineProgress] = useState(null);
-    // This local state prevents the game from rendering before saved data is loaded
-    const [isLoaded, setIsLoaded] = useState(useGameStore.persist.hasHydrated);
+    const [isLoaded, setIsLoaded] = useState(true); // Simplified for now
 
-    // This effect runs once on load to check for offline progress
+    // ✨ NEW: This useEffect sets up the event listeners
     useEffect(() => {
-        const handleRehydration = () => {
-            const progress = getOfflineProgress();
-            
-            if (progress && progress.fameEarned > 0) {
-                setOfflineProgress(progress);
-            }
-            setIsLoaded(true); // Mark the game as ready to be displayed
+        // The handler function that will be called when the event is emitted
+        const onScoreUpdate = (newScore) => {
+            console.log('React received score update:', newScore);
+            // Call the Zustand action to update the global state
+            setScore(newScore);
         };
 
-        // Zustand gives us tools to safely wait for saved data to load
-        if (useGameStore.persist.hasHydrated()) {
-            handleRehydration();
-        } else {
-            const unsubscribe = useGameStore.persist.onFinishRehydration(handleRehydration);
-            return unsubscribe; // Cleanup the listener
-        }
-    }, []); // Empty array `[]` ensures this runs only once.
+        // Listen for the 'scoreUpdated' event
+        EventBus.on('scoreUpdated', onScoreUpdate);
 
-    // While loading, show a simple loading screen
+        // Cleanup function to remove the listener when the component unmounts
+        return () => {
+            EventBus.off('scoreUpdated', onScoreUpdate);
+        };
+    }, [setScore]); // Dependency array ensures this only runs once
+
     if (!isLoaded) {
-        return <div className="loading-screen">Loading Your Game...</div>;
+        return <div className="loading-screen">Loading...</div>;
     }
 
     return (
         <>
             <Toaster position="top-right" />
-            
-            <WelcomeBackModal
-                offlineProgress={offlineProgress}
-                onClose={() => setOfflineProgress(null)}
-            />
-
-            {/* This ternary will now render your REAL, feature-rich components */}
             {playerClass ? <GameContainer /> : <ClassSelection />}
         </>
     );
