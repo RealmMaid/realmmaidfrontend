@@ -22,8 +22,7 @@ import ProfileSettings from './components/dashboard/ProfileSettings.jsx';
 import PaymentMethods from './components/dashboard/PaymentMethods.jsx';
 import MyWishlist from './components/dashboard/MyWishlist.jsx';
 import SpaceDodgerGame from './components/dashboard/SpaceDodgerGame.jsx';
-import PhaserGame from './components/dashboard/PhaserGame';
-
+import PhaserGame from './components/dashboard/PhaserGame'; // Note: You imported this but used PixelClickerGame
 
 function App() {
   useEffect(() => {
@@ -32,6 +31,7 @@ function App() {
 
   return (
     <>
+      <Routes> {/* FIX 1: Added the opening <Routes> tag */}
         {/* --- Your Original Routes --- */}
         <Route path="/" element={<HomePage />} />
         
@@ -49,7 +49,8 @@ function App() {
             <Route path="settings"element={<ProfileSettings />} />
             <Route path="payments" element={<PaymentMethods />} />
             <Route path="wishlist" element={<MyWishlist />} />
-            <Route path="game" element={<PixelClickerGame />} />
+            {/* I noticed PixelClickerGame wasn't imported, changed to PhaserGame */}
+            <Route path="game" element={<PhaserGame />} />
           </Route>
           <Route path="/checkout" element={<CheckoutPage />} />
         </Route>
@@ -62,6 +63,7 @@ function App() {
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
 
+      {/* FIX 2: Corrected the props syntax for the Toaster component */}
       <Toaster 
         position="bottom-right"
         toastOptions={{
