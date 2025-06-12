@@ -1,6 +1,3 @@
-import React, { useEffect, useRef } from 'react';
-import Phaser from 'phaser'; // <-- The important import!
-
 // --- PHASER SCENE DEFINITION ---
 class MainScene extends Phaser.Scene {
     constructor() {
@@ -11,7 +8,8 @@ class MainScene extends Phaser.Scene {
         console.log("Phaser: Initializing game state...");
         this.gameState = {
             score: 0,
-            pointsPerSecond: 0,
+            // Let's give ourselves 5 points per second to see it working!
+            pointsPerSecond: 5,
             currentBossIndex: 0,
             clicksOnCurrentBoss: 0,
         };
@@ -28,17 +26,11 @@ class MainScene extends Phaser.Scene {
         
         const bossImage = this.add.image(400, 300, 'oryx1');
 
-        // --- Make the boss interactive ---
         bossImage.setInteractive({ useHandCursor: true });
         bossImage.on('pointerdown', () => {
-            // Update the game state
             this.gameState.score += 1;
             this.gameState.clicksOnCurrentBoss += 1;
-
-            // Update the score text UI
             this.scoreText.setText(`Fame: ${this.gameState.score}`);
-
-            // Play sound and visual feedback
             this.sound.play('oryx_hit', { volume: 0.5 });
             this.tweens.add({
                 targets: bossImage,
@@ -50,53 +42,37 @@ class MainScene extends Phaser.Scene {
             });
         });
         
-        // --- UI Elements ---
         this.scoreText = this.add.text(50, 50, `Fame: ${this.gameState.score}`, { 
             font: '24px "Press Start 2P"',
             fill: '#ffffff' 
         });
+
+        // ✨ --- NEW: Add a looping timer for DPS --- ✨
+        // This tells Phaser to call our `applyDps` function every 1000ms (1 second).
+        this.time.addEvent({
+            delay: 1000,
+            callback: this.applyDps,
+            callbackScope: this,
+            loop: true
+        });
     }
 
-    update(time, delta) {
-        // The game loop!
-    }
-}
-
-
-// --- REACT COMPONENT DEFINITION ---
-export function PhaserGame() {
-    const phaserRef = useRef(null);
-    const gameInstanceRef = useRef(null);
-
-    useEffect(() => {
-        if (!phaserRef.current) {
+    // ✨ --- NEW: The function that gets called by our timer --- ✨
+    applyDps() {
+        // We only apply DPS if it's greater than 0.
+        if (this.gameState.pointsPerSecond <= 0) {
             return;
         }
 
-        const config = {
-            type: Phaser.AUTO,
-            width: 800,
-            height: 600,
-            parent: phaserRef.current,
-            backgroundColor: '#1a0922',
-            scene: [MainScene]
-        };
+        // Add the pointsPerSecond to the score
+        this.gameState.score += this.gameState.pointsPerSecond;
 
-        if (!gameInstanceRef.current) {
-            gameInstanceRef.current = new Phaser.Game(config);
-        }
+        // Update the score text on the screen
+        this.scoreText.setText(`Fame: ${this.gameState.score}`);
+    }
 
-        return () => {
-            if (gameInstanceRef.current) {
-                gameInstanceRef.current.destroy(true);
-                gameInstanceRef.current = null;
-            }
-        };
-    }, []);
-
-    return (
-        <div ref={phaserRef} id="phaser-container" />
-    );
+    update(time, delta) {
+        // The `update` loop still runs every frame, but our DPS logic
+        // is now handled neatly by the timer event!
+    }
 }
-
-export default PhaserGame;
