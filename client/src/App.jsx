@@ -21,7 +21,6 @@ import MyOrders from './components/dashboard/MyOrders.jsx';
 import ProfileSettings from './components/dashboard/ProfileSettings.jsx';
 import PaymentMethods from './components/dashboard/PaymentMethods.jsx';
 import MyWishlist from './components/dashboard/MyWishlist.jsx';
-import PixelClickerGame from './components/dashboard/PixelClickerGame.jsx';
 import SpaceDodgerGame from './components/dashboard/SpaceDodgerGame.jsx';
 import PhaserGame from './components/dashboard/PhaserGame';
 
