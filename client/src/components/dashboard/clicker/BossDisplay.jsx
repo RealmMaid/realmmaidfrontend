@@ -95,6 +95,7 @@ export function BossDisplay() {
 
     return (
         <>
+            <h1 style={{ color: 'red', zIndex: 9999 }}>TESTING BOSS DISPLAY</h1>
             {floatingNumbers.map(num => (
                 <span
                     key={num.id}
