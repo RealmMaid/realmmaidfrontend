@@ -9,8 +9,6 @@ import { WebSocketProvider } from './contexts/WebSocketProvider.jsx';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import GameLoopManager from './utils/GameLoopManager'; // ✨ NEW: Import our manager!
 
-// This is the cleaned up version with React.StrictMode removed as a last resort.
-
 const queryClient = new QueryClient();
 
 // ✨ NEW: Start the game loop ONE TIME for the entire application lifecycle.
