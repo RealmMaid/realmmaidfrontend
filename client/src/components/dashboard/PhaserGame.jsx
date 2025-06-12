@@ -1,5 +1,4 @@
-import React, { useEffect, useRef } from 'react';
-import Phaser from 'phaser';
+import EventBus from '../../EventBus'; // ✨ NEW: Import our Event Bus
 
 // --- PHASER SCENE DEFINITION ---
 class MainScene extends Phaser.Scene {
@@ -11,8 +10,6 @@ class MainScene extends Phaser.Scene {
         this.gameState = {
             score: 0,
             pointsPerSecond: 5,
-            currentBossIndex: 0,
-            clicksOnCurrentBoss: 0,
         };
     }
 
@@ -23,27 +20,19 @@ class MainScene extends Phaser.Scene {
 
     create() {
         const bossImage = this.add.image(400, 300, 'oryx1');
-
         bossImage.setInteractive({ useHandCursor: true });
+
         bossImage.on('pointerdown', () => {
             this.gameState.score += 1;
-            this.gameState.clicksOnCurrentBoss += 1;
-            this.scoreText.setText(`Fame: ${this.gameState.score}`);
+            // ✨ NEW: Emit an event with the new score
+            EventBus.emit('scoreUpdated', this.gameState.score);
+            
             this.sound.play('oryx_hit', { volume: 0.5 });
-            this.tweens.add({
-                targets: bossImage,
-                scaleX: 0.9,
-                scaleY: 0.9,
-                duration: 50,
-                yoyo: true,
-                ease: 'Power1'
-            });
+            this.tweens.add({ /* ... tween logic ... */ });
         });
         
-        this.scoreText = this.add.text(50, 50, `Fame: ${this.gameState.score}`, { 
-            font: '24px "Press Start 2P"',
-            fill: '#ffffff' 
-        });
+        // We no longer need the Phaser score text, as React will handle it.
+        // this.scoreText = this.add.text(...) 
 
         this.time.addEvent({
             delay: 1000,
@@ -56,46 +45,9 @@ class MainScene extends Phaser.Scene {
     applyDps() {
         if (this.gameState.pointsPerSecond <= 0) return;
         this.gameState.score += this.gameState.pointsPerSecond;
-        this.scoreText.setText(`Fame: ${this.gameState.score}`);
+        // ✨ NEW: Emit an event with the new score
+        EventBus.emit('scoreUpdated', this.gameState.score);
     }
 
-    update(time, delta) {
-        // The game loop
-    }
+    update(time, delta) { /* ... */ }
 }
-
-// --- REACT COMPONENT DEFINITION ---
-export function PhaserGame() {
-    const phaserRef = useRef(null);
-    const gameInstanceRef = useRef(null);
-
-    useEffect(() => {
-        if (!phaserRef.current) return;
-
-        const config = {
-            type: Phaser.AUTO,
-            width: 800,
-            height: 600,
-            parent: phaserRef.current,
-            backgroundColor: '#1a0922',
-            scene: [MainScene]
-        };
-
-        if (!gameInstanceRef.current) {
-            gameInstanceRef.current = new Phaser.Game(config);
-        }
-
-        return () => {
-            if (gameInstanceRef.current) {
-                gameInstanceRef.current.destroy(true);
-                gameInstanceRef.current = null;
-            }
-        };
-    }, []);
-
-    return <div ref={phaserRef} id="phaser-container" />;
-}
-
-// ✨ THIS IS THE FIX ✨
-// This line makes the PhaserGame component the default export of this file.
-export default PhaserGame;
