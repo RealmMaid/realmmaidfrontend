@@ -1,45 +1,79 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useGameStore } from '../../stores/gameStore';
-import EventBus from '../../EventBus';
 import { Toaster } from 'react-hot-toast';
 
-// Import the two main views this component will switch between
-import { GameContainer } from './clicker/GameContainer';
+// Import all the different 'screens' or 'views' that our game can be in.
 import { ClassSelection } from './clicker/ClassSelection';
+import { GameContainer } from './clicker/GameContainer';
+import { VictoryScreen } from './clicker/VictoryScreen';
+import { Portal } from './clicker/Portal';
+import { TransitionalScreen } from './clicker/TransitionalScreen';
+import { WelcomeBackModal } from './clicker/WelcomeBackModal';
 
-export default function PixelClickerGame() {
-    // Get the state and actions needed for this controller
-    const { playerClass, setScore } = useGameStore(state => ({
-        playerClass: state.playerClass,
-        setScore: state.setScore,
+function PixelClickerGame() {
+    // Select the state and actions that this top-level component needs to control the game's flow.
+    const {
+        gamePhase,
+        loadInitialState
+    } = useGameStore(state => ({
+        gamePhase: state.gamePhase,
+        loadInitialState: state.loadInitialState,
     }));
+    
+    // This is a local React state. It's only used for managing the visibility of the
+    // "Welcome Back" modal and doesn't need to be in the global Zustand store.
+    const [offlineProgress, setOfflineProgress] = useState(null);
 
-    // This useEffect hook sets up the listener that connects Phaser to our React store
+    // This useEffect hook runs only ONCE when the component first mounts.
     useEffect(() => {
-        // This function will be called every time Phaser emits 'scoreUpdated'
-        const onScoreUpdate = (newScore) => {
-            // Update our Zustand store with the new score from the game
-            setScore(newScore);
-        };
-
-        // Start listening for the event from our EventBus
-        EventBus.on('scoreUpdated', onScoreUpdate);
-
-        // Cleanup function to remove the listener when the component unmounts
-        return () => {
-            EventBus.off('scoreUpdated', onScoreUpdate);
-        };
-    }, [setScore]); // The dependency array ensures this setup only runs once
+        // We call the `loadInitialState` action from our store.
+        const progress = loadInitialState();
+        
+        // If the action returns any offline progress data, we set it in our local state
+        // which will cause the WelcomeBackModal to appear.
+        if (progress && progress.offlineEarnings > 0) {
+            setOfflineProgress(progress);
+        }
+    }, [loadInitialState]); // The dependency array ensures this runs only once.
+    
+    // This function acts as a router, rendering the correct component
+    // based on the current `gamePhase` string from our Zustand store.
+    const renderGamePhase = () => {
+        switch (gamePhase) {
+            case 'classSelection':
+                return <ClassSelection />;
+            case 'clicking':
+                return <GameContainer />;
+            case 'transitioning':
+            case 'exalted_transition':
+                return <TransitionalScreen />;
+            case 'portal':
+                return <Portal />;
+            case 'finished':
+                return <VictoryScreen />;
+            default:
+                // As a fallback, we show the main game container.
+                return <GameContainer />;
+        }
+    };
 
     return (
         <>
-            <Toaster position="top-right" />
+            {/* The Toaster component from react-hot-toast for showing notifications. */}
+            <Toaster position="top-right" reverseOrder={false} />
             
-            {/* This is the main logic for the page.
-              If a player class hasn't been chosen, show the ClassSelection component.
-              Otherwise, show the main GameContainer.
-            */}
-            {playerClass ? <GameContainer /> : <ClassSelection />}
+            {/* The Welcome Back modal, which will only be visible if `offlineProgress` has data. */}
+            <WelcomeBackModal
+                offlineProgress={offlineProgress}
+                onClose={() => setOfflineProgress(null)}
+            />
+
+            {/* The main wrapper for our game's currently active screen. */}
+            <div className="game-wrapper">
+                {renderGamePhase()}
+            </div>
         </>
     );
 }
+
+export default PixelClickerGame;
