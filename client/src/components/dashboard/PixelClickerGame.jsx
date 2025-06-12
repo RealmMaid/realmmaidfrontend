@@ -6,7 +6,7 @@ import { Toaster } from 'react-hot-toast';
 // This path to GameContainer is now correct and will resolve the build error.
 import { GameContainer } from './clicker/GameContainer';
 import { ClassSelection } from './clicker/ClassSelection';
-import { WelcomeBackModal } from './clicker/WelcomeBackModal;
+import { WelcomeBackModal } from './clicker/WelcomeBackModal';
 
 // This is the main parent component for the game. Its only job is to
 // manage loading and decide which major screen to show.
