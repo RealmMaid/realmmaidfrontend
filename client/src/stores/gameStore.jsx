@@ -41,8 +41,7 @@ const defaultState = {
     totalFameEarned: 0,
     bossesDefeated: {},
     highestCriticalHit: 0,
-    weaponUsageTime: {},
-    lastWeaponEquipTimestamp: null,
+    weaponUsageTime: {}, // Time is stored in milliseconds
     // --- End Stats Tracking ---
     unlockedAchievements: {},
     hasPrestiged: false,
@@ -99,9 +98,6 @@ export const useGameStore = create(
                 const damageFromDps = state.pointsPerSecond * deltaSeconds;
                 const poisonDps = state.poison.stacks * (1 + Math.floor(state.currentBossIndex * 1.5)) * deltaSeconds;
                 
-                const now = Date.now();
-                const lastTimestamp = state.lastWeaponEquipTimestamp || now;
-                const timeSinceLastTick = (now - lastTimestamp);
                 const currentWeapon = state.equippedWeapon;
                 
                 set(s => {
@@ -116,9 +112,8 @@ export const useGameStore = create(
                         clicksOnCurrentBoss: s.clicksOnCurrentBoss + damageFromDps + poisonDps,
                         weaponUsageTime: {
                             ...s.weaponUsageTime,
-                            [currentWeapon]: (s.weaponUsageTime[currentWeapon] || 0) + timeSinceLastTick
+                            [currentWeapon]: (s.weaponUsageTime[currentWeapon] || 0) + delta
                         },
-                        lastWeaponEquipTimestamp: now,
                     };
                 });
 
@@ -140,6 +135,7 @@ export const useGameStore = create(
                     }
                 }
 
+                const now = Date.now();
                 const activeBuffs = { ...state.activeBuffs };
                 const activeDebuffs = { ...state.activeDebuffs };
                 let buffsChanged = false;
@@ -171,6 +167,19 @@ export const useGameStore = create(
                 const state = get();
                 const newBossIndex = state.gamePhase === 'exalted_transition' ? 3 : state.currentBossIndex + 1;
                 set({ currentBossIndex: newBossIndex, clicksOnCurrentBoss: 0, gamePhase: 'clicking', temporaryUpgradesOwned: {}, triggeredHeals: {} });
+            },
+            
+            setEquippedWeapon: (weaponId) => {
+                const state = get();
+                if (state.unlockedWeapons[weaponId] || weaponId === 'default') {
+                    set({ equippedWeapon: weaponId });
+                    const weapon = weapons.find(w => w.id === weaponId);
+                    if (weapon) {
+                        toast.success(`Equipped ${weapon.name}!`);
+                    }
+                } else {
+                    toast.error("You haven't unlocked this weapon yet!");
+                }
             },
 
             handleUseAbility: (abilityId) => {
