@@ -1,8 +1,18 @@
 import React from 'react';
-import { useGameStore } from '../../../stores/gameStore.jsx';
 import { classes } from '../../../data/classes.js';
 
 export function ClassSelection() {
+
+    const handleClassClick = (classId) => {
+        // 1. Create a new "CustomEvent". We can name it anything we want.
+        // The 'detail' property is where we pass our data (the class ID).
+        const event = new CustomEvent('class_selected', { detail: classId });
+
+        // 2. Dispatch the event on the main window object.
+        // The component's job is now done.
+        window.dispatchEvent(event);
+    };
+
     return (
         <div className="card">
             <div className="clicker-container">
@@ -12,8 +22,7 @@ export function ClassSelection() {
                         <button
                             key={pClass.id}
                             className="btn-class-select"
-                            // This is the most critical line. Ensure it calls getState().
-                            onClick={() => useGameStore.getState().handleClassSelect(pClass.id)}
+                            onClick={() => handleClassClick(pClass.id)}
                         >
                             <img src={pClass.image} alt={pClass.name} />
                             <span>{pClass.name}</span>
