@@ -1,32 +1,39 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useGameStore } from '../../../stores/gameStore';
 import { bosses } from '../../../data/bosses';
 import toast from 'react-hot-toast';
 
+/**
+ * BossDisplay Component
+ * This is the main interactive element of the game.
+ */
 export function BossDisplay() {
-    // This component gets all the data and LOGIC it needs from the store...
-    const {
-        gamePhase,
-        currentBossIndex,
-        clicksOnCurrentBoss,
-        isHealing,
-        isInvulnerable,
-        equippedWeapon,
-        activeBuffs,
-        pointsPerSecond,
-        playSound,
-        calculateDamageRange,
-        applyClick,
-        setPoison,
-    } = useGameStore();
+    // ✨ THE FIX: We select each piece of state individually.
+    // This is a best practice with Zustand and prevents the component from
+    // re-rendering unnecessarily when other parts of the store change (like the score).
+    const gamePhase = useGameStore(state => state.gamePhase);
+    const currentBossIndex = useGameStore(state => state.currentBossIndex);
+    const clicksOnCurrentBoss = useGameStore(state => state.clicksOnCurrentBoss);
+    const isHealing = useGameStore(state => state.isHealing);
+    const isInvulnerable = useGameStore(state => state.isInvulnerable);
+    const equippedWeapon = useGameStore(state => state.equippedWeapon);
+    const poison = useGameStore(state => state.poison);
+    const activeBuffs = useGameStore(state => state.activeBuffs);
 
-    // ...but it manages its OWN state for purely VISUAL things.
+    // We also select actions we need to call.
+    const playSound = useGameStore(state => state.playSound);
+    const calculateDamageRange = useGameStore(state => state.calculateDamageRange);
+    const applyClick = useGameStore(state => state.applyClick);
+    const setPoison = useGameStore(state => state.setPoison);
+
+    // State for purely visual things is still managed locally.
     const [floatingNumbers, setFloatingNumbers] = useState([]);
     const [isShaking, setIsShaking] = useState(false);
     const gemButtonRef = useRef(null);
 
-    const currentBoss = bosses[currentBossIndex];
+    // useMemo helps prevent recalculating the current boss on every render.
+    const currentBoss = useMemo(() => bosses[currentBossIndex], [currentBossIndex]);
 
     const handleGemClick = (event) => {
         if (gamePhase !== 'clicking' || isHealing || isInvulnerable) return;
@@ -34,44 +41,38 @@ export function BossDisplay() {
         playSound(currentBoss.clickSound, 0.5);
         let { minDamage, maxDamage } = calculateDamageRange();
         let damageDealt = Math.floor(Math.random() * (maxDamage - minDamage + 1)) + minDamage;
-        let fameEarned = damageDealt;
-        const bonuses = useGameStore.getState().calculateAchievementBonuses();
+        let fameEarned = damageDealt; // Base fame is equal to damage dealt
 
         // Apply weapon effects
-        switch (equippedWeapon) {
-            case 'executioners_axe':
-                if (Math.random() < 0.10) {
-                    damageDealt *= 10;
-                    toast('CRITICAL HIT!', { icon: '💥', duration: 1000 });
-                }
-                break;
-            case 'golden_rapier':
-                fameEarned *= 1.25;
-                break;
-            case 'stacking_vipers':
-                setPoison({ stacks: useGameStore.getState().poison.stacks + 1, lastApplied: Date.now() });
-                break;
-            default:
-                break;
+        if (equippedWeapon === 'executioners_axe' && Math.random() < 0.10) {
+            damageDealt *= 10;
+            toast('CRITICAL HIT!', { icon: '💥', duration: 1000 });
         }
-
-        const isArcaneFameProc = activeBuffs['arcane_power'] && Math.random() < 0.25;
+        if (equippedWeapon === 'golden_rapier') {
+            fameEarned *= 1.25;
+        }
+        if (equippedWeapon === 'stacking_vipers') {
+            setPoison({ stacks: poison.stacks + 1, lastApplied: Date.now() });
+        }
         
-        if (isArcaneFameProc) {
-            let dps = pointsPerSecond * (activeBuffs['arcane_power'] ? 2 : 1);
-            const fameFromAbility = Math.floor(dps * bonuses.fameMultiplier);
-            // We can still call the store action for this special case
-            useGameStore.getState().applyClick(0, fameFromAbility); // 0 damage, only fame
-            setFloatingNumbers(current => [...current, { id: uuidv4(), value: fameFromAbility, x: event.clientX, y: event.clientY, className: 'fame-gain' }]);
-        } else {
-            fameEarned = Math.floor(fameEarned * bonuses.fameMultiplier);
-            // Call the main action in the store to apply damage and fame
-            applyClick(damageDealt, fameEarned);
+        // Calculate final fame including achievement bonuses
+        const bonuses = useGameStore.getState().calculateAchievementBonuses();
+        fameEarned = Math.floor(fameEarned * bonuses.fameMultiplier);
+        
+        // Call the main action in the store to apply damage and fame
+        applyClick(damageDealt, fameEarned);
 
-            // Handle the visual feedback here in the component
-            const rect = event.currentTarget.getBoundingClientRect();
-            setFloatingNumbers(current => [...current, { id: uuidv4(), value: fameEarned, x: rect.left + rect.width / 2 + (Math.random() * 80 - 40), y: rect.top + (Math.random() * 20 - 10), }]);
-        }
+        // Handle the visual feedback here in the component
+        const rect = event.currentTarget.getBoundingClientRect();
+        setFloatingNumbers(current => [
+            ...current,
+            {
+                id: uuidv4(),
+                value: damageDealt, // Show damage dealt, not fame earned
+                x: rect.left + rect.width / 2 + (Math.random() * 80 - 40),
+                y: rect.top + (Math.random() * 20 - 10),
+            }
+        ]);
 
         setIsShaking(true);
         setTimeout(() => setIsShaking(false), 150);
@@ -95,15 +96,14 @@ export function BossDisplay() {
 
     return (
         <>
-            <h1 style={{ color: 'red', zIndex: 9999 }}>TESTING BOSS DISPLAY</h1>
             {floatingNumbers.map(num => (
                 <span
                     key={num.id}
-                    className={`floating-number ${num.className || ''}`}
+                    className="floating-number"
                     style={{ left: num.x, top: num.y }}
                     onAnimationEnd={() => setFloatingNumbers(current => current.filter(n => n.id !== num.id))}
                 >
-                    {num.className === 'fame-gain' ? '+' : '-'}{num.value.toLocaleString()}
+                    {num.value.toLocaleString()}
                 </span>
             ))}
             
@@ -114,17 +114,14 @@ export function BossDisplay() {
             </h3>
 
             <div
-                className={`gem-button ${isHealing || isInvulnerable || gamePhase === 'exalted_transition' ? 'disabled' : ''}`}
+                className={`gem-button ${isHealing || isInvulnerable ? 'disabled' : ''}`}
                 ref={gemButtonRef}
                 onClick={handleGemClick}
             >
                 <img
                     src={getCurrentImage()}
                     alt={currentBoss.name}
-                    className={`
-                        ${gamePhase === 'transitioning' || gamePhase === 'exalted_transition' ? 'fading-out' : ''}
-                        ${isShaking ? 'shake' : ''}
-                    `}
+                    className={isShaking ? 'shake' : ''}
                 />
             </div>
 

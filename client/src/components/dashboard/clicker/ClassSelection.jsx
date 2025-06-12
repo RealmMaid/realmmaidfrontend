@@ -1,34 +1,48 @@
 import React from 'react';
-import { classes } from '../../../data/classes.js';
+import { useGameStore } from '../../../stores/gameStore';
+import { classes } from '../../../data/classes';
 
+/**
+ * ClassSelection Component
+ * This is the first screen the player sees, allowing them to choose a class.
+ */
 export function ClassSelection() {
-
-    const handleClassClick = (classId) => {
-        // 1. Create a new "CustomEvent". We can name it anything we want.
-        // The 'detail' property is where we pass our data (the class ID).
-        const event = new CustomEvent('class_selected', { detail: classId });
-
-        // 2. Dispatch the event on the main window object.
-        // The component's job is now done.
-        window.dispatchEvent(event);
-    };
+    // We only need to get the action from the store to handle the selection.
+    const handleClassSelect = useGameStore(state => state.handleClassSelect);
 
     return (
-        <div className="card">
-            <div className="clicker-container">
-                <h3>Choose Your Class, Cutie!</h3>
-                <div className="class-selection-container" style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '1rem' }}>
-                    {classes.map(pClass => (
-                        <button
-                            key={pClass.id}
-                            className="btn-class-select"
-                            onClick={() => handleClassClick(pClass.id)}
-                        >
-                            <img src={pClass.image} alt={pClass.name} />
-                            <span>{pClass.name}</span>
-                        </button>
-                    ))}
-                </div>
+        <div className="class-selection-container" style={{ textAlign: 'center' }}>
+            <h2>Choose Your Class!</h2>
+            <p>Select a hero to begin your adventure!</p>
+            <div className="class-grid" style={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                gap: '2rem', 
+                marginTop: '2rem' 
+            }}>
+                {classes.map(character => (
+                    <div 
+                        key={character.id} 
+                        className="class-card" 
+                        onClick={() => handleClassSelect(character.id)}
+                        style={{
+                            cursor: 'pointer',
+                            border: '2px solid #555',
+                            borderRadius: '10px',
+                            padding: '1rem',
+                            transition: 'all 0.2s ease-in-out'
+                        }}
+                        onMouseOver={e => e.currentTarget.style.borderColor = '#fff'}
+                        onMouseOut={e => e.currentTarget.style.borderColor = '#555'}
+                    >
+                        <img 
+                            src={character.image} 
+                            alt={character.name} 
+                            style={{ width: '100px', height: '100px' }} 
+                        />
+                        <h3 style={{ marginTop: '1rem' }}>{character.name}</h3>
+                    </div>
+                ))}
             </div>
         </div>
     );

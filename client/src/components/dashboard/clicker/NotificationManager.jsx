@@ -5,22 +5,18 @@ import toast from 'react-hot-toast';
 
 /**
  * This component handles showing notifications in a way that is safe for React's render cycle.
- * It doesn't render any visible UI itself, it just manages toasts.
  */
 export function NotificationManager() {
-    // Subscribe to the two pieces of state we need
-    const { lastUnlockedAchievement, acknowledgeAchievement } = useGameStore(state => ({
-        lastUnlockedAchievement: state.lastUnlockedAchievement,
-        acknowledgeAchievement: state.acknowledgeAchievement,
-    }));
+    // ✨ THE FIX: We now select each piece of state separately.
+    // This is a special Zustand trick that prevents the component from re-rendering
+    // unless these specific values change. It's much more efficient!
+    const lastUnlockedAchievement = useGameStore(state => state.lastUnlockedAchievement);
+    const acknowledgeAchievement = useGameStore(state => state.acknowledgeAchievement);
 
     useEffect(() => {
-        // If there's a newly unlocked achievement...
         if (lastUnlockedAchievement) {
-            // Find the achievement's data
             const ach = achievements.find(a => a.id === lastUnlockedAchievement);
             if (ach) {
-                // ...show the custom toast!
                 toast.custom(
                     (t) => (
                         <div
@@ -34,10 +30,10 @@ export function NotificationManager() {
                     { duration: 4000, position: 'bottom-right' }
                 );
             }
-            // IMPORTANT: Tell the store we've shown the notification so it doesn't show it again!
+            // IMPORTANT: Tell the store we've shown the notification.
             acknowledgeAchievement();
         }
-    }, [lastUnlockedAchievement, acknowledgeAchievement]); // This effect runs only when a new achievement is unlocked
+    }, [lastUnlockedAchievement, acknowledgeAchievement]);
 
     // This component renders nothing! It's just a manager.
     return null;

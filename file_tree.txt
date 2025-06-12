@@ -1,24 +1,26 @@
-File tree for: C:\Users\admin\projects\realmmaid_frontend
+File tree for: C:\Users\admin\Documents\GitHub\realmmaidfrontend
 
-├── realmmaid_frontend/
+├── realmmaidfrontend/
 │   ├── client
 │   └── file_tree.txt
 │   ├── client/
-│   │   ├── dist
 │   │   ├── public
 │   │   ├── src
 │   │   ├── index.html
 │   │   ├── package-lock.json
 │   │   ├── package.json
 │   │   └── vite.config.js
-│   │   ├── dist/
-│   │   │   ├── assets
-│   │   │   └── index.html
-│   │   │   ├── assets/
-│   │   │   │   ├── index-Bv03OH9e.css
-│   │   │   │   └── index-BW3O4cBO.js
 │   │   ├── public/
+│   │   │   ├── bb.png
+│   │   │   ├── beamslash.png
+│   │   │   ├── cc.png
+│   │   │   ├── dc.png
+│   │   │   ├── eds.png
 │   │   │   ├── goldenhelm.png
+│   │   │   ├── gs.png
+│   │   │   ├── hivehelm.png
+│   │   │   ├── hotgg.png
+│   │   │   ├── lumi.png
 │   │   │   ├── magicnovaspell.png
 │   │   │   ├── oryx.png
 │   │   │   ├── oryx2.png
@@ -26,24 +28,41 @@ File tree for: C:\Users\admin\projects\realmmaid_frontend
 │   │   │   ├── oryxdeath.mp3
 │   │   │   ├── oryxexalted.png
 │   │   │   ├── oryxhit.mp3
+│   │   │   ├── pkc.png
+│   │   │   ├── realm-of-the-mad-god-death-sound.mp3
 │   │   │   ├── ringofexaltedattack.png
 │   │   │   ├── ringofexalteddexterity.png
+│   │   │   ├── ringofunboundattack.png
+│   │   │   ├── ringofunbounddexterity.png
 │   │   │   ├── scepterofsskybolts.png
 │   │   │   ├── skysplittersword.png
+│   │   │   ├── soa.png
 │   │   │   ├── sorcerer.png
+│   │   │   ├── sos.png
+│   │   │   ├── sotcw.png
 │   │   │   ├── staffofastralknowledge.png
+│   │   │   ├── superior.png
 │   │   │   ├── wandofancientwarning.png
 │   │   │   ├── warrior.png
 │   │   │   ├── winecellar.png
-│   │   │   └── wizard.png
+│   │   │   ├── wizard.png
+│   │   │   ├── wizarddeath.mp3
+│   │   │   ├── woaw.png
+│   │   │   └── wor.png
 │   │   ├── src/
 │   │   │   ├── admin-dashboard-modules
 │   │   │   ├── api
 │   │   │   ├── components
 │   │   │   ├── contexts
+│   │   │   ├── data
 │   │   │   ├── hooks
 │   │   │   ├── pages
+│   │   │   ├── stores
+│   │   │   ├── utils
 │   │   │   ├── App.jsx
+│   │   │   ├── constants.js
+│   │   │   ├── EventBus.js
+│   │   │   ├── gameStore.js
 │   │   │   ├── index.css
 │   │   │   └── main.jsx
 │   │   │   ├── admin-dashboard-modules/
@@ -70,15 +89,44 @@ File tree for: C:\Users\admin\projects\realmmaid_frontend
 │   │   │   │   ├── ShoppingCart.jsx
 │   │   │   │   └── UserManagement.jsx
 │   │   │   │   ├── dashboard/
+│   │   │   │   │   ├── clicker
+│   │   │   │   │   ├── game
 │   │   │   │   │   ├── MyOrders.jsx
 │   │   │   │   │   ├── MyWishlist.jsx
 │   │   │   │   │   ├── OrderDetailsModal.jsx
 │   │   │   │   │   ├── PaymentMethods.jsx
+│   │   │   │   │   ├── PhaserGame.jsx
 │   │   │   │   │   ├── PixelClickerGame.jsx
-│   │   │   │   │   └── ProfileSettings.jsx
+│   │   │   │   │   ├── ProfileSettings.jsx
+│   │   │   │   │   └── SpaceDodgerGame.jsx
+│   │   │   │   │   ├── clicker/
+│   │   │   │   │   │   ├── AbilityBar.jsx
+│   │   │   │   │   │   ├── AchievementsList.jsx
+│   │   │   │   │   │   ├── Armory.jsx
+│   │   │   │   │   │   ├── BossDisplay.jsx
+│   │   │   │   │   │   ├── ClassSelection.jsx
+│   │   │   │   │   │   ├── GameContainer.jsx
+│   │   │   │   │   │   ├── Hud.jsx
+│   │   │   │   │   │   ├── Portal.jsx
+│   │   │   │   │   │   ├── PrestigeShop.jsx
+│   │   │   │   │   │   ├── ShopArea.jsx
+│   │   │   │   │   │   ├── TransitionalScreen.jsx
+│   │   │   │   │   │   ├── UpgradesShop.jsx
+│   │   │   │   │   │   ├── VictoryScreen.jsx
+│   │   │   │   │   │   └── WelcomeBackModal.jsx
+│   │   │   │   │   ├── game/
+│   │   │   │   │   │   └── MainScene.js
 │   │   │   ├── contexts/
 │   │   │   │   ├── CartContext.jsx
 │   │   │   │   └── WebSocketProvider.jsx
+│   │   │   ├── data/
+│   │   │   │   ├── abilities.js
+│   │   │   │   ├── achievements.js
+│   │   │   │   ├── bosses.js
+│   │   │   │   ├── classes.js
+│   │   │   │   ├── classUpgrades.js
+│   │   │   │   ├── prestigeUpgrades.js
+│   │   │   │   └── weapons.js
 │   │   │   ├── hooks/
 │   │   │   │   ├── useAuth.jsx
 │   │   │   │   ├── useChatSessions.js
@@ -103,3 +151,7 @@ File tree for: C:\Users\admin\projects\realmmaid_frontend
 │   │   │   │   ├── ResetPasswordPage.jsx
 │   │   │   │   ├── UserDashboardPage.css
 │   │   │   │   └── UserDashboardPage.jsx
+│   │   │   ├── stores/
+│   │   │   │   └── gameStore.jsx
+│   │   │   ├── utils/
+│   │   │   │   └── calculationUtils.js

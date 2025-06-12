@@ -23,9 +23,8 @@ import PaymentMethods from './components/dashboard/PaymentMethods.jsx';
 import MyWishlist from './components/dashboard/MyWishlist.jsx';
 import SpaceDodgerGame from './components/dashboard/SpaceDodgerGame.jsx';
 
-// --- THIS IS THE IMPORTANT PART ---
-// Import the main game controller component, not the PhaserGame canvas component.
-import PixelClickerGame from './components/dashboard/PixelClickerGame';
+// ✨ We now import the main GameContainer directly!
+import { GameContainer } from './components/dashboard/clicker/GameContainer';
 
 function App() {
   useEffect(() => {
@@ -44,6 +43,9 @@ function App() {
           <Route path="/please-verify" element={<PleaseVerifyPage />} />
         </Route>
         
+        {/* ✨ NEW: The game now has its own top-level, unprotected route for easy testing! */}
+        <Route path="/game" element={<GameContainer />} />
+
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<UserDashboardPage />}>
             <Route index element={<Navigate to="orders" replace />} />
@@ -52,8 +54,8 @@ function App() {
             <Route path="payments" element={<PaymentMethods />} />
             <Route path="wishlist" element={<MyWishlist />} />
             
-            {/* This route now correctly loads our main controller component for the game. */}
-            <Route path="game" element={<PixelClickerGame />} />
+            {/* The old route can be removed or kept, but /game is now our main testing ground */}
+            <Route path="game" element={<GameContainer />} />
 
           </Route>
           <Route path="/checkout" element={<CheckoutPage />} />
