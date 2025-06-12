@@ -21,13 +21,9 @@ import MyOrders from './components/dashboard/MyOrders.jsx';
 import ProfileSettings from './components/dashboard/ProfileSettings.jsx';
 import PaymentMethods from './components/dashboard/PaymentMethods.jsx';
 import MyWishlist from './components/dashboard/MyWishlist.jsx';
-import PixelClickerGame from './components/dashboard/PixelClickerGame.jsx';
+// We no longer need to import the old PixelClickerGame here.
+// import PixelClickerGame from './components/dashboard/PixelClickerGame.jsx';
 import SpaceDodgerGame from './components/dashboard/SpaceDodgerGame.jsx';
-
-// ✨ CHANGE 1: The lazy import is commented out. ✨
-// const PhaserGame = React.lazy(() => import('./components/dashboard/PhaserGame'));
-
-// ✨ CHANGE 2: A standard, static import is added. ✨
 import PhaserGame from './components/dashboard/PhaserGame';
 
 
@@ -38,7 +34,6 @@ function App() {
 
   return (
     <>
-      {/* ✨ CHANGE 3: The <Suspense> component is temporarily removed. ✨ */}
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route element={<MainLayout />}>
@@ -55,8 +50,12 @@ function App() {
                 <Route path="settings"element={<ProfileSettings />} />
                 <Route path="payments" element={<PaymentMethods />} />
                 <Route path="wishlist" element={<MyWishlist />} />
-                <Route path="game" element={<PixelClickerGame />} />
-                {/* This route now uses the statically imported game component */}
+                
+                {/* ✨ THIS IS THE CHANGE ✨ */}
+                {/* The "/game" route now loads our stable PhaserGame component */}
+                <Route path="game" element={<PhaserGame />} />
+                
+                {/* We can keep this route for testing or remove it later */}
                 <Route path="phasergame" element={<PhaserGame />} />
             </Route>
             <Route path="/checkout" element={<CheckoutPage />} />
