@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useGameStore } from '../../stores/gameStore.jsx';
+import { useGameStore } from '../../stores/gameStore.jsx'; // Make sure this has the .jsx extension
 import { Toaster } from 'react-hot-toast';
 
 // Import all the different 'screens' or 'views' that our game can be in.
@@ -11,30 +11,24 @@ import { TransitionalScreen } from './clicker/TransitionalScreen';
 import { WelcomeBackModal } from './clicker/WelcomeBackModal';
 
 function PixelClickerGame() {
-    // Select the state and actions that this top-level component needs to control the game's flow.
-    const {
-        gamePhase,
-        loadInitialState
-    } = useGameStore(state => ({
-        gamePhase: state.gamePhase,
-        loadInitialState: state.loadInitialState,
-    }));
+    // We only need to select the gamePhase here for rendering.
+    const gamePhase = useGameStore(state => state.gamePhase);
     
-    // This is a local React state. It's only used for managing the visibility of the
-    // "Welcome Back" modal and doesn't need to be in the global Zustand store.
+    // This is a local React state for managing the visibility of the modal.
     const [offlineProgress, setOfflineProgress] = useState(null);
 
     // This useEffect hook runs only ONCE when the component first mounts.
     useEffect(() => {
-        // We call the `loadInitialState` action from our store.
-        const progress = loadInitialState();
+        // THIS IS THE FIX:
+        // We call the action directly from the store's static `getState()` method.
+        // This ensures the function has the correct context and can access `get()` and `set()`.
+        const progress = useGameStore.getState().loadInitialState();
         
-        // If the action returns any offline progress data, we set it in our local state
-        // which will cause the WelcomeBackModal to appear.
+        // If the action returns any offline progress data, we set it in our local state.
         if (progress && progress.offlineEarnings > 0) {
             setOfflineProgress(progress);
         }
-    }, [loadInitialState]); // The dependency array ensures this runs only once.
+    }, []); // The empty dependency array ensures this runs only once.
     
     // This function acts as a router, rendering the correct component
     // based on the current `gamePhase` string from our Zustand store.
@@ -59,16 +53,13 @@ function PixelClickerGame() {
 
     return (
         <>
-            {/* The Toaster component from react-hot-toast for showing notifications. */}
             <Toaster position="top-right" reverseOrder={false} />
             
-            {/* The Welcome Back modal, which will only be visible if `offlineProgress` has data. */}
             <WelcomeBackModal
                 offlineProgress={offlineProgress}
                 onClose={() => setOfflineProgress(null)}
             />
 
-            {/* The main wrapper for our game's currently active screen. */}
             <div className="game-wrapper">
                 {renderGamePhase()}
             </div>
