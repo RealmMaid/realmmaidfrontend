@@ -12,6 +12,7 @@ import { prestigeUpgrades } from '../data/prestigeUpgrades';
 const defaultState = {
     score: 0,
     pointsPerSecond: 0,
+    lastUpdated: Date.now(), // <-- [NECESSARY CHANGE 1 of 3] Add this line to track time.
     currentBossIndex: 0,
     clicksOnCurrentBoss: 0,
     upgradesOwned: {},
@@ -133,6 +134,7 @@ export const useGameStore = create(
                 set(state => ({
                     score: state.score + fameToAdd,
                     totalFameEarned: state.totalFameEarned + fameToAdd,
+                    lastUpdated: Date.now(), // <-- [NECESSARY CHANGE 2 of 3] Update timestamp on activity.
                 }));
             },
             applyPoisonDamage: (damage) => set(state => ({ clicksOnCurrentBoss: state.clicksOnCurrentBoss + damage })),
@@ -195,3 +197,15 @@ export const useGameStore = create(
         }
     )
 );
+
+// [NECESSARY CHANGE 3 of 3] Add this exported function to the end of the file.
+export const getOfflineProgress = () => {
+    const { lastUpdated, pointsPerSecond } = useGameStore.getState();
+    if (!lastUpdated || !pointsPerSecond) return { fameEarned: 0, timeOffline: 0 };
+    const now = Date.now();
+    const timeOfflineInSeconds = Math.floor((now - lastUpdated) / 1000);
+    const maxOfflineTime = 24 * 60 * 60;
+    const effectiveTimeOffline = Math.min(timeOfflineInSeconds, maxOfflineTime);
+    const fameEarned = Math.floor(effectiveTimeOffline * pointsPerSecond);
+    return { fameEarned, timeOffline: effectiveTimeOffline };
+};
