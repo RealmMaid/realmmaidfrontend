@@ -1,21 +1,19 @@
+import React, { useEffect, useRef } from 'react';
+import Phaser from 'phaser'; // <-- The missing import is now here! ✨
+
 // --- PHASER SCENE DEFINITION ---
 class MainScene extends Phaser.Scene {
     constructor() {
         super({ key: 'MainScene' });
     }
 
-    // `init` is called when the scene starts. It's the perfect place
-    // to initialize our game state.
     init() {
         console.log("Phaser: Initializing game state...");
-        // We create a gameState object to hold all our variables.
-        // This replaces the `defaultState` from your old store.
         this.gameState = {
             score: 0,
             pointsPerSecond: 0,
             currentBossIndex: 0,
             clicksOnCurrentBoss: 0,
-            // We can add more properties here as we need them
         };
     }
 
@@ -29,10 +27,8 @@ class MainScene extends Phaser.Scene {
         
         this.add.image(400, 300, 'oryx1');
         
-        // Let's create a text object to display our score.
-        // We'll store it on the scene so we can update it later.
         this.scoreText = this.add.text(50, 50, `Fame: ${this.gameState.score}`, { 
-            font: '24px "Press Start 2P"', // Using your pixel font
+            font: '24px "Press Start 2P"',
             fill: '#ffffff' 
         });
     }
@@ -42,4 +38,43 @@ class MainScene extends Phaser.Scene {
     }
 }
 
-// ...The React component below this line stays the same...
+
+// --- REACT COMPONENT DEFINITION ---
+export function PhaserGame() {
+    const phaserRef = useRef(null);
+    const gameInstanceRef = useRef(null);
+
+    useEffect(() => {
+        if (!phaserRef.current) {
+            return;
+        }
+
+        const config = {
+            type: Phaser.AUTO,
+            width: 800,
+            height: 600,
+            parent: phaserRef.current,
+            backgroundColor: '#1a0922',
+            scene: [MainScene]
+        };
+
+        if (!gameInstanceRef.current) {
+            console.log("Initializing Phaser game...");
+            gameInstanceRef.current = new Phaser.Game(config);
+        }
+
+        return () => {
+            if (gameInstanceRef.current) {
+                console.log("Destroying Phaser game...");
+                gameInstanceRef.current.destroy(true);
+                gameInstanceRef.current = null;
+            }
+        };
+    }, []);
+
+    return (
+        <div ref={phaserRef} id="phaser-container" />
+    );
+}
+
+export default PhaserGame;
