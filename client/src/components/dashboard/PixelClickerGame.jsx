@@ -3,52 +3,50 @@ import { useGameStore } from '../../stores/gameStore';
 import { Toaster } from 'react-hot-toast';
 import EventBus from '../../EventBus';
 
-// Import your components from their correct sub-folders
+// Import your REAL components from their separate files
 import { GameContainer } from './clicker/GameContainer';
-import { ClassSelection } from './clicker/ClassSelection'; // <-- CORRECTED PATH
+import { ClassSelection } from './clicker/ClassSelection';
 import { WelcomeBackModal } from './clicker/WelcomeBackModal';
 
+// This is the main parent component for the game.
 export default function PixelClickerGame() {
-    // Get the playerClass to decide what to render, and the setScore action for our event listener
+    // Select state needed to decide what to render and actions to update state
     const { playerClass, setScore } = useGameStore(state => ({
         playerClass: state.playerClass,
         setScore: state.setScore,
     }));
 
-    // This local state manages the offline progress modal
+    // Local state for managing UI elements like the offline modal
     const [offlineProgress, setOfflineProgress] = useState(null);
-    // This local state prevents the game from rendering before saved data is loaded
     const [isLoaded, setIsLoaded] = useState(useGameStore.persist.hasHydrated);
 
-    // This useEffect hook sets up the event listener to get updates from Phaser
+    // This useEffect sets up the listener that connects Phaser to our React store
     useEffect(() => {
         const onScoreUpdate = (newScore) => {
-            // Update the Zustand store when Phaser emits a score update
+            // Update our Zustand store with the new score from the game
             setScore(newScore);
         };
 
-        // Listen for the 'scoreUpdated' event from our EventBus
+        // Start listening for the 'scoreUpdated' event from our EventBus
         EventBus.on('scoreUpdated', onScoreUpdate);
 
         // Cleanup function to remove the listener when the component unmounts
         return () => {
             EventBus.off('scoreUpdated', onScoreUpdate);
         };
-    }, [setScore]); // The dependency array ensures this setup only runs once
+    }, [setScore]); // Dependency array ensures this setup only runs once
 
-
-    // This effect handles the initial loading and offline progress
+    // This effect handles the initial loading and offline progress check
     useEffect(() => {
         const handleRehydration = () => {
-            // We need to define getOfflineProgress or import it if it's separate
             const getOfflineProgress = () => { 
                 const { lastUpdated, pointsPerSecond } = useGameStore.getState();
                 if (!lastUpdated || !pointsPerSecond) return { fameEarned: 0, timeOffline: 0 };
                 const now = Date.now();
                 const timeOfflineInSeconds = Math.floor((now - lastUpdated) / 1000);
-                const maxOfflineTime = 2 * 24 * 60 * 60;
+                const maxOfflineTime = 2 * 24 * 60 * 60; // 48 hours
                 const effectiveTimeOffline = Math.min(timeOfflineInSeconds, maxOfflineTime);
-                const fameEarned = Math.floor(effectiveTimeOffline * pointsPerSecond * 0.50);
+                const fameEarned = Math.floor(effectiveTimeOffline * pointsPerSecond * 0.50); // 50% efficiency
                 return { fameEarned, timeOffline: effectiveTimeOffline };
             };
             const progress = getOfflineProgress();
