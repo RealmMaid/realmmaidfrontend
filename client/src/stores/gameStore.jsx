@@ -44,6 +44,7 @@ const defaultState = {
     weaponUsageTime: {}, // Time is stored in milliseconds
     // --- End Stats Tracking ---
     unlockedAchievements: {},
+    lastUnlockedAchievement: null, // ✨ NEW: For safely triggering notifications
     hasPrestiged: false,
     lastSavedTimestamp: null,
     isMuted: false,
@@ -176,6 +177,8 @@ export const useGameStore = create(
                     const weapon = weapons.find(w => w.id === weaponId);
                     if (weapon) {
                         toast.success(`Equipped ${weapon.name}!`);
+                    } else if (weaponId === 'default') {
+                         toast.success(`Equipped Default Weapon!`);
                     }
                 } else {
                     toast.error("You haven't unlocked this weapon yet!");
@@ -386,19 +389,23 @@ export const useGameStore = create(
                 return bonuses;
             },
             
+            // ✨ UPDATED: This function is now safe!
             checkAchievements: () => {
                  const state = get();
                 achievements.forEach(ach => {
                     if (!state.unlockedAchievements[ach.id] && ach.isUnlocked(state)) {
-                        set(s => ({ unlockedAchievements: { ...s.unlockedAchievements, [ach.id]: true } }));
-                        toast.custom(t => (
-                            <div className={`achievement-alert ${t.visible ? 'animate-enter' : 'animate-leave'}`} onClick={() => toast.dismiss(t.id)}>
-                                <strong>🏆 Achievement Unlocked!</strong>
-                                <p>{ach.name}</p>
-                            </div>
-                        ), { duration: 4000 });
+                        // It no longer calls toast, just sets the state.
+                        set(s => ({ 
+                            unlockedAchievements: { ...s.unlockedAchievements, [ach.id]: true },
+                            lastUnlockedAchievement: ach.id,
+                        }));
                     }
                 });
+            },
+            
+            // ✨ NEW: An action to clear the notification after it has been shown
+            acknowledgeAchievement: () => {
+                set({ lastUnlockedAchievement: null });
             },
             
             toggleMute: () => set(state => ({ isMuted: !state.isMuted })),
