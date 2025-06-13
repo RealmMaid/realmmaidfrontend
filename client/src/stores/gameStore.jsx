@@ -86,6 +86,7 @@ export const useGameStore = create(
 
             gameTick: (delta) => {
                 const state = get();
+                // ✨ FIX: Add guards to ensure we don't run logic before the game is ready.
                 if (state.gamePhase !== 'clicking' || !state.currentBossId) return;
 
                 const currentBoss = bosses.find(b => b.id === state.currentBossId);
@@ -94,6 +95,7 @@ export const useGameStore = create(
                 const deltaSeconds = delta / 1000;
 
                 if (state.isHealing) {
+                    // Optional chaining on healThresholds for safety
                     const healInfo = currentBoss.healThresholds?.find(h => h.percent >= (1 - (state.clicksOnCurrentBoss / currentBoss.clickThreshold)) * 100);
                     const healAmount = (healInfo?.amount || currentBoss.clickThreshold * 0.1) / 5 * deltaSeconds;
                     set(s => ({
@@ -131,7 +133,7 @@ export const useGameStore = create(
                     };
                 });
                 
-                // ✨ FIX: Check if healThresholds exists before trying to access it.
+                // ✨ FIX: Check if healThresholds exists before trying to access its length.
                 if (currentBoss.healThresholds && currentBoss.healThresholds.length > 0) {
                     const healthPercent = (state.clicksOnCurrentBoss / currentBoss.clickThreshold) * 100;
                     for (let i = 0; i < currentBoss.healThresholds.length; i++) {
@@ -352,6 +354,7 @@ export const useGameStore = create(
                 });
 
                 const currentBoss = bosses.find(b => b.id === state.currentBossId);
+                // ✨ FIX: Use optional chaining to safely access temporaryUpgrades.
                 if (currentBoss?.temporaryUpgrades) {
                     currentBoss.temporaryUpgrades.forEach(tmpUp => {
                         const owned = state.temporaryUpgradesOwned[tmpUp.id] || 0;
