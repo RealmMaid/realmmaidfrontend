@@ -89,7 +89,8 @@ export const useGameStore = create(
 
             gameTick: (delta) => {
                 const state = get();
-                if (state.gamePhase !== 'clicking') return;
+                // ✨ FIX: Add guards to ensure we don't run logic before the game is ready.
+                if (state.gamePhase !== 'clicking' || !state.currentBossId) return;
 
                 const currentBoss = bosses.find(b => b.id === state.currentBossId);
                 if (!currentBoss) return;
@@ -109,8 +110,11 @@ export const useGameStore = create(
                     return;
                 }
                 
+                // ✨ FIX: Use get() to ensure we can always call other store functions.
                 const specialItemBonuses = get().calculateSpecialItemBonuses();
-                const fameThisTick = state.famePerSecond * deltaSeconds * state.calculateAchievementBonuses().fameMultiplier * specialItemBonuses.fpsMultiplier;
+                const achievementBonuses = get().calculateAchievementBonuses();
+                
+                const fameThisTick = state.famePerSecond * deltaSeconds * achievementBonuses.fameMultiplier * specialItemBonuses.fpsMultiplier;
                 const damageFromDps = state.pointsPerSecond * deltaSeconds * specialItemBonuses.dpsMultiplier;
                 const poisonDps = state.poison.stacks * (1 + Math.floor(state.bossCycleIndex * 1.5)) * deltaSeconds;
 
@@ -164,7 +168,7 @@ export const useGameStore = create(
 
             checkBossDefeat: () => {
                 const state = get();
-                if (state.gamePhase !== 'clicking') return;
+                if (state.gamePhase !== 'clicking' || !state.currentBossId) return;
 
                 const currentBoss = bosses.find(b => b.id === state.currentBossId);
                 if (!currentBoss || state.clicksOnCurrentBoss < currentBoss.clickThreshold) return;
@@ -237,7 +241,7 @@ export const useGameStore = create(
                             return;
                         }
                         const slamDamage = Math.floor(state.pointsPerSecond * 30);
-                        const fameFromSlam = Math.floor(slamDamage * state.calculateAchievementBonuses().fameMultiplier);
+                        const fameFromSlam = Math.floor(slamDamage * get().calculateAchievementBonuses().fameMultiplier);
                         set(s => ({
                             score: s.score + fameFromSlam,
                             clicksOnCurrentBoss: s.clicksOnCurrentBoss + slamDamage
@@ -267,7 +271,7 @@ export const useGameStore = create(
                             toast('Poison surges!', { icon: '☠️' });
                         } else {
                             const flatDamage = 5000 * (1 + state.bossCycleIndex);
-                            const fameFromAbility = Math.floor(flatDamage * state.calculateAchievementBonuses().fameMultiplier);
+                            const fameFromAbility = Math.floor(flatDamage * get().calculateAchievementBonuses().fameMultiplier);
                             set(s => ({
                                 score: s.score + fameFromAbility,
                                 clicksOnCurrentBoss: s.clicksOnCurrentBoss + flatDamage
@@ -287,7 +291,10 @@ export const useGameStore = create(
                 const state = get();
                 const owned = state.upgradesOwned[upgrade.id] || 0;
                 const cost = Math.floor(upgrade.cost * Math.pow(1.15, owned));
-                if (state.score < cost) return;
+                if (state.score < cost) {
+                    toast.error("Not enough Fame!");
+                    return;
+                }
 
                 let fameBonus = 0;
                 let dpsBonus = 0;
@@ -309,8 +316,10 @@ export const useGameStore = create(
                 const state = get();
                 const owned = state.temporaryUpgradesOwned[upgrade.id] || 0;
                 const cost = Math.floor(upgrade.cost * Math.pow(1.25, owned));
-                if (state.score < cost) return;
-
+                if (state.score < cost) {
+                    toast.error("Not enough Fame!");
+                    return;
+                }
                 set(s => ({
                     score: s.score - cost,
                     temporaryUpgradesOwned: { ...s.temporaryUpgradesOwned, [upgrade.id]: owned + 1 },
@@ -321,8 +330,10 @@ export const useGameStore = create(
                 const state = get();
                 const owned = state.prestigeUpgradesOwned[upgrade.id] || 0;
                 const cost = Math.floor(upgrade.cost * Math.pow(1.5, owned));
-                if (state.exaltedShards < cost) return;
-
+                if (state.exaltedShards < cost) {
+                    toast.error("Not enough Exalted Shards!");
+                    return;
+                }
                 set(s => ({
                     exaltedShards: s.exaltedShards - cost,
                     prestigeUpgradesOwned: { ...s.prestigeUpgradesOwned, [upgrade.id]: owned + 1 },
@@ -331,8 +342,10 @@ export const useGameStore = create(
 
             handleUnlockWeapon: (weapon) => {
                 const state = get();
-                if (state.exaltedShards < weapon.cost) return;
-
+                if (state.exaltedShards < weapon.cost) {
+                    toast.error("Not enough Exalted Shards!");
+                    return;
+                }
                 set(s => ({
                     exaltedShards: s.exaltedShards - weapon.cost,
                     unlockedWeapons: { ...s.unlockedWeapons, [weapon.id]: true },
@@ -366,9 +379,12 @@ export const useGameStore = create(
 
             calculateDamageRange: () => {
                 const state = get();
+                // ✨ FIX: Add a guard to ensure we don't calculate before the game is ready.
+                if (!state.playerClass || !state.currentBossId) return { minDamage: 1, maxDamage: 1 };
+                
                 const specialItemBonuses = get().calculateSpecialItemBonuses();
                 let minDamage = 1, maxDamage = 1;
-                const bonuses = state.calculateAchievementBonuses();
+                const bonuses = get().calculateAchievementBonuses();
                 const stageKey = `stage${Math.min(state.bossCycleIndex + 1, 3)}`;
                 const currentUpgrades = classUpgrades[stageKey]?.[state.playerClass] || [];
 
@@ -411,6 +427,24 @@ export const useGameStore = create(
                 return { minDamage: Math.floor(minDamage), maxDamage: Math.floor(maxDamage) };
             },
             
+            calculateAchievementBonuses: () => {
+                const state = get();
+                const unlocked = state.unlockedAchievements;
+                const bonuses = { clickDamageMultiplier: 1, fameMultiplier: 1, shardMultiplier: 1, clickDamageFlat: 0 };
+            
+                achievements.forEach(ach => {
+                    if (unlocked[ach.id]) {
+                        switch (ach.reward.type) {
+                            case 'CLICK_DAMAGE_MULTIPLIER': bonuses.clickDamageMultiplier += ach.reward.value; break;
+                            case 'FAME_MULTIPLIER': bonuses.fameMultiplier += ach.reward.value; break;
+                            case 'CLICK_DAMAGE_FLAT': bonuses.clickDamageFlat += ach.reward.value; break;
+                            case 'SHARD_MULTIPLIER': bonuses.shardMultiplier += ach.reward.value; break;
+                        }
+                    }
+                });
+                return bonuses;
+            },
+
             checkAchievements: () => {
                 const state = get();
                 achievements.forEach(ach => {
