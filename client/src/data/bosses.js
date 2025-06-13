@@ -1,4 +1,24 @@
 export const bosses = [
+            {
+        id: 'ghost_king',
+        name: 'Ghost King',
+        images: ['/ghostking.png'], // You'll need to add this image!
+        clickThreshold: 25000,
+        isMiniBoss: true,
+        lootTable: [
+            { itemId: 'wizard_spellbook_of_ages', chance: 0.1 }
+        ]
+    },
+    {
+        id: 'skull_shrine',
+        name: 'Skull Shrine',
+        images: ['/skullshrine.png'], // You'll need to add this image!
+        clickThreshold: 10000,
+        isMiniBoss: true,
+        lootTable: [
+            { itemId: 'warrior_tome_of_might', chance: 0.1 } // 10% chance
+        ]
+    },
     {
         id: 'oryx1',
         name: 'Oryx the Mad God',
