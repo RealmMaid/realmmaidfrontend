@@ -9,66 +9,52 @@ import toast from 'react-hot-toast';
  * This is the main interactive element of the game.
  */
 export function BossDisplay() {
-    // ✨ THE FIX: We select each piece of state individually.
-    // This is a best practice with Zustand and prevents the component from
-    // re-rendering unnecessarily when other parts of the store change (like the score).
+    // Select the state we need. We now use currentBossId!
     const gamePhase = useGameStore(state => state.gamePhase);
-    const currentBossIndex = useGameStore(state => state.currentBossIndex);
+    const currentBossId = useGameStore(state => state.currentBossId); // ✨ NEW
     const clicksOnCurrentBoss = useGameStore(state => state.clicksOnCurrentBoss);
     const isHealing = useGameStore(state => state.isHealing);
     const isInvulnerable = useGameStore(state => state.isInvulnerable);
-    const equippedWeapon = useGameStore(state => state.equippedWeapon);
-    const poison = useGameStore(state => state.poison);
-    const activeBuffs = useGameStore(state => state.activeBuffs);
-
-    // We also select actions we need to call.
+    
+    // Actions
     const playSound = useGameStore(state => state.playSound);
     const calculateDamageRange = useGameStore(state => state.calculateDamageRange);
     const applyClick = useGameStore(state => state.applyClick);
-    const setPoison = useGameStore(state => state.setPoison);
 
-    // State for purely visual things is still managed locally.
     const [floatingNumbers, setFloatingNumbers] = useState([]);
     const [isShaking, setIsShaking] = useState(false);
     const gemButtonRef = useRef(null);
 
-    // useMemo helps prevent recalculating the current boss on every render.
-    const currentBoss = useMemo(() => bosses[currentBossIndex], [currentBossIndex]);
+    // ✨ UPDATED: Find the current boss object using the ID from the store.
+    const currentBoss = useMemo(() => bosses.find(b => b.id === currentBossId), [currentBossId]);
 
     const handleGemClick = (event) => {
         if (gamePhase !== 'clicking' || isHealing || isInvulnerable) return;
+        
+        // Safety check in case the boss isn't found
+        if (!currentBoss) return;
 
-        playSound(currentBoss.clickSound, 0.5);
-        let { minDamage, maxDamage } = calculateDamageRange();
-        let damageDealt = Math.floor(Math.random() * (maxDamage - minDamage + 1)) + minDamage;
-        let fameEarned = damageDealt; // Base fame is equal to damage dealt
-
-        // Apply weapon effects
-        if (equippedWeapon === 'executioners_axe' && Math.random() < 0.10) {
-            damageDealt *= 10;
-            toast('CRITICAL HIT!', { icon: '💥', duration: 1000 });
-        }
-        if (equippedWeapon === 'golden_rapier') {
-            fameEarned *= 1.25;
-        }
-        if (equippedWeapon === 'stacking_vipers') {
-            setPoison({ stacks: poison.stacks + 1, lastApplied: Date.now() });
+        if (currentBoss.clickSound) {
+            playSound(currentBoss.clickSound, 0.5);
         }
         
-        // Calculate final fame including achievement bonuses
+        let { minDamage, maxDamage } = calculateDamageRange();
+        let damageDealt = Math.floor(Math.random() * (maxDamage - minDamage + 1)) + minDamage;
+        let fameEarned = damageDealt;
+
+        // Weapon effects could be expanded here...
+        
         const bonuses = useGameStore.getState().calculateAchievementBonuses();
         fameEarned = Math.floor(fameEarned * bonuses.fameMultiplier);
         
-        // Call the main action in the store to apply damage and fame
         applyClick(damageDealt, fameEarned);
 
-        // Handle the visual feedback here in the component
         const rect = event.currentTarget.getBoundingClientRect();
         setFloatingNumbers(current => [
             ...current,
             {
                 id: uuidv4(),
-                value: damageDealt, // Show damage dealt, not fame earned
+                value: damageDealt,
                 x: rect.left + rect.width / 2 + (Math.random() * 80 - 40),
                 y: rect.top + (Math.random() * 20 - 10),
             }
@@ -92,7 +78,10 @@ export function BossDisplay() {
         return 100 - percent;
     };
 
-    if (!currentBoss) return <div>Loading Boss...</div>;
+    // ✨ NEW: A safety guard for when the game is loading.
+    if (!currentBoss) {
+        return <div>Loading Boss...</div>;
+    }
 
     return (
         <>
