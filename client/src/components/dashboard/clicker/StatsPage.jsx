@@ -1,7 +1,6 @@
 import React from 'react';
 import { useGameStore } from '../../../stores/gameStore';
 import { weapons } from '../../../data/weapons';
-import { bosses } from '../../../data/bosses';
 
 // A cute little component for each stat!
 const StatItem = ({ label, value, icon }) => (
@@ -21,18 +20,13 @@ const StatItem = ({ label, value, icon }) => (
 );
 
 export function StatsPage() {
-    // Select all the stats we need from the store
-    const {
-        totalFameEarned,
-        totalClicks,
-        bossesDefeated,
-        weaponUsageTime,
-    } = useGameStore(state => ({
-        totalFameEarned: state.totalFameEarned,
-        totalClicks: state.totalClicks,
-        bossesDefeated: state.bossesDefeated,
-        weaponUsageTime: state.weaponUsageTime,
-    }));
+    // ✨ THE FIX: We now select each piece of state individually.
+    // This is a special Zustand trick that prevents the component from re-rendering
+    // unless one of these *specific* values changes. It's much more efficient and stable!
+    const totalFameEarned = useGameStore(state => state.totalFameEarned);
+    const totalClicks = useGameStore(state => state.totalClicks);
+    const bossesDefeated = useGameStore(state => state.bossesDefeated);
+    const weaponUsageTime = useGameStore(state => state.weaponUsageTime);
 
     // Calculate total number of bosses defeated
     const totalBossesDefeated = Object.values(bossesDefeated).reduce((sum, count) => sum + count, 0);
