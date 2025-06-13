@@ -55,10 +55,7 @@ export const useGameStore = create(
         (set, get) => ({
             ...defaultState,
 
-            // =======================================
-            // Main Game Actions
-            // =======================================
-
+            // All the other functions are the same!
             handleClassSelect: (className) => {
                 const state = get();
                 const firstBossId = state.bossCycle[0];
@@ -86,7 +83,6 @@ export const useGameStore = create(
 
             gameTick: (delta) => {
                 const state = get();
-                // ✨ FIX: Add guards to ensure we don't run logic before the game is ready.
                 if (state.gamePhase !== 'clicking' || !state.currentBossId) return;
 
                 const currentBoss = bosses.find(b => b.id === state.currentBossId);
@@ -132,7 +128,6 @@ export const useGameStore = create(
                     };
                 });
                 
-                // ✨ FIX: Check if healThresholds exists before trying to access its length.
                 if (currentBoss.healThresholds && currentBoss.healThresholds.length > 0) {
                     const healthPercent = (state.clicksOnCurrentBoss / currentBoss.clickThreshold) * 100;
                     for (let i = 0; i < currentBoss.healThresholds.length; i++) {
@@ -336,7 +331,6 @@ export const useGameStore = create(
 
             calculateDamageRange: () => {
                 const state = get();
-                // ✨ FIX: Add a guard to ensure we don't calculate before the game is ready.
                 if (!state.playerClass || !state.currentBossId) return { minDamage: 1, maxDamage: 1 };
                 
                 const specialItemBonuses = get().calculateSpecialItemBonuses();
@@ -354,7 +348,6 @@ export const useGameStore = create(
                 });
 
                 const currentBoss = bosses.find(b => b.id === state.currentBossId);
-                // ✨ FIX: Use optional chaining to safely access temporaryUpgrades.
                 if (currentBoss?.temporaryUpgrades) {
                     currentBoss.temporaryUpgrades.forEach(tmpUp => {
                         const owned = state.temporaryUpgradesOwned[tmpUp.id] || 0;
@@ -419,6 +412,21 @@ export const useGameStore = create(
                 }
             },
             setPoison: (newPoisonState) => set({ poison: newPoisonState }),
+
+            // ✨ NEW: The reset function!
+            resetGame: () => {
+                // We keep some things like prestige upgrades and unlocked weapons.
+                const state = get();
+                const prestigeState = {
+                    prestigeUpgradesOwned: state.prestigeUpgradesOwned,
+                    unlockedWeapons: state.unlockedWeapons,
+                    hasPrestiged: state.hasPrestiged
+                };
+                
+                // Reset everything else to default, but keep the prestige stuff.
+                set({ ...defaultState, ...prestigeState });
+                toast.success("Your progress has been reset!");
+            }
         }),
         {
             name: 'realmmaid-clicker-save',
