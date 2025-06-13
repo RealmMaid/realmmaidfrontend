@@ -10,9 +10,6 @@ import { weapons } from '../data/weapons';
 import { prestigeUpgrades } from '../data/prestigeUpgrades';
 import { abilities } from '../data/abilities';
 
-/**
- * The default state for the game.
- */
 const defaultState = {
     score: 0,
     uncollectedFame: 0.0,
@@ -89,7 +86,6 @@ export const useGameStore = create(
 
             gameTick: (delta) => {
                 const state = get();
-                // ✨ FIX: Add guards to ensure we don't run logic before the game is ready.
                 if (state.gamePhase !== 'clicking' || !state.currentBossId) return;
 
                 const currentBoss = bosses.find(b => b.id === state.currentBossId);
@@ -98,7 +94,7 @@ export const useGameStore = create(
                 const deltaSeconds = delta / 1000;
 
                 if (state.isHealing) {
-                    const healInfo = currentBoss.healThresholds.find(h => h.percent >= (1 - (state.clicksOnCurrentBoss / currentBoss.clickThreshold)) * 100);
+                    const healInfo = currentBoss.healThresholds?.find(h => h.percent >= (1 - (state.clicksOnCurrentBoss / currentBoss.clickThreshold)) * 100);
                     const healAmount = (healInfo?.amount || currentBoss.clickThreshold * 0.1) / 5 * deltaSeconds;
                     set(s => ({
                         clicksOnCurrentBoss: Math.max(0, s.clicksOnCurrentBoss - healAmount),
@@ -110,7 +106,6 @@ export const useGameStore = create(
                     return;
                 }
                 
-                // ✨ FIX: Use get() to ensure we can always call other store functions.
                 const specialItemBonuses = get().calculateSpecialItemBonuses();
                 const achievementBonuses = get().calculateAchievementBonuses();
                 
@@ -135,19 +130,22 @@ export const useGameStore = create(
                         },
                     };
                 });
-
-                const healthPercent = (state.clicksOnCurrentBoss / currentBoss.clickThreshold) * 100;
-                for (let i = 0; i < currentBoss.healThresholds.length; i++) {
-                    const threshold = currentBoss.healThresholds[i];
-                    if (!state.triggeredHeals[currentBoss.id + i] && healthPercent >= threshold.percent) {
-                        set(s => ({
-                            isHealing: true,
-                            isInvulnerable: true,
-                            healTimer: 5000,
-                            triggeredHeals: { ...s.triggeredHeals, [currentBoss.id + i]: true },
-                        }));
-                        toast.error(`${currentBoss.name} is healing!`, { icon: '💔' });
-                        break;
+                
+                // ✨ FIX: Check if healThresholds exists before trying to access it.
+                if (currentBoss.healThresholds && currentBoss.healThresholds.length > 0) {
+                    const healthPercent = (state.clicksOnCurrentBoss / currentBoss.clickThreshold) * 100;
+                    for (let i = 0; i < currentBoss.healThresholds.length; i++) {
+                        const threshold = currentBoss.healThresholds[i];
+                        if (!state.triggeredHeals[currentBoss.id + i] && healthPercent >= threshold.percent) {
+                            set(s => ({
+                                isHealing: true,
+                                isInvulnerable: true,
+                                healTimer: 5000,
+                                triggeredHeals: { ...s.triggeredHeals, [currentBoss.id + i]: true },
+                            }));
+                            toast.error(`${currentBoss.name} is healing!`, { icon: '💔' });
+                            break;
+                        }
                     }
                 }
 
@@ -190,7 +188,6 @@ export const useGameStore = create(
                 }
 
                 set(s => ({ bossesDefeated: { ...s.bossesDefeated, [currentBoss.id]: (s.bossesDefeated[currentBoss.id] || 0) + 1 } }));
-
                 set({ gamePhase: 'transitioning' });
                 get().checkAchievements();
             },
@@ -210,19 +207,11 @@ export const useGameStore = create(
                 });
             },
 
-            // =======================================
-            // Abilities & Weapons
-            // =======================================
             setEquippedWeapon: (weaponId) => {
-                const state = get();
-                if (state.unlockedWeapons[weaponId] || weaponId === 'default') {
+                if (get().unlockedWeapons[weaponId] || weaponId === 'default') {
                     set({ equippedWeapon: weaponId });
                     const weapon = weapons.find(w => w.id === weaponId);
-                    if (weapon) {
-                        toast.success(`Equipped ${weapon.name}!`);
-                    } else if (weaponId === 'default') {
-                        toast.success(`Equipped Default Weapon!`);
-                    }
+                    toast.success(`Equipped ${weapon ? weapon.name : 'Default Weapon'}!`);
                 } else {
                     toast.error("You haven't unlocked this weapon yet!");
                 }
@@ -242,40 +231,28 @@ export const useGameStore = create(
                         }
                         const slamDamage = Math.floor(state.pointsPerSecond * 30);
                         const fameFromSlam = Math.floor(slamDamage * get().calculateAchievementBonuses().fameMultiplier);
-                        set(s => ({
-                            score: s.score + fameFromSlam,
-                            clicksOnCurrentBoss: s.clicksOnCurrentBoss + slamDamage
-                        }));
+                        set(s => ({ score: s.score + fameFromSlam, clicksOnCurrentBoss: s.clicksOnCurrentBoss + slamDamage }));
                         toast.success('SLAM!', { icon: '💥' });
                         break;
                     }
                     case 'arcane_power': {
-                        set(s => ({
-                            activeBuffs: { ...s.activeBuffs, [ability.id]: { expiresAt: now + 10000 } }
-                        }));
+                        set(s => ({ activeBuffs: { ...s.activeBuffs, [ability.id]: { expiresAt: now + 10000 } } }));
                         toast('Arcane Power surges!', { icon: '✨' });
                         break;
                     }
                     case 'armor_break': { 
-                        set(s => ({
-                            activeDebuffs: { ...s.activeDebuffs, vulnerable: { expiresAt: now + 5000 } }
-                        }));
+                        set(s => ({ activeDebuffs: { ...s.activeDebuffs, vulnerable: { expiresAt: now + 5000 } } }));
                         toast.success('Armor Broken!', { icon: '🛡️' });
                         break;
                     }
                     case 'virulent_outbreak': {
                         if (state.equippedWeapon === 'stacking_vipers') {
-                            set(s => ({
-                                poison: { stacks: s.poison.stacks + 50, lastApplied: now }
-                            }));
+                            set(s => ({ poison: { stacks: s.poison.stacks + 50, lastApplied: now } }));
                             toast('Poison surges!', { icon: '☠️' });
                         } else {
                             const flatDamage = 5000 * (1 + state.bossCycleIndex);
                             const fameFromAbility = Math.floor(flatDamage * get().calculateAchievementBonuses().fameMultiplier);
-                            set(s => ({
-                                score: s.score + fameFromAbility,
-                                clicksOnCurrentBoss: s.clicksOnCurrentBoss + flatDamage
-                            }));
+                            set(s => ({ score: s.score + fameFromAbility, clicksOnCurrentBoss: s.clicksOnCurrentBoss + flatDamage }));
                             toast.success('Affliction strikes!', { icon: '☣️' });
                         }
                         break;
@@ -284,9 +261,6 @@ export const useGameStore = create(
                 set(s => ({ abilityCooldowns: { ...s.abilityCooldowns, [abilityId]: now + ability.cooldown * 1000 } }));
             },
 
-            // =======================================
-            // Upgrades & Shops
-            // =======================================
             handleBuyUpgrade: (upgrade) => {
                 const state = get();
                 const owned = state.upgradesOwned[upgrade.id] || 0;
@@ -295,7 +269,6 @@ export const useGameStore = create(
                     toast.error("Not enough Fame!");
                     return;
                 }
-
                 let fameBonus = 0;
                 let dpsBonus = 0;
                 if (upgrade.type === 'perSecond') {
@@ -304,12 +277,7 @@ export const useGameStore = create(
                 } else if (upgrade.type === 'perClick') {
                     fameBonus += ((upgrade.maxBonus || upgrade.clickBonus || 0) * 0.05);
                 }
-                set(s => ({
-                    score: s.score - cost,
-                    upgradesOwned: { ...s.upgradesOwned, [upgrade.id]: owned + 1 },
-                    famePerSecond: s.famePerSecond + fameBonus,
-                    pointsPerSecond: s.pointsPerSecond + dpsBonus,
-                }));
+                set(s => ({ score: s.score - cost, upgradesOwned: { ...s.upgradesOwned, [upgrade.id]: owned + 1 }, famePerSecond: s.famePerSecond + fameBonus, pointsPerSecond: s.pointsPerSecond + dpsBonus }));
             },
 
             handleBuyTemporaryUpgrade: (upgrade) => {
@@ -320,10 +288,7 @@ export const useGameStore = create(
                     toast.error("Not enough Fame!");
                     return;
                 }
-                set(s => ({
-                    score: s.score - cost,
-                    temporaryUpgradesOwned: { ...s.temporaryUpgradesOwned, [upgrade.id]: owned + 1 },
-                }));
+                set(s => ({ score: s.score - cost, temporaryUpgradesOwned: { ...s.temporaryUpgradesOwned, [upgrade.id]: owned + 1 } }));
             },
             
             handleBuyPrestigeUpgrade: (upgrade) => {
@@ -334,10 +299,7 @@ export const useGameStore = create(
                     toast.error("Not enough Exalted Shards!");
                     return;
                 }
-                set(s => ({
-                    exaltedShards: s.exaltedShards - cost,
-                    prestigeUpgradesOwned: { ...s.prestigeUpgradesOwned, [upgrade.id]: owned + 1 },
-                }));
+                set(s => ({ exaltedShards: s.exaltedShards - cost, prestigeUpgradesOwned: { ...s.prestigeUpgradesOwned, [upgrade.id]: owned + 1 } }));
             },
 
             handleUnlockWeapon: (weapon) => {
@@ -346,16 +308,10 @@ export const useGameStore = create(
                     toast.error("Not enough Exalted Shards!");
                     return;
                 }
-                set(s => ({
-                    exaltedShards: s.exaltedShards - weapon.cost,
-                    unlockedWeapons: { ...s.unlockedWeapons, [weapon.id]: true },
-                }));
+                set(s => ({ exaltedShards: s.exaltedShards - weapon.cost, unlockedWeapons: { ...s.unlockedWeapons, [weapon.id]: true } }));
                 toast.success(`Unlocked ${weapon.name}!`);
             },
 
-            // =======================================
-            // Calculations & Checks
-            // =======================================
             calculateSpecialItemBonuses: () => {
                 const state = get();
                 const bonuses = { clickDamageMultiplier: 1, fpsMultiplier: 1, dpsMultiplier: 1 };
@@ -379,7 +335,6 @@ export const useGameStore = create(
 
             calculateDamageRange: () => {
                 const state = get();
-                // ✨ FIX: Add a guard to ensure we don't calculate before the game is ready.
                 if (!state.playerClass || !state.currentBossId) return { minDamage: 1, maxDamage: 1 };
                 
                 const specialItemBonuses = get().calculateSpecialItemBonuses();
@@ -391,13 +346,8 @@ export const useGameStore = create(
                 currentUpgrades.forEach(up => {
                     const owned = state.upgradesOwned[up.id] || 0;
                     if (owned > 0) {
-                        if (up.type === 'perClick') {
-                            minDamage += (up.minBonus || 0) * owned;
-                            maxDamage += (up.maxBonus || 0) * owned;
-                        } else if (up.clickBonus) {
-                            minDamage += up.clickBonus * owned;
-                            maxDamage += up.clickBonus * owned;
-                        }
+                        if (up.type === 'perClick') { minDamage += (up.minBonus || 0) * owned; maxDamage += (up.maxBonus || 0) * owned; } 
+                        else if (up.clickBonus) { minDamage += up.clickBonus * owned; maxDamage += up.clickBonus * owned; }
                     }
                 });
 
@@ -431,7 +381,6 @@ export const useGameStore = create(
                 const state = get();
                 const unlocked = state.unlockedAchievements;
                 const bonuses = { clickDamageMultiplier: 1, fameMultiplier: 1, shardMultiplier: 1, clickDamageFlat: 0 };
-            
                 achievements.forEach(ach => {
                     if (unlocked[ach.id]) {
                         switch (ach.reward.type) {
@@ -449,17 +398,11 @@ export const useGameStore = create(
                 const state = get();
                 achievements.forEach(ach => {
                     if (!state.unlockedAchievements[ach.id] && ach.isUnlocked(state)) {
-                        set(s => ({
-                            unlockedAchievements: { ...s.unlockedAchievements, [ach.id]: true },
-                            lastUnlockedAchievement: ach.id,
-                        }));
+                        set(s => ({ unlockedAchievements: { ...s.unlockedAchievements, [ach.id]: true }, lastUnlockedAchievement: ach.id }));
                     }
                 });
             },
             
-            // =======================================
-            // Utility Actions
-            // =======================================
             acknowledgeAchievement: () => { set({ lastUnlockedAchievement: null }); },
             toggleMute: () => set(state => ({ isMuted: !state.isMuted })),
             playSound: (soundUrl, volume = 1.0) => {
