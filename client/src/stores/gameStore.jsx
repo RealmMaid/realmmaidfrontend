@@ -95,7 +95,6 @@ export const useGameStore = create(
                 const deltaSeconds = delta / 1000;
 
                 if (state.isHealing) {
-                    // Optional chaining on healThresholds for safety
                     const healInfo = currentBoss.healThresholds?.find(h => h.percent >= (1 - (state.clicksOnCurrentBoss / currentBoss.clickThreshold)) * 100);
                     const healAmount = (healInfo?.amount || currentBoss.clickThreshold * 0.1) / 5 * deltaSeconds;
                     set(s => ({
@@ -337,6 +336,7 @@ export const useGameStore = create(
 
             calculateDamageRange: () => {
                 const state = get();
+                // ✨ FIX: Add a guard to ensure we don't calculate before the game is ready.
                 if (!state.playerClass || !state.currentBossId) return { minDamage: 1, maxDamage: 1 };
                 
                 const specialItemBonuses = get().calculateSpecialItemBonuses();
